@@ -14,6 +14,10 @@ import tensorflow as tf
 from tensorflow import keras
 from category_encoders import CountEncoder
 
+def load_data(folder, file):
+        filename = os.path.join(folder, file)
+        return pd.read_csv(filename, index_col = 'Id')
+
 def process(train_data, test_data, standardization, logarithmic, count_encoding):
     # columns with NaN-values in train and test set
     train_nan = {col : train_data[col].isna().sum() for col in train_data.columns if train_data[col].isna().sum() > 0}
