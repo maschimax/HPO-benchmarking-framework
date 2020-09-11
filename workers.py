@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import pandas as pd
 from math import sqrt
 
 from hpbandster.core.worker import Worker
@@ -7,6 +8,7 @@ import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
@@ -41,7 +43,7 @@ class RandomForestWorker(Worker):
         time.sleep(self.sleep_interval)
 
         return ({'loss': val_loss,
-                 'info': {'validation_accuracy': val_loss}})
+                 'info': {'validation_loss': val_loss}})
 
     # assign the configuration space to the worker by a static method
     @staticmethod
@@ -89,15 +91,15 @@ class SVMWorker(Worker):
 
         # Train the model on the specified budget
         n_train = len(self.X_train)
-        n_fit = int(0.1*budget*n_train)
+        n_fit = int(0.1 * budget * n_train)
         ifit = np.random.randint(low=0, high=n_fit, size=n_fit)
         X_fit = self.X_train.iloc[ifit]
         y_fit = self.y_train.iloc[ifit]
 
         svm_reg.fit(X_fit, y_fit)
 
-        y_pred = svm_reg.predict(self.X_val)
-        val_loss = sqrt(mean_squared_error(self.y_val, y_pred))
+        y_pred = svm_reg.predict(X_val)
+        val_loss = sqrt(mean_squared_error(y_val, y_pred))
 
         time.sleep(self.sleep_interval)
 
