@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 import hpbandster.core.nameserver as hpns
 from hpbandster.optimizers import BOHB as BOHB
+import hpbandster.core.result as hpres
 import hpbandster.visualization as hpvis
 
 from workers import RandomForestWorker
@@ -35,8 +36,13 @@ if __name__ == "__main__":
     # worker.run(background=True)
 
     # Step 3: Run an optimizer
+    result_logger = hpres.json_result_logger(directory=r"C:\Users\Max\Documents\GitHub\housing_regression\logs",
+                                             overwrite=True)
+
     bohb = BOHB(configspace=worker.get_configspace(), run_id='example1',
-                nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0)
+                nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0,
+                result_logger=result_logger)
+
     res = bohb.run(n_iterations=10)
 
     # Step 4: Shutdown
