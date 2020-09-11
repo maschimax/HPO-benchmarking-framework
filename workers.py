@@ -1,4 +1,7 @@
 import time
+import numpy as np
+from math import sqrt
+
 from hpbandster.core.worker import Worker
 import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
@@ -20,13 +23,20 @@ class RandomForestWorker(Worker):
         self.y_val = y_val
         self.sleep_interval = sleep_interval
 
-    def compute(self, config, *args, **kwargs):
+    def compute(self, config, budget, *args, **kwargs):
         rf_reg = RandomForestRegressor(random_state=0)
 
-        rf_reg.fit(self.X_train, self.y_train)
+        # Train the model on the specified budget
+        n_train = len(self.X_train)
+        n_fit = int(0.1 * budget * n_train)
+        ifit = np.random.randint(low=0, high=n_fit, size=n_fit)
+        X_fit = self.X_train.iloc[ifit]
+        y_fit = self.y_train.iloc[ifit]
+
+        rf_reg.fit(X_fit, y_fit)
 
         y_pred = rf_reg.predict(self.X_val)
-        val_loss = mean_squared_error(self.y_val, y_pred)
+        val_loss = sqrt(mean_squared_error(self.y_val, y_pred))
 
         time.sleep(self.sleep_interval)
 
@@ -74,13 +84,20 @@ class SVMWorker(Worker):
         self.y_val = y_val
         self.sleep_interval = sleep_interval
 
-    def compute(self, config, *args, **kwargs):
+    def compute(self, config, budget, *args, **kwargs):
         svm_reg = SVR()
 
-        svm_reg.fit(self.X_train, self.y_train)
+        # Train the model on the specified budget
+        n_train = len(self.X_train)
+        n_fit = int(0.1*budget*n_train)
+        ifit = np.random.randint(low=0, high=n_fit, size=n_fit)
+        X_fit = self.X_train.iloc[ifit]
+        y_fit = self.y_train.iloc[ifit]
+
+        svm_reg.fit(X_fit, y_fit)
 
         y_pred = svm_reg.predict(self.X_val)
-        val_loss = mean_squared_error(self.y_val, y_pred)
+        val_loss = sqrt(mean_squared_error(self.y_val, y_pred))
 
         time.sleep(self.sleep_interval)
 
