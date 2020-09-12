@@ -4,13 +4,19 @@ import matplotlib.pyplot as plt
 
 import hpbandster.core.nameserver as hpns
 from hpbandster.optimizers import BOHB as BOHB
+from hpbandster.optimizers import RandomSearch
 import hpbandster.core.result as hpres
 import hpbandster.visualization as hpvis
 
 from workers import RandomForestWorker
 from workers import SVMWorker
+from workers import KerasRegressor
 
 if __name__ == "__main__":
+
+    ALGORITHM = 'RandomForestRegressor'  # 'SVR', 'RandomForestRegressor', 'Keras'
+    OPTIMIZER = 'BOHB'  # 'BOHB', 'RandomSearch', 'Hyperband'
+
     # loading data and preprocessing
     FOLDER = 'datasets'
     TRAIN_FILE = 'train.csv'
@@ -27,26 +33,54 @@ if __name__ == "__main__":
     NS.start()
 
     # Step 2: Start a worker
-    worker = RandomForestWorker(X_train, X_val, y_train, y_val,
-                                nameserver='127.0.0.1', run_id='example1')
-    worker.run(background=True)
+    if ALGORITHM == 'RandomForestRegressor':
+        worker = RandomForestWorker(X_train, X_val, y_train, y_val,
+                                    nameserver='127.0.0.1', run_id='example1')
+        worker.run(background=True)
+        isKeras = False
 
-    # worker = SVMWorker(X_train, X_val, y_train, y_val,
-    #                    nameserver='127.0.0.1', run_id='example1')
-    # worker.run(background=True)
+    elif ALGORITHM == 'SVR':
+        worker = SVMWorker(X_train, X_val, y_train, y_val,
+                           nameserver='127.0.0.1', run_id='example1')
+        worker.run(background=True)
+        isKeras = False
+
+    elif ALGORITHM == 'Keras':
+        worker = KerasRegressor(X_train, X_val, y_train, y_val, nameserver='127.0.0.1', run_id='example1')
+        worker.run(background=True)
+        isKeras = True
+    else:
+        isKeras = False
 
     # Step 3: Run an optimizer
     result_logger = hpres.json_result_logger(directory=r"C:\Users\Max\Documents\GitHub\housing_regression\logs",
                                              overwrite=True)
+    if not isKeras:
+        if OPTIMIZER == 'BOHB':
+            optimizer = BOHB(configspace=worker.get_configspace(), run_id='example1',
+                             nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0,
+                             result_logger=result_logger)
+            res = optimizer.run(n_iterations=10)
 
-    bohb = BOHB(configspace=worker.get_configspace(), run_id='example1',
-                nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0,
-                result_logger=result_logger)
-
-    res = bohb.run(n_iterations=10)
+        elif OPTIMIZER == 'RandomSearch':
+            optimizer = RandomSearch(configspace=worker.get_configspace(), run_id='example1',
+                                     nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0,
+                                     result_logger=result_logger)
+            res = optimizer.run(n_iterations=10)
+    else:
+        if OPTIMIZER == 'BOHB':
+            optimizer = BOHB(configspace=worker.get_configspace(), run_id='example1',
+                             nameserver='127.0.0.1', min_budget=3, max_budget=100, eta=3.0,
+                             result_logger=result_logger)
+            res = optimizer.run(n_iterations=5)
+        elif OPTIMIZER == 'RandomSearch':
+            optimizer = RandomSearch(configspace=worker.get_configspace(), run_id='example1',
+                                     nameserver='127.0.0.1', min_budget=3, max_budget=100, eta=3.0,
+                                     result_logger=result_logger)
+            res = optimizer.run(n_iterations=5)
 
     # Step 4: Shutdown
-    bohb.shutdown(shutdown_workers=True)
+    optimizer.shutdown(shutdown_workers=True)
     NS.shutdown()
 
     # Step 5: Analysis
