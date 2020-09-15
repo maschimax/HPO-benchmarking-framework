@@ -146,17 +146,17 @@ class KerasRegressor(Worker):
 
         model.add(keras.layers.Dense(config['width_1stlayer'], activation='relu'))
 
-        if config['num_hidden_layers'] > 1:
+        if config['num_hidden_layers'] > 0:
             model.add(keras.layers.Dense(config['width_hidlayer1'], activation='relu'))
 
-        if config['num_hidden_layers'] > 2:
+        if config['num_hidden_layers'] > 1:
             model.add(keras.layers.Dense(config['width_hidlayer2'], activation='relu'))
 
-        if config['num_hidden_layers'] > 3:
+        if config['num_hidden_layers'] > 2:
             model.add(
                 keras.layers.Dense(config['width_hidlayer3'], activation='relu'))
 
-        if config['num_hidden_layers'] > 4:
+        if config['num_hidden_layers'] > 3:
             model.add(
                 keras.layers.Dense(config['width_hidlayer4'], activation='relu'))
 
