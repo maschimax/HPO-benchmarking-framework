@@ -17,6 +17,38 @@ test_raw = pp.load_data(FOLDER, TEST_FILE)
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
 
+# Define Hyperparameter-space for RandomForestRegressor
+rf_space = {}
+rf_space['n_estimators'] = hp.choice('n_estimators', range(1, 201, 1))
+rf_space['max_depth'] = hp.choice('max_depth', range(1, 81, 1))
+rf_space['min_samples_leaf'] = hp.choice('min_samples_leaf', range(1, 31, 1))
+rf_space['min_samples_split'] = hp.choice('min_samples_split', range(2, 21, 1))
+rf_space['max_features'] = hp.choice('max_features', ['auto', 'sqrt'])
+
+# Define Hyperparameter-space for Keras-Regressor
+keras_space = {}
+keras_space['lr'] = hp.uniform('lr', low=1e-6, high=1e-1)
+keras_space['dropout_rate'] = hp.uniform('dropout_rate', low=0.0, high=0.9)
+keras_space['width_1stlayer'] = hp.choice('width_1stlayer', range(8, 513, 1))
+
+# >> Handle conditional hyperparameters https://github.com/hyperopt/hyperopt/wiki/FMin
+# # only binary choices for conditional hyperparameter (hidden layer 1 (yes/no))
+# keras_space['hidden_layer_no1'] = hp.choice('hidden_layer_no1', [
+#     ('no', 0),
+#     ('yes', hp.choice('width_hidlayer1', range(8, 513, 8)))
+# ])
+#
+# keras_space['hidden_layer_no2'] = hp.choice('hidden_layer_no2', [
+#     ('no', 0),
+#     ('yes', hp.choice('width_hidlayer2', range(8, 257, 8)))
+# ])
+
+keras_space['num_hidden_layers'] = hp.choice('num_hidden_layers', range(1, 5))
+keras_space['width_hidlayer1'] = hp.choice('width_hidlayer1', range(10, 100, 10))
+keras_space['width_hidlayer2'] = hp.choice('width_hidlayer2', range(10, 100, 10))
+keras_space['width_hidlayer3'] = hp.choice('width_hidlayer3', range(10, 100, 10))
+keras_space['width_hidlayer4'] = hp.choice('width_hidlayer4', range(10, 100, 10))
+
 
 def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
     rf_reg = RandomForestRegressor(**params, random_state=0)
@@ -81,39 +113,6 @@ def objective_rf(params):
 
 def objective_keras(params):
     return train_evaluate_keras(X_train, y_train, X_val, y_val, params)
-
-
-# Define Hyperparameter-space for RandomForestRegressor
-rf_space = {}
-rf_space['n_estimators'] = hp.choice('n_estimators', range(1, 201, 1))
-rf_space['max_depth'] = hp.choice('max_depth', range(1, 81, 1))
-rf_space['min_samples_leaf'] = hp.choice('min_samples_leaf', range(1, 31, 1))
-rf_space['min_samples_split'] = hp.choice('min_samples_split', range(2, 21, 1))
-rf_space['max_features'] = hp.choice('max_features', ['auto', 'sqrt'])
-
-# Define Hyperparameter-space for Keras-Regressor
-keras_space = {}
-keras_space['lr'] = hp.uniform('lr', low=1e-6, high=1e-1)
-keras_space['dropout_rate'] = hp.uniform('dropout_rate', low=0.0, high=0.9)
-keras_space['width_1stlayer'] = hp.choice('width_1stlayer', range(8, 513, 1))
-
-# >> Handle conditional hyperparameters https://github.com/hyperopt/hyperopt/wiki/FMin
-# # only binary choices for conditional hyperparameter (hidden layer 1 (yes/no))
-# keras_space['hidden_layer_no1'] = hp.choice('hidden_layer_no1', [
-#     ('no', 0),
-#     ('yes', hp.choice('width_hidlayer1', range(8, 513, 8)))
-# ])
-#
-# keras_space['hidden_layer_no2'] = hp.choice('hidden_layer_no2', [
-#     ('no', 0),
-#     ('yes', hp.choice('width_hidlayer2', range(8, 257, 8)))
-# ])
-
-keras_space['num_hidden_layers'] = hp.choice('num_hidden_layers', range(1, 5))
-keras_space['width_hidlayer1'] = hp.choice('width_hidlayer1', range(10, 100, 10))
-keras_space['width_hidlayer2'] = hp.choice('width_hidlayer2', range(10, 100, 10))
-keras_space['width_hidlayer3'] = hp.choice('width_hidlayer3', range(10, 100, 10))
-keras_space['width_hidlayer4'] = hp.choice('width_hidlayer4', range(10, 100, 10))
 
 
 ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
