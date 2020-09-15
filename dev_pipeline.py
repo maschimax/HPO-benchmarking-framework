@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 
-FOLDER = 'datasets'
+FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
 TRAIN_FILE = 'train.csv'
 TEST_FILE = 'test.csv'
 SAMPLE_SUB = 'sample_submission.csv'

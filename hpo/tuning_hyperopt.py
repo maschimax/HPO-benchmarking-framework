@@ -6,7 +6,7 @@ from tensorflow import keras
 
 import preprocessing as pp
 
-FOLDER = 'datasets'
+FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
 TRAIN_FILE = 'train.csv'
 TEST_FILE = 'test.csv'
 SAMPLE_SUB = 'sample_submission.csv'
@@ -20,8 +20,8 @@ X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standar
 
 def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
     rf_reg = RandomForestRegressor(**params, random_state=0)
-    rf_reg.fit(X_train, y_train)
 
+    rf_reg.fit(X_train, y_train)
     y_pred = rf_reg.predict(X_val)
 
     val_loss = sqrt(mean_squared_error(y_val, y_pred))
