@@ -28,18 +28,31 @@ def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
 
     return val_loss
 
-def train_evaluate_keras(X_train, y_train, X_val, y_val, params): # Assign budget as the number of epochs (int)
+
+def train_evaluate_keras(X_train, y_train, X_val, y_val, params):  # Assign budget as the number of epochs (int)
     model = keras.Sequential()
 
     model.add(keras.layers.InputLayer(input_shape=len(X_train.keys())))
 
     model.add(keras.layers.Dense(params['width_1stlayer'], activation='relu'))
 
-    if params['hidden_layer_no1'][1] > 0:
-        model.add(keras.layers.Dense(params['hidden_layer_no1'][1], activation='relu'))
+    # if params['hidden_layer_no1'][1] > 0:
+    #     model.add(keras.layers.Dense(params['hidden_layer_no1'][1], activation='relu'))
+    #
+    # if params['hidden_layer_no1'][1] > 0 and params['hidden_layer_no2'][1] > 0:
+    #     model.add(keras.layers.Dense(params['hidden_layer_no2'][1], activation='relu'))
 
-    if params['hidden_layer_no1'][1] > 0 and params['hidden_layer_no2'][1] > 0:
-        model.add(keras.layers.Dense(params['hidden_layer_no2'][1], activation='relu'))
+    if params['num_hidden_layers'] > 0:
+        model.add(keras.layers.Dense(params['width_hidlayer1'], activation='relu'))
+
+    if params['num_hidden_layers'] > 1:
+        model.add(keras.layers.Dense(params['width_hidlayer2'], activation='relu'))
+
+    if params['num_hidden_layers'] > 2:
+        model.add(keras.layers.Dense(params['width_hidlayer3'], activation='relu'))
+
+    if params['num_hidden_layers'] > 3:
+        model.add(keras.layers.Dense(params['width_hidlayer4'], activation='relu'))
 
     model.add(keras.layers.Dropout(params['dropout_rate']))
     model.add(keras.layers.Dense(1))
@@ -52,13 +65,19 @@ def train_evaluate_keras(X_train, y_train, X_val, y_val, params): # Assign budge
 
     y_pred = model.predict(X_val)
 
-    val_loss = sqrt(mean_squared_error(y_val, y_pred))
+    try:
+        val_loss = sqrt(mean_squared_error(y_val, y_pred))
+    except ValueError:
+        print('Check the ranges of the hyperparameters')
+        val_loss = 10e10  # Better error handling necessary!
 
     return val_loss
+
 
 # Objective functions to be minimized
 def objective_rf(params):
     return train_evaluate_rf(X_train, y_train, X_val, y_val, params)
+
 
 def objective_keras(params):
     return train_evaluate_keras(X_train, y_train, X_val, y_val, params)
@@ -68,31 +87,36 @@ def objective_keras(params):
 rf_space = {}
 rf_space['n_estimators'] = hp.choice('n_estimators', range(1, 201, 1))
 rf_space['max_depth'] = hp.choice('max_depth', range(1, 81, 1))
-rf_space['min_samples_leaf'] = hp.choice('min_samples_leaf', range(1, 30, 1))
-rf_space['min_samples_split'] = hp.choice('min_samples_split', range(2, 20, 1))
+rf_space['min_samples_leaf'] = hp.choice('min_samples_leaf', range(1, 31, 1))
+rf_space['min_samples_split'] = hp.choice('min_samples_split', range(2, 21, 1))
 rf_space['max_features'] = hp.choice('max_features', ['auto', 'sqrt'])
 
 # Define Hyperparameter-space for Keras-Regressor
 keras_space = {}
-keras_space['lr'] = hp.loguniform('lr', low=1e-6, high=1e-1)
+keras_space['lr'] = hp.uniform('lr', low=1e-6, high=1e-1)
 keras_space['dropout_rate'] = hp.uniform('dropout_rate', low=0.0, high=0.9)
 keras_space['width_1stlayer'] = hp.choice('width_1stlayer', range(8, 513, 1))
 
-# only binary choices for conditional hyperparameter (hidden layer 1 (yes/no))
-keras_space['hidden_layer_no1'] = hp.choice('hidden_layer_no1', [
-    ('no', 0),
-    ('yes', hp.choice('width_hidlayer1', range(8, 513, 8)))
-])
-
-keras_space['hidden_layer_no2'] = hp.choice('hidden_layer_no2', [
-    ('no', 0),
-    ('yes', hp.choice('width_hidlayer2', range(8, 257, 8)))
-])
-
 # >> Handle conditional hyperparameters https://github.com/hyperopt/hyperopt/wiki/FMin
+# # only binary choices for conditional hyperparameter (hidden layer 1 (yes/no))
+# keras_space['hidden_layer_no1'] = hp.choice('hidden_layer_no1', [
+#     ('no', 0),
+#     ('yes', hp.choice('width_hidlayer1', range(8, 513, 8)))
+# ])
+#
+# keras_space['hidden_layer_no2'] = hp.choice('hidden_layer_no2', [
+#     ('no', 0),
+#     ('yes', hp.choice('width_hidlayer2', range(8, 257, 8)))
+# ])
+
+keras_space['num_hidden_layers'] = hp.choice('num_hidden_layers', range(1, 5))
+keras_space['width_hidlayer1'] = hp.choice('width_hidlayer1', range(10, 100, 10))
+keras_space['width_hidlayer2'] = hp.choice('width_hidlayer2', range(10, 100, 10))
+keras_space['width_hidlayer3'] = hp.choice('width_hidlayer3', range(10, 100, 10))
+keras_space['width_hidlayer4'] = hp.choice('width_hidlayer4', range(10, 100, 10))
 
 
-ALGORITHM = 'Keras' # 'RandomForestRegressor', 'Keras'
+ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
 
 trials = Trials()
 
