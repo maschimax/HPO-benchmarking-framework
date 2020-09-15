@@ -10,7 +10,7 @@ from tensorflow import keras
 import preprocessing as pp
 
 # Loading data and preprocessing
-FOLDER = 'datasets'
+FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
 TRAIN_FILE = 'train.csv'
 TEST_FILE = 'test.csv'
 SAMPLE_SUB = 'sample_submission.csv'

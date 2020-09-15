@@ -18,7 +18,7 @@ if __name__ == "__main__":
     OPTIMIZER = 'BOHB'  # 'BOHB', 'RandomSearch', 'Hyperband'
 
     # loading data and preprocessing
-    FOLDER = 'datasets'
+    FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
     TRAIN_FILE = 'train.csv'
     TEST_FILE = 'test.csv'
     SAMPLE_SUB = 'sample_submission.csv'
