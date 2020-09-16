@@ -5,6 +5,8 @@ from math import sqrt
 from tensorflow import keras
 import time
 import matplotlib.pyplot as plt
+from xgboost import XGBRegressor
+import pandas as pd
 
 import preprocessing as pp
 
@@ -19,7 +21,7 @@ test_raw = pp.load_data(FOLDER, TEST_FILE)
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
 # ML-algorithm
-ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
+ALGORITHM = 'XGBRegressor'  # 'RandomForestRegressor', 'Keras', 'XGBRegressor'
 
 # Define Hyperparameter-space for RandomForestRegressor
 rf_space = {}
@@ -50,6 +52,12 @@ keras_space['width_hidlayer4'] = hp.choice('width_hidlayer4', range(10, 100, 10)
 #     ('no', 0),
 #     ('yes', hp.choice('width_hidlayer2', range(8, 257, 8)))
 # ])
+
+# Define Hyperparameter-space for XGBRegressor
+xgb_space = {}
+xgb_space['booster'] = hp.choice('booster', ['gbtree', 'gblinear', 'dart'])
+xgb_space['n_estimators'] = hp.choice('n_estimators', range(1, 201, 1))
+xgb_space['max_depth'] = hp.choice('max_depth', range(1, 81, 1))
 
 
 def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
@@ -107,6 +115,16 @@ def train_evaluate_keras(X_train, y_train, X_val, y_val, params):  # Assign budg
 
     return val_loss
 
+def train_evaluate_xgb(X_train, y_train, X_val, y_val, params):
+    xgb_reg = XGBRegressor(**params, random_state=0)
+
+    xgb_reg.fit(X_train, y_train)
+    y_pred = xgb_reg.predict(X_val)
+
+    val_loss = sqrt(mean_squared_error(y_val, y_pred))
+
+    return val_loss
+
 
 # Objective functions to be minimized
 def objective_rf(params):
@@ -117,7 +135,17 @@ def objective_rf(params):
 
 
 def objective_keras(params):
-    return train_evaluate_keras(X_train, y_train, X_val, y_val, params)
+    val_loss = train_evaluate_keras(X_train, y_train, X_val, y_val, params)
+    return {'loss': val_loss,
+            'status': STATUS_OK,
+            'eval_time': time.time()}
+
+
+def objective_xgb(params):
+    val_loss = train_evaluate_xgb(X_train, y_train, X_val, y_val, params)
+    return {'loss': val_loss,
+            'status': STATUS_OK,
+            'eval_time': time.time()}
 
 
 trials = Trials()
@@ -126,6 +154,8 @@ if ALGORITHM == 'RandomForestRegressor':
     res = fmin(fn=objective_rf, space=rf_space, trials=trials, algo=tpe.suggest, max_evals=100)
 elif ALGORITHM == 'Keras':
     res = fmin(fn=objective_keras, space=keras_space, trials=trials, algo=tpe.suggest, max_evals=100)
+elif ALGORITHM == 'XGBRegressor':
+    res = fmin(fn=objective_xgb, space=xgb_space, trials=trials, algo=tpe.suggest, max_evals=100)
 
 print(res)
 
@@ -153,3 +183,21 @@ plt.xlabel('Time')
 plt.ylabel('Loss')
 
 plt.show()
+
+# # Train best model and save submission file
+# X = pd.concat(objs=[X_train, X_val], axis=0)
+# y = pd.concat(objs=[y_train, y_val], axis=0)
+#
+# xgb_best = XGBRegressor(random_state=0, booster='dart', max_depth=22, n_estimators=98)
+# xgb_best.fit(X, y)
+#
+# TEST_FILE = 'test.csv'
+# SAMPLE_SUB = 'sample_submission.csv'
+#
+# sample_submission = pp.load_data(FOLDER, SAMPLE_SUB)
+# submission = sample_submission.copy()
+#
+# y_pred = xgb_best.predict(X_test)
+# submission['SalePrice'] = y_pred
+# submission.to_csv('submission.csv')
+
