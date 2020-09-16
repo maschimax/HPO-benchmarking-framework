@@ -6,11 +6,12 @@ from optuna.samplers import TPESampler
 from optuna.samplers import CmaEsSampler
 from optuna.samplers import RandomSampler
 from tensorflow import keras
+import matplotlib.pyplot as plt
 
 import preprocessing as pp
 
 # Loading data and preprocessing
-FOLDER = 'datasets'
+FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
 TRAIN_FILE = 'train.csv'
 TEST_FILE = 'test.csv'
 SAMPLE_SUB = 'sample_submission.csv'
@@ -20,6 +21,10 @@ test_raw = pp.load_data(FOLDER, TEST_FILE)
 
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
+# ML-algorithm
+ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
+# HPO-method
+SAMPLER = 'TPE'  # 'TPE', 'CMA-ES'
 
 
 # 1. Define an objective function to be maximized
@@ -47,7 +52,6 @@ def rf_objective(trial):
 
 # Keras Regressor
 def keras_objective(trial):
-
     dropout_rate = trial.suggest_uniform(name='droput_rate', low=0.0, high=0.9)
     lr = trial.suggest_uniform(name='lr', low=1e-6, high=1e-1)
     width_1stlayer = trial.suggest_int(name='width_1stlayer', low=8, high=512, step=8)
@@ -91,8 +95,6 @@ def keras_objective(trial):
 
 
 # 3. Create a study object an optimize the objective function
-SAMPLER = 'TPE'  # 'TPE', 'CMA-ES'
-
 if SAMPLER == 'TPE':
     thisSampler = TPESampler()
 elif SAMPLER == 'CMA-ES':
@@ -100,12 +102,36 @@ elif SAMPLER == 'CMA-ES':
 else:
     thisSampler = RandomSampler()
 
-ALGORITHM = 'Keras'  # 'RandomForestRegressor', 'Keras'
-
 if ALGORITHM == 'RandomForestRegressor':
     thisObjective = rf_objective
 elif ALGORITHM == 'Keras':
     thisObjective = keras_objective
 
-study = optuna.create_study(sampler=thisSampler, direction='minimize', )
+study = optuna.create_study(sampler=thisSampler, direction='minimize')
 study.optimize(func=thisObjective, n_trials=100)
+
+# >> test how to access the trials data
+all_trials = study.get_trials()  # List of Froze-Trial objects
+df_trials = study.trials_dataframe()  # Pandas DataFrame
+
+# Plot the learning curve
+best_loss_curve = []
+time_list = []
+for i in range(len(all_trials)):
+    if i == 0:
+        best_loss_curve.append(all_trials[i].value)
+    elif all_trials[i].value < min(best_loss_curve):
+        best_loss_curve.append(all_trials[i].value)
+    else:
+        best_loss_curve.append(min(best_loss_curve))
+
+    time_list.append(all_trials[i].datetime_complete)
+
+fig, ax = plt.subplots()
+plt.plot(time_list, best_loss_curve)
+plt.xscale('log')
+plt.yscale('log')
+plt.xlabel('Time')
+plt.ylabel('Loss')
+
+plt.show()
