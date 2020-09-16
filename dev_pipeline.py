@@ -1,3 +1,5 @@
+# NOTE: This script is outdated and was only used for developing and testing the preprocessing pipeline
+
 #%%
 import pandas as pd
 import numpy as np
@@ -18,7 +20,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 
-FOLDER = 'datasets'
+FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
 TRAIN_FILE = 'train.csv'
 TEST_FILE = 'test.csv'
 SAMPLE_SUB = 'sample_submission.csv'

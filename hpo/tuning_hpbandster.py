@@ -8,17 +8,20 @@ from hpbandster.optimizers import RandomSearch
 import hpbandster.core.result as hpres
 import hpbandster.visualization as hpvis
 
-from workers import RandomForestWorker
-from workers import SVMWorker
-from workers import KerasRegressor
+from hpo.workers import RandomForestWorker
+from hpo.workers import SVMWorker
+from hpo.workers import KerasRegressor
+
 
 if __name__ == "__main__":
 
+    # ML-algorithm
     ALGORITHM = 'RandomForestRegressor'  # 'SVR', 'RandomForestRegressor', 'Keras'
+    # HPO-method
     OPTIMIZER = 'BOHB'  # 'BOHB', 'RandomSearch', 'Hyperband'
 
     # loading data and preprocessing
-    FOLDER = 'datasets'
+    FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
     TRAIN_FILE = 'train.csv'
     TEST_FILE = 'test.csv'
     SAMPLE_SUB = 'sample_submission.csv'
@@ -94,9 +97,11 @@ if __name__ == "__main__":
           len(id2config.keys()))
     print('A total of %i runs where executed.' % len(res.get_all_runs()))
 
-    # Plotting results
-    # all_runs = res.get_all_runs()
-    #
-    # hpvis.losses_over_time(all_runs)
-    #
-    # plt.show()
+    # Plot the learning curve
+    fig, ax = plt.subplots()
+    ax.plot(trajectory['losses'], trajectory['times_finished'])
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Time')
+    plt.ylabel('Loss')
+    plt.show()
