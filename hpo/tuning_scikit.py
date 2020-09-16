@@ -5,6 +5,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 from math import sqrt
 from tensorflow import keras
+import matplotlib.pyplot as plt
 
 import preprocessing as pp
 
@@ -18,6 +19,10 @@ test_raw = pp.load_data(FOLDER, TEST_FILE)
 
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
+# ML-algorithm
+ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
+# HPO-method
+OPTIMIZER = 'SMAC'  # 'GPBO', 'SMAC'
 
 
 def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
@@ -87,7 +92,6 @@ def objective_keras(**params):
     return train_evaluate_keras(X_train, y_train, X_val, y_val, params)
 
 
-ALGORITHM = 'Keras'  # 'RandomForestRegressor', 'Keras'
 if ALGORITHM == 'RandomForestRegressor':
     thisObjective = objective_rf
     thisSpace = space_rf
@@ -95,10 +99,30 @@ elif ALGORITHM == 'Keras':
     thisObjective = objective_keras
     thisSpace = space_keras
 
-OPTIMIZER = 'SMAC'  # 'GPBO', 'SMAC'
 if OPTIMIZER == 'GPBO':
     res = gp_minimize(thisObjective, thisSpace, n_calls=100, random_state=0, acq_func='EI')
 elif OPTIMIZER == 'SMAC':
     res = forest_minimize(thisObjective, thisSpace, n_calls=100, random_state=0, acq_func='EI')
 
 print("Best score=%.4f" % res.fun)
+
+# Plot the learning curve
+loss_curve = res.func_vals
+
+best_loss_curve = []
+for i in range(len(loss_curve)):
+
+    if i == 0:
+        best_loss_curve.append(loss_curve[i])
+    elif loss_curve[i] < min(best_loss_curve):
+        best_loss_curve.append(loss_curve[i])
+    else:
+        best_loss_curve.append(min(best_loss_curve))
+
+fig, ax = plt.subplots()
+plt.plot(range(len(best_loss_curve)), best_loss_curve)
+plt.yscale('log')
+plt.xlabel('Number of evaluations')
+plt.ylabel('Loss')
+
+plt.show()

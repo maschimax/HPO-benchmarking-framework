@@ -1,8 +1,10 @@
 from sklearn.ensemble import RandomForestRegressor
-from hyperopt import fmin, tpe, hp, Trials
+from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 from sklearn.metrics import mean_squared_error
 from math import sqrt
 from tensorflow import keras
+import time
+import matplotlib.pyplot as plt
 
 import preprocessing as pp
 
@@ -16,6 +18,8 @@ test_raw = pp.load_data(FOLDER, TEST_FILE)
 
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
+# ML-algorithm
+ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
 
 # Define Hyperparameter-space for RandomForestRegressor
 rf_space = {}
@@ -30,7 +34,11 @@ keras_space = {}
 keras_space['lr'] = hp.uniform('lr', low=1e-6, high=1e-1)
 keras_space['dropout_rate'] = hp.uniform('dropout_rate', low=0.0, high=0.9)
 keras_space['width_1stlayer'] = hp.choice('width_1stlayer', range(8, 513, 1))
-
+keras_space['num_hidden_layers'] = hp.choice('num_hidden_layers', range(1, 5))
+keras_space['width_hidlayer1'] = hp.choice('width_hidlayer1', range(10, 100, 10))
+keras_space['width_hidlayer2'] = hp.choice('width_hidlayer2', range(10, 100, 10))
+keras_space['width_hidlayer3'] = hp.choice('width_hidlayer3', range(10, 100, 10))
+keras_space['width_hidlayer4'] = hp.choice('width_hidlayer4', range(10, 100, 10))
 # >> Handle conditional hyperparameters https://github.com/hyperopt/hyperopt/wiki/FMin
 # # only binary choices for conditional hyperparameter (hidden layer 1 (yes/no))
 # keras_space['hidden_layer_no1'] = hp.choice('hidden_layer_no1', [
@@ -42,12 +50,6 @@ keras_space['width_1stlayer'] = hp.choice('width_1stlayer', range(8, 513, 1))
 #     ('no', 0),
 #     ('yes', hp.choice('width_hidlayer2', range(8, 257, 8)))
 # ])
-
-keras_space['num_hidden_layers'] = hp.choice('num_hidden_layers', range(1, 5))
-keras_space['width_hidlayer1'] = hp.choice('width_hidlayer1', range(10, 100, 10))
-keras_space['width_hidlayer2'] = hp.choice('width_hidlayer2', range(10, 100, 10))
-keras_space['width_hidlayer3'] = hp.choice('width_hidlayer3', range(10, 100, 10))
-keras_space['width_hidlayer4'] = hp.choice('width_hidlayer4', range(10, 100, 10))
 
 
 def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
@@ -108,14 +110,15 @@ def train_evaluate_keras(X_train, y_train, X_val, y_val, params):  # Assign budg
 
 # Objective functions to be minimized
 def objective_rf(params):
-    return train_evaluate_rf(X_train, y_train, X_val, y_val, params)
+    val_loss = train_evaluate_rf(X_train, y_train, X_val, y_val, params)
+    return {'loss': val_loss,
+            'status': STATUS_OK,
+            'eval_time': time.time()}
 
 
 def objective_keras(params):
     return train_evaluate_keras(X_train, y_train, X_val, y_val, params)
 
-
-ALGORITHM = 'RandomForestRegressor'  # 'RandomForestRegressor', 'Keras'
 
 trials = Trials()
 
@@ -125,3 +128,28 @@ elif ALGORITHM == 'Keras':
     res = fmin(fn=objective_keras, space=keras_space, trials=trials, algo=tpe.suggest, max_evals=100)
 
 print(res)
+
+# Plot the learning curve
+result_list = trials.results
+best_loss_curve = []
+time_list = []
+
+for i in range(len(result_list)):
+
+    if i == 0:
+        best_loss_curve.append(result_list[i]['loss'])
+    elif result_list[i]['loss'] < min(best_loss_curve):
+        best_loss_curve.append(result_list[i]['loss'])
+    else:
+        best_loss_curve.append(min(best_loss_curve))
+
+    time_list.append(result_list[i]['eval_time'])
+
+fig, ax = plt.subplots()
+ax.plot(time_list, best_loss_curve)
+plt.xscale('log')
+plt.yscale('log')
+plt.xlabel('Time')
+plt.ylabel('Loss')
+
+plt.show()

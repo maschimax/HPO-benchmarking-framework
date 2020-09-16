@@ -1,3 +1,5 @@
+# NOTE: This script is outdated and was only used for developing and testing the preprocessing pipeline
+
 #%%
 import pandas as pd
 import numpy as np
