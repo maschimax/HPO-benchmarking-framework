@@ -93,7 +93,6 @@ def keras_objective(trial):
 
     return val_loss
 
-
 # 3. Create a study object an optimize the objective function
 if SAMPLER == 'TPE':
     thisSampler = TPESampler()
