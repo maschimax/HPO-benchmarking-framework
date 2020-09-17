@@ -59,6 +59,7 @@ class Skopt_optimizer(Optimizer):
         return result.fun
 
     def plot_learning_curve(self, result):
+        # Rework necessary
         loss_curve = result.func_vals
         best_loss_curve = []
         for i in range(len(loss_curve)):
