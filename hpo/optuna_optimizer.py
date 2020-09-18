@@ -9,8 +9,8 @@ from hpo.results import TuningResult
 
 
 class OptunaOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget)
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget, random_seed):
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget, random_seed)
 
     def objective_rf_regressor(self, trial):
         # Objective function for a RandomForestRegressor
@@ -35,7 +35,7 @@ class OptunaOptimizer(BaseOptimizer):
                 raise NameError('The skopt HP-space could not be converted correctly!')
 
         # Create ML-model for the HP-configuration selected by the HPO-method
-        rf_reg = RandomForestRegressor(random_state=0, **params)
+        rf_reg = RandomForestRegressor(random_state=self.random_seed, **params)
         rf_reg.fit(self.x_train, self.y_train)
         y_pred = rf_reg.predict(self.x_val)
 
@@ -52,7 +52,7 @@ class OptunaOptimizer(BaseOptimizer):
 
         # Select the specified HPO-tuning method
         if self.hpo_method == 'TPE':
-            thisOptimizer = TPESampler()
+            thisOptimizer = TPESampler(seed=self.random_seed)
 
         # Create a study object and specify the optimization direction
         study = optuna.create_study(sampler=thisOptimizer, direction='minimize')
@@ -66,23 +66,19 @@ class OptunaOptimizer(BaseOptimizer):
         best_params = study.best_params
         best_loss = study.best_value
 
-        trial_ids = []
+        evaluation_ids = []
         timestamps = []
         losses = []
         configurations = ()
         for i in range(len(all_trials)):
-            trial_ids.append(all_trials[i].number)
+            evaluation_ids.append(all_trials[i].number)
             timestamps.append(all_trials[i].datetime_complete)
             losses.append(all_trials[i].value)
             configurations = configurations + (all_trials[i].params,)
 
-        result = TuningResult(trial_ids=trial_ids, timestamps=timestamps, losses=losses, configurations=configurations,
-                              best_loss=best_loss, best_configuration=best_params)
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
+                              configurations=configurations, best_loss=best_loss, best_configuration=best_params)
         return result
-
-    # def get_best_configuration(self, result: TuningResult):
-    #     # Return the best configuration as a dictionary
-    #     return result.best_configuration
 
     @staticmethod
     def plot_learning_curve(result: TuningResult):

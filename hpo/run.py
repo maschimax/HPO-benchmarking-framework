@@ -34,18 +34,22 @@ space_rf = [skopt.space.Integer(1, 200, name='n_estimators'),
 
 # Initialize a Trial-object and run the optimization
 ML_AlGO = 'RandomForestRegressor'
-HPO_LIB = 'optuna'
-HPO_METHOD = 'TPE'
-N_RUNS = 1
-BUDGET = 20
+# HPO_LIB = 'optuna'
+# HPO_METHOD = 'TPE'
+N_RUNS = 2
+BUDGET = 10
 N_WORKERS = 1
-SEED_VAR = False
+OPT_Schedule = [('optuna', 'TPE'), ('skopt', 'SMAC')]
 
-trial = Trial(hp_space=space_rf, ml_algorithm=ML_AlGO, hpo_library=HPO_LIB, hpo_method=HPO_METHOD, metric=rmse,
-              n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS, seed_variation=SEED_VAR,
+trial = Trial(hp_space=space_rf, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
+              n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS,
               x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
 
 res = trial.run()
+
+trial.plot_learning_curve(res)
+
+bla = 0
 
 ###########################################
 '''

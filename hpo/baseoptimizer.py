@@ -7,7 +7,7 @@ from hpo.results import TuningResult
 class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
                  x_train: pd.DataFrame, x_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series,
-                 metric, budget: int):
+                 metric, budget: int, random_seed: int):
         """
 
         :param hp_space:
@@ -19,6 +19,7 @@ class BaseOptimizer(ABC):
         :param y_val:
         :param metric
         :param budget:
+        :param random_seed
         """
 
         self.hp_space = hp_space
@@ -30,6 +31,7 @@ class BaseOptimizer(ABC):
         self.y_val = y_val
         self.metric = metric
         self.budget = budget
+        self.random_seed = random_seed
 
     @abstractmethod
     def optimize(self) -> TuningResult:
@@ -48,10 +50,10 @@ class BaseOptimizer(ABC):
 
     @staticmethod
     def plot_learning_curve(result: TuningResult):
-
+        # Probably needs to be implemented in the Trial class
         raise NotImplementedError
 
     @staticmethod
     def get_metrics(result: TuningResult):
-
+        # Probably needs to be implemented in the Trial class
         raise NotImplementedError
