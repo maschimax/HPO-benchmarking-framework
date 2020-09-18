@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 from math import sqrt
 from sklearn.ensemble import RandomForestRegressor
 
-from hpo.skopt_optimizer import Skopt_optimizer
-from hpo.optuna_optimizer import Optuna_optimizer
+from hpo.skopt_optimizer import SkoptOptimizer
+from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.hpo_metrics import rmse
 import preprocessing as pp
+from hpo.trial import Trial
 
+# Loading data and preprocessing
 FOLDER = r'C:\Users\Max\Documents\GitHub\housing_regression\datasets'
 TRAIN_FILE = 'train.csv'
 TEST_FILE = 'test.csv'
@@ -20,21 +22,49 @@ test_raw = pp.load_data(FOLDER, TEST_FILE)
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
 
+# Define HP-space according to the skopt library
 space_rf = [skopt.space.Integer(1, 200, name='n_estimators'),
             skopt.space.Integer(1, 80, name='max_depth'),
             skopt.space.Integer(1, 30, name='min_samples_leaf'),
             skopt.space.Integer(2, 20, name='min_samples_split'),
             skopt.space.Categorical(['auto', 'sqrt'], name='max_features')]
 
-RF_Optimizer = Optuna_optimizer(hp_space=space_rf, hpo_method='TPE', ml_algorithm='RandomForestRegressor',
-                                x_train=X_train, x_val=X_val, y_train=y_train, y_val=y_val, metric=rmse,
-                                budget=10)
+# skopt.space.Real(0.1, 0.9, name='max_samples')
 
-res = RF_Optimizer.optimize()
 
-best_config = RF_Optimizer.get_best_configuration((res))
+# Initialize a Trial-object and run the optimization
+ML_AlGO = 'RandomForestRegressor'
+HPO_LIB = 'optuna'
+HPO_METHOD = 'TPE'
+N_RUNS = 1
+BUDGET = 20
+N_WORKERS = 1
+SEED_VAR = False
 
-RF_Optimizer.plot_learning_curve(res)
+trial = Trial(hp_space=space_rf, ml_algorithm=ML_AlGO, hpo_library=HPO_LIB, hpo_method=HPO_METHOD, metric=rmse,
+              n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS, seed_variation=SEED_VAR,
+              x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
+
+res = trial.run()
+
+###########################################
+'''
+# RF_Optimizer = OptunaOptimizer(hp_space=space_rf, hpo_method='TPE', ml_algorithm='RandomForestRegressor',
+#                                x_train=X_train, x_val=X_val, y_train=y_train, y_val=y_val, metric=rmse,
+#                                budget=10)
+
+# RF_Optimizer = SkoptOptimizer(hp_space=space_rf, hpo_method='SMAC', ml_algorithm='RandomForestRegressor',
+#                               x_train=X_train, x_val=X_val, y_train=y_train, y_val=y_val, metric=rmse,
+#                               budget=10)
+
+# res = RF_Optimizer.optimize()
+# 
+# best_config = RF_Optimizer.get_best_configuration(res)
+# 
+# print(best_config)
+# 
+# RF_Optimizer.plot_learning_curve(res)
+'''
 
 '''
 # SKOPT_OPTIMIZER
