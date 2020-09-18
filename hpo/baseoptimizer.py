@@ -1,7 +1,10 @@
 import pandas as pd
+from abc import ABC, abstractmethod
+
+from hpo.results import TuningResult
 
 
-class Optimizer:
+class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
                  x_train: pd.DataFrame, x_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series,
                  metric, budget: int):
@@ -28,22 +31,27 @@ class Optimizer:
         self.metric = metric
         self.budget = budget
 
-    def optimize(self):
+    @abstractmethod
+    def optimize(self) -> TuningResult:
 
         raise NotImplementedError
 
-    def get_best_configuration(self):
-        # returns the best configuration as a dictionary
+    @staticmethod
+    def get_best_configuration(result: TuningResult):
+        # Returns the best configuration as a dictionary
+        return result.best_configuration
+
+    @staticmethod
+    def get_best_score(result: TuningResult):
+        # Returns the validation score of the best configuration
+        raise result.best_loss
+
+    @staticmethod
+    def plot_learning_curve(result: TuningResult):
+
         raise NotImplementedError
 
-    def get_best_score(self):
-        # returns the validation score of the best configuration
-        raise NotImplementedError
-
-    def plot_learning_curve(self):
-
-        raise NotImplementedError
-
-    def get_metrics(self):
+    @staticmethod
+    def get_metrics(result: TuningResult):
 
         raise NotImplementedError
