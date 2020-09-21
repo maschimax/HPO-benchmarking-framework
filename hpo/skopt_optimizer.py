@@ -5,6 +5,7 @@ from sklearn.svm import SVR
 from tensorflow import keras
 import matplotlib.pyplot as plt
 import functools
+import time
 
 from hpo.lr_schedules import fix, exponential, cosine
 from hpo.baseoptimizer import BaseOptimizer
@@ -12,8 +13,10 @@ from hpo.results import TuningResult
 
 
 class SkoptOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget, random_seed):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget, random_seed)
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+                 random_seed):
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+                         random_seed)
 
     def train_evaluate_scikit_regressor(self, params):
         """ This method trains a scikit-learn model according to the selected HP-configuration and returns the
@@ -30,6 +33,9 @@ class SkoptOptimizer(BaseOptimizer):
 
         # Compute the validation loss according to the metric selected
         val_loss = self.metric(self.y_val, y_pred)
+
+        # Measure the finish time of the iteration
+        self.times.append(time.time())
 
         return val_loss
 
@@ -90,6 +96,9 @@ class SkoptOptimizer(BaseOptimizer):
         # Compute the validation loss according to the metric selected
         val_loss = self.metric(self.y_val, y_pred)
 
+        # Measure the finish time of the iteration
+        self.times.append(time.time())
+
         return val_loss
 
     def objective_keras_regressor(self, params):
@@ -119,9 +128,19 @@ class SkoptOptimizer(BaseOptimizer):
         else:
             raise NameError('Unknown HPO-method!')
 
-        # Optimize on the predefined budget
+        # Optimize on the predefined budget and measure the optimization time
+        start_time = time.time()
+        self.times = []  # Initialize a list for saving the optimization times
+
+        # Start the optimization
         trial_result = this_optimizer(this_objective, self.hp_space, n_calls=self.budget, random_state=self.random_seed,
                                       acq_func=this_acq_func)
+
+        # wall_clock_time = time.time() - start_time
+        for i in range(len(self.times)):
+            # Subtract to start time to receive the durations of each evaluation
+            self.times[i] = self.times[i] - start_time
+        wall_clock_time = max(self.times)
 
         # Create a TuningResult-object to store the optimization results
         # Transformation of the results into a TuningResult-Object
@@ -140,32 +159,8 @@ class SkoptOptimizer(BaseOptimizer):
                 this_config[self.hp_space[j].name] = trial_result.x_iters[i][j]
             configurations = configurations + (this_config,)
 
-        # placeholder for timestamps
-        timestamps = [None] * len(trial_result.func_vals)
-
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration)
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
+                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
+                              wall_clock_time=wall_clock_time)
 
         return result
-
-    # @staticmethod
-    # def plot_learning_curve(result: TuningResult):
-    #     # Rework necessary
-    #     loss_curve = result.func_vals
-    #     best_loss_curve = []
-    #     for i in range(len(loss_curve)):
-    #
-    #         if i == 0:
-    #             best_loss_curve.append(loss_curve[i])
-    #         elif loss_curve[i] < min(best_loss_curve):
-    #             best_loss_curve.append(loss_curve[i])
-    #         else:
-    #             best_loss_curve.append(min(best_loss_curve))
-    #
-    #     fig, ax = plt.subplots()
-    #     plt.plot(range(len(best_loss_curve)), best_loss_curve)
-    #     plt.yscale('log')
-    #     plt.xlabel('Number of evaluations')
-    #     plt.ylabel('Loss')
-    #
-    #     return plt.show()

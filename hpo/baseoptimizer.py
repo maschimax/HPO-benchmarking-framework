@@ -32,6 +32,10 @@ class BaseOptimizer(ABC):
         self.metric = metric
         self.budget = budget
         self.random_seed = random_seed
+        # if self.times is None:
+        #     self.times = []
+        # else:
+        #     self.times = times
 
     @abstractmethod
     def optimize(self) -> TuningResult:

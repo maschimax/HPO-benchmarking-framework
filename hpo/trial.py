@@ -61,13 +61,13 @@ class Trial:
                 optimization_results = optimizer.optimize()
 
                 temp_dict = {'HPO-library': [this_hpo_library] * len(optimization_results.losses),
-                                'HPO-method': [this_hpo_method] * len(optimization_results.losses),
-                                'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
-                                'run_id': [run_id] * len(optimization_results.losses),
-                                'random_seed': [i] * len(optimization_results.losses),
-                                'num_of_evaluation': list(range(1, len(optimization_results.losses) + 1)),
-                                'losses': optimization_results.losses,
-                                'timestamps': optimization_results.timestamps}
+                             'HPO-method': [this_hpo_method] * len(optimization_results.losses),
+                             'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
+                             'run_id': [run_id] * len(optimization_results.losses),
+                             'random_seed': [i] * len(optimization_results.losses),
+                             'num_of_evaluation': list(range(1, len(optimization_results.losses) + 1)),
+                             'losses': optimization_results.losses,
+                             'timestamps': optimization_results.timestamps}
 
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
                 results_df = pd.concat(objs=[results_df, this_df], axis=0)
@@ -105,11 +105,16 @@ class Trial:
             n_cols = len(unique_ids)
             n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
             best_losses = np.zeros(shape=(n_rows, n_cols))
+            timestamps = np.zeros(shape=(n_rows, n_cols))
+
+            # >>> computation of average timestamps necessary!
 
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
                 for i in range(n_rows):
+
+                    timestamps[i, j] = this_subframe['timestamps'][i]
 
                     if i == 0:
                         # best_losses[i, j] = results_dict[list(results_dict.keys())[j]].losses[i]
@@ -119,27 +124,30 @@ class Trial:
                     else:
                         best_losses[i, j] = best_losses[i - 1, j]
 
+            # Compute the average loss over all runs
             mean_curve = np.mean(best_losses, axis=1)
             quant25_curve = np.quantile(best_losses, q=.25, axis=1)
             quant75_curve = np.quantile(best_losses, q=.75, axis=1)
 
-            mean_line = ax.plot(this_subframe['num_of_evaluation'], mean_curve)
+            # Compute average timestamps
+            mean_timestamps = np.mean(timestamps, axis=1)
+
+            mean_line = ax.plot(mean_timestamps, mean_curve)
             mean_lines.append(mean_line[0])
             # ax.plot(this_subframe['num_of_evaluation'], quant25_curve)
             # ax.plot(this_subframe['num_of_evaluation'], quant75_curve)
-            ax.fill_between(x=np.array(this_subframe['num_of_evaluation'], dtype=np.float64), y1=quant25_curve,
+            ax.fill_between(x=mean_timestamps, y1=quant25_curve,
                             y2=quant75_curve, alpha=0.2)
             # ax.legend(mean_line, opt_tuple[1], loc='upper right')
 
-        plt.xlabel('Num. of evaluation')
+        plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
         plt.legend(mean_lines, [this_tuple[1] for this_tuple in results_dict.keys()], loc='upper right')
 
         return plt.show()
 
-    @staticmethod
-    def get_best_trial_result(results_dict: dict):
+    def get_best_trial_result(self, results_dict: dict) -> dict:
         for i in range(len(results_dict.keys())):
             this_opt_tuple = list(results_dict.keys())[i]
 
@@ -155,7 +163,8 @@ class Trial:
                 best_library = results_dict[this_opt_tuple].hpo_library
                 best_method = results_dict[this_opt_tuple].hpo_method
 
-        out_dict = {'HPO-method': best_method, 'HPO-library': best_library, 'HP-configuration': best_configuration,
+        out_dict = {'ML-algorithm': self.ml_algorithm, 'HPO-method': best_method, 'HPO-library': best_library,
+                    'HP-configuration': best_configuration,
                     'Loss': best_loss}
         return out_dict
 
