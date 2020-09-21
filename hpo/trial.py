@@ -58,7 +58,7 @@ class Trial:
                 else:
                     raise NameError('Unknown HPO-library!')
 
-                optimization_results = optimizer.optimize()
+                optimization_results = optimizer.optimize
 
                 temp_dict = {'HPO-library': [this_hpo_library] * len(optimization_results.losses),
                              'HPO-method': [this_hpo_method] * len(optimization_results.losses),
@@ -106,8 +106,6 @@ class Trial:
             n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
-
-            # >>> computation of average timestamps necessary!
 
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]

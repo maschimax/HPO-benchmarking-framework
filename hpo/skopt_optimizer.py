@@ -1,9 +1,7 @@
-import skopt
 from skopt.optimizer import forest_minimize
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from tensorflow import keras
-import matplotlib.pyplot as plt
 import functools
 import time
 
@@ -27,6 +25,8 @@ class SkoptOptimizer(BaseOptimizer):
             model = RandomForestRegressor(**params, random_state=self.random_seed)
         elif self.ml_algorithm == 'SVR':
             model = SVR(**params)  # SVR has no random_state argument
+        else:
+            raise NameError('Unknown ML-algorithm!')
 
         model.fit(self.x_train, self.y_train)
         y_pred = model.predict(self.x_val)
@@ -77,11 +77,14 @@ class SkoptOptimizer(BaseOptimizer):
         if params["lr_schedule"] == "cosine":
             schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=self.budget)
 
-        if params["lr_schedule"] == "exponential":
+        elif params["lr_schedule"] == "exponential":
             schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=self.budget)
 
         elif params["lr_schedule"] == "constant":
             schedule = functools.partial(fix, initial_lr=params["init_lr"])
+
+        else:
+            raise NameError('Unknown learning rate schedule!')
 
         lr = keras.callbacks.LearningRateScheduler(schedule)
 
