@@ -1,6 +1,7 @@
 # Source: https://github.com/automl/nas_benchmarks/blob/master/data_collection/train_fcnet.py
 import numpy as np
 
+
 def fix(epoch, initial_lr):
     return initial_lr
 
