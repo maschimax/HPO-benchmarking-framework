@@ -48,18 +48,18 @@ class OptunaOptimizer(BaseOptimizer):
 
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor':
-            thisObjective = self.objective_rf_regressor
+            this_objective = self.objective_rf_regressor
 
         # Select the specified HPO-tuning method
         if self.hpo_method == 'TPE':
-            thisOptimizer = TPESampler(seed=self.random_seed)
+            this_optimizer = TPESampler(seed=self.random_seed)
 
         # Create a study object and specify the optimization direction
-        study = optuna.create_study(sampler=thisOptimizer, direction='minimize')
+        study = optuna.create_study(sampler=this_optimizer, direction='minimize')
 
         # Optimize on the predefined budget
         # Is the number of trials equal to the number of function evaluations?
-        study.optimize(func=thisObjective, n_trials=self.budget)
+        study.optimize(func=this_objective, n_trials=self.budget)
 
         # Create a TuningResult-object to store the optimization results
         all_trials = study.get_trials()
@@ -80,25 +80,25 @@ class OptunaOptimizer(BaseOptimizer):
                               configurations=configurations, best_loss=best_loss, best_configuration=best_params)
         return result
 
-    @staticmethod
-    def plot_learning_curve(result: TuningResult):
-        # Rework necessary
-        fig, ax = plt.subplots()
-        best_loss_curve = []
-        loss_curve = result.losses
-        for i in range(len(loss_curve)):
-            if i == 0:
-                best_loss_curve.append(loss_curve[i])
-            elif loss_curve[i] < min(best_loss_curve):
-                best_loss_curve.append(loss_curve[i])
-            else:
-                best_loss_curve.append(min(best_loss_curve))
-
-        plt.plot(result.timestamps, best_loss_curve)
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.xlabel('Time')
-        plt.ylabel('Loss')
-
-        return plt.show()
+    # @staticmethod
+    # def plot_learning_curve(result: TuningResult):
+    #     # Rework necessary
+    #     fig, ax = plt.subplots()
+    #     best_loss_curve = []
+    #     loss_curve = result.losses
+    #     for i in range(len(loss_curve)):
+    #         if i == 0:
+    #             best_loss_curve.append(loss_curve[i])
+    #         elif loss_curve[i] < min(best_loss_curve):
+    #             best_loss_curve.append(loss_curve[i])
+    #         else:
+    #             best_loss_curve.append(min(best_loss_curve))
+    #
+    #     plt.plot(result.timestamps, best_loss_curve)
+    #     plt.xscale('log')
+    #     plt.yscale('log')
+    #     plt.xlabel('Time')
+    #     plt.ylabel('Loss')
+    #
+    #     return plt.show()
 
