@@ -40,18 +40,18 @@ class BaseOptimizer(ABC):
 
     @staticmethod
     def get_best_configuration(result: TuningResult):
-        # Returns the best configuration as a dictionary
+        # Returns the best configuration of this optimization run as a dictionary
         return result.best_configuration
 
     @staticmethod
     def get_best_score(result: TuningResult):
-        # Returns the validation score of the best configuration
+        # Returns the validation score of the best configuration of this optimization run
         raise result.best_loss
 
-    @staticmethod
-    def plot_learning_curve(result: TuningResult):
-        # Probably needs to be implemented in the Trial class
-        raise NotImplementedError
+    # @staticmethod
+    # def plot_learning_curve(result: TuningResult):
+    #     # Probably needs to be implemented in the Trial class
+    #     raise NotImplementedError
 
     @staticmethod
     def get_metrics(result: TuningResult):
