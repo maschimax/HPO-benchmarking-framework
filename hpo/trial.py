@@ -108,7 +108,7 @@ class Trial:
 
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
-                this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=True)
+                this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
                 for i in range(n_rows):
 
                     if i == 0:

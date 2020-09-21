@@ -34,20 +34,30 @@ space_svr = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
              skopt.space.Categorical(['scale', 'auto'], name='gamma'),
              skopt.space.Real(low=1e-3, high=1e+0, name='epsilon')]
 
+space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
+               skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
+               skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
+               skopt.space.Categorical(['relu', 'tanh'], name='layer1_activation'),
+               skopt.space.Categorical(['relu', 'tanh'], name='layer2_activation'),
+               skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer1_size'),
+               skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer2_size'),
+               skopt.space.Categorical([.0, .3, .6], name='dropout1'),
+               skopt.space.Categorical([.0, .3, .6], name='dropout2')]
+
 
 
 
 # Initialize a Trial-object and run the optimization
-ML_AlGO = 'SVR'
+ML_AlGO = 'KerasRegressor'
 # HPO_LIB = 'optuna'
 # HPO_METHOD = 'TPE'
 N_RUNS = 2
-BUDGET = 10
+BUDGET = 20
 N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('skopt', 'SMAC')]
 OPT_Schedule = [('skopt', 'SMAC')]
 
-trial = Trial(hp_space=space_svr, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
+trial = Trial(hp_space=space_keras, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
               n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS,
               x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
 

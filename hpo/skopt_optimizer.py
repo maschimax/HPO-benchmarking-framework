@@ -4,7 +4,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from tensorflow import keras
 import matplotlib.pyplot as plt
+import functools
 
+from hpo.lr_schedules import fix, exponential, cosine
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
 
@@ -46,8 +48,49 @@ class SkoptOptimizer(BaseOptimizer):
         validation loss"""
 
         model = keras.Sequential()
+
+        # Add input layer
         model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
-        pass
+
+        # Add first hidden layer
+        model.add(keras.layers.Dense(params['layer1_size'], activation=params['layer1_activation']))
+        model.add(keras.layers.Dropout(params['dropout1']))
+
+        # Add second hidden layer
+        model.add(keras.layers.Dense(params['layer2_size'], activation=params['layer2_activation']))
+        model.add(keras.layers.Dropout(params['dropout2']))
+
+        # Add output layer
+        model.add(keras.layers.Dense(1, activation='linear'))
+
+        # Select optimizer and compile the model
+        adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+        model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+
+        # Learning rate schedule
+        if params["lr_schedule"] == "cosine":
+            schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=self.budget)
+
+        if params["lr_schedule"] == "exponential":
+            schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=self.budget)
+
+        elif params["lr_schedule"] == "constant":
+            schedule = functools.partial(fix, initial_lr=params["init_lr"])
+
+        lr = keras.callbacks.LearningRateScheduler(schedule)
+
+        callbacks_list = [lr]
+
+        model.fit(self.x_train, self.y_train, epochs=self.budget, batch_size=params['batch_size'],
+                  validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
+                  verbose=1)
+
+        y_pred = model.predict(self.x_val)
+
+        # Compute the validation loss according to the metric selected
+        val_loss = self.metric(self.y_val, y_pred)
+
+        return val_loss
 
     def objective_keras_regressor(self, params):
         # Objective function for a Keras regressor
