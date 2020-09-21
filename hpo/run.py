@@ -44,20 +44,17 @@ space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_
                skopt.space.Categorical([.0, .3, .6], name='dropout1'),
                skopt.space.Categorical([.0, .3, .6], name='dropout2')]
 
-
-
-
 # Initialize a Trial-object and run the optimization
-ML_AlGO = 'KerasRegressor'
+ML_AlGO = 'RandomForestRegressor'
 # HPO_LIB = 'optuna'
 # HPO_METHOD = 'TPE'
 N_RUNS = 2
-BUDGET = 20
+BUDGET = 10
 N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('skopt', 'SMAC')]
 OPT_Schedule = [('skopt', 'SMAC')]
 
-trial = Trial(hp_space=space_keras, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
+trial = Trial(hp_space=space_rf, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
               n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS,
               x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
 
@@ -66,7 +63,6 @@ res = trial.run()
 trial.plot_learning_curve(res)
 
 print(trial.get_best_trial_result(res))
-
 
 ###########################################
 '''

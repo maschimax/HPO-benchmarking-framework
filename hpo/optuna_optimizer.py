@@ -9,8 +9,10 @@ from hpo.results import TuningResult
 
 
 class OptunaOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget, random_seed):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget, random_seed)
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+                 random_seed):
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+                         random_seed)
 
     def objective_rf_regressor(self, trial):
         # Objective function for a RandomForestRegressor
