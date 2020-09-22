@@ -1,8 +1,11 @@
 import time
 import hpbandster.core.nameserver as hpns
+from hpbandster.optimizers import BOHB
+import pandas as pd
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
+from hpo.hpbandster_worker import HPBandsterWorker
 
 
 class HpbandsterOptimizer(BaseOptimizer):
@@ -21,21 +24,70 @@ class HpbandsterOptimizer(BaseOptimizer):
         NS.start()
 
         # Step 2: Start a worker
-        worker = RandomForestWorker(X_train, X_val, y_train, y_val,
-                                nameserver='127.0.0.1', run_id='example1')
+        worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+                                  ml_algorithm=self.ml_algorithm, optimizer_object=self,
+                                  nameserver='127.0.0.1', run_id='example1')
+
         worker.run(background=True)
 
         # Step 3: Run an optimizer
-        optimizer = BOHB(configspace=worker.get_configspace(), run_id='example1',
-                         nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0,
-                         result_logger=result_logger)
-        res = optimizer.run(n_iterations=10)
+        # >>> BUDGET <<<
+        optimizer = BOHB(configspace=worker.get_configspace(self.hp_space), run_id='example1',
+                         nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0)
 
+        # Optimize on the predefined budget and measure the wall clock times
+        start_time = time.time()
+        # >>> NECESSARY FOR HPBANDSTER?
+        self.times = []  # Initialize a list for saving the wall clock times
+
+        # Start the optimization
+        # >>> n_iterations ??? <<<<
+        res = optimizer.run(n_iterations=int(self.budget / 3))  # set the number of iterations on the trial level?
+
+        # >>> USE HPBANDSTER'S CAPABILITIES FOR TIME MEASUREMENT INSTEAD?
+        for i in range(len(self.times)):
+            # Subtract the start time to receive the wall clock time of each function evaluation
+            self.times[i] = self.times[i] - start_time
+        wall_clock_time = max(self.times)
 
         optimizer.shutdown(shutdown_workers=True)
         NS.shutdown()
 
-        pass
+        id2config = res.get_id2config_mapping()
+        incumbent = res.get_incumbent_id()
+        inc_trajectory = res.get_incumbent_trajectory(
+            bigger_is_better=False)  # Reconsider the use of the 'bigger-is-better' Flag
 
-    def objective(self):
-        pass
+        best_params = id2config[incumbent]['config']
+
+        # runs_df = pd.DataFrame(columns=['config_id', 'iteration', 'budget', 'loss', 'timestamps [finished]'])
+        # all_runs = res.get_all_runs()
+        #
+        # for i in range(len(all_runs)):
+        #     this_run = all_runs[i]
+        #     temp_dict = {'run_id': [i],
+        #                  'config_id': [str(this_run.config_id)],
+        #                  'iteration': this_run.config_id[0],
+        #                  'budget': this_run.budget,
+        #                  'loss': this_run.loss,
+        #                  'timestamps [finished]': this_run.time_stamps['finished']}
+        #     this_df = pd.DataFrame.from_dict(data=temp_dict)
+        #     this_df.set_index('run_id', inplace=True)
+        #     runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
+
+        configurations = ()
+        losses = inc_trajectory['losses']
+        timestamps = inc_trajectory['times_finished']
+        evaluation_ids = list(range(1, len(inc_trajectory['losses']) + 1))
+        for config_id in inc_trajectory['config_ids']:
+            configurations = configurations + (id2config[config_id]['config'],)
+
+        best_loss = min(losses)
+        wall_clock_time = max(timestamps)
+
+        # Pass the results to a TuningResult-object
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
+                              configurations=configurations, best_loss=best_loss, best_configuration=best_params,
+                              wall_clock_time=wall_clock_time)
+
+        return result

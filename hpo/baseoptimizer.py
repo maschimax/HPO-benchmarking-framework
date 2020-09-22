@@ -50,7 +50,6 @@ class BaseOptimizer(ABC):
 
         raise NotImplementedError
 
-    @abstractmethod
     def objective(self):
 
         raise NotImplementedError

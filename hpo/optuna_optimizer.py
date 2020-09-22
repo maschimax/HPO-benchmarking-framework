@@ -32,7 +32,6 @@ class OptunaOptimizer(BaseOptimizer):
         study = optuna.create_study(sampler=this_optimizer, direction='minimize')
 
         # Optimize on the predefined budget and measure the wall clock times
-        # Is the number of trials equal to the number of function evaluations?
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
