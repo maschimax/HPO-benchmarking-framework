@@ -49,17 +49,17 @@ space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='boost
              skopt.space.Integer(1, 80, name='max_depth')]
 
 # Initialize a Trial-object and run the optimization
-ML_AlGO = 'XGBoostRegressor'
+ML_AlGO = 'RandomForestRegressor'
 # HPO_LIB = 'optuna'
 # HPO_METHOD = 'TPE'
 N_RUNS = 2
 BUDGET = 10
 N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
-# ('skopt', 'SMAC'), ('skopt', 'GPBO')]
-OPT_Schedule = [('skopt', 'SMAC'), ('skopt', 'GPBO')]
+# ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB')]
+OPT_Schedule = [('hpbandster', 'BOHB'), ('optuna', 'TPE')]
 
-trial = Trial(hp_space=space_xgb, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
+trial = Trial(hp_space=space_rf, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
               n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS,
               x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
 

@@ -5,6 +5,7 @@ import uuid
 
 from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.skopt_optimizer import SkoptOptimizer
+from hpo.hpbandster_optimizer import HpbandsterOptimizer
 from hpo.results import TrialResult
 
 
@@ -49,12 +50,21 @@ class Trial:
                                                x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
                                                y_val=self.y_val,
                                                metric=self.metric, budget=self.budget, random_seed=this_seed)
+
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                 ml_algorithm=self.ml_algorithm,
                                                 x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
                                                 y_val=self.y_val,
                                                 metric=self.metric, budget=self.budget, random_seed=this_seed)
+
+                elif this_hpo_library == 'hpbandster':
+                    optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
+                                                    ml_algorithm=self.ml_algorithm,
+                                                    x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
+                                                    y_val=self.y_val,
+                                                    metric=self.metric, budget=self.budget, random_seed=this_seed)
+
                 else:
                     raise NameError('Unknown HPO-library!')
 
