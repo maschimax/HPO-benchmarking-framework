@@ -1,11 +1,6 @@
-from skopt.optimizer import forest_minimize
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR
-from tensorflow import keras
-import functools
+from skopt.optimizer import forest_minimize, gp_minimize
 import time
 
-from hpo.lr_schedules import fix, exponential, cosine
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
 
@@ -21,6 +16,10 @@ class SkoptOptimizer(BaseOptimizer):
         # Select the specified HPO-tuning method
         if self.hpo_method == 'SMAC':
             this_optimizer = forest_minimize
+            this_acq_func = 'EI'
+
+        elif self.hpo_method == 'GPBO':
+            this_optimizer = gp_minimize
             this_acq_func = 'EI'
 
         else:

@@ -65,11 +65,6 @@ class BaseOptimizer(ABC):
         # Returns the validation score of the best configuration of this optimization run
         raise result.best_loss
 
-    # @staticmethod
-    # def plot_learning_curve(result: TuningResult):
-    #     # Probably needs to be implemented in the Trial class
-    #     raise NotImplementedError
-
     @staticmethod
     def get_metrics(result: TuningResult):
         # Probably needs to be implemented in the Trial class
