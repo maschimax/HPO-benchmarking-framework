@@ -1,8 +1,6 @@
 import optuna
 import skopt
-from optuna.samplers import TPESampler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR
+from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 import time
 
 from hpo.baseoptimizer import BaseOptimizer
@@ -20,6 +18,12 @@ class OptunaOptimizer(BaseOptimizer):
         # Select the specified HPO-tuning method
         if self.hpo_method == 'TPE':
             this_optimizer = TPESampler(seed=self.random_seed)
+
+        elif self.hpo_method == 'CMA-ES':
+            this_optimizer = CmaEsSampler(seed=self.random_seed)
+
+        elif self.hpo_method == 'RandomSearch':
+            this_optimizer = RandomSampler(seed=self.random_seed)
 
         else:
             raise NameError('Unknown HPO-method!')

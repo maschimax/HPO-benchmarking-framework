@@ -55,8 +55,9 @@ ML_AlGO = 'XGBoostRegressor'
 N_RUNS = 2
 BUDGET = 10
 N_WORKERS = 1
-# OPT_Schedule = [('optuna', 'TPE'), ('skopt', 'SMAC')]
-OPT_Schedule = [('optuna', 'TPE')]
+# OPT_Schedule = [('optuna', 'TPE'), ('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
+# ('skopt', 'SMAC'), ('skopt', 'GPBO')]
+OPT_Schedule = [('skopt', 'SMAC'), ('skopt', 'GPBO')]
 
 trial = Trial(hp_space=space_xgb, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
               n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS,
