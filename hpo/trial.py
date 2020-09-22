@@ -58,7 +58,7 @@ class Trial:
                 else:
                     raise NameError('Unknown HPO-library!')
 
-                optimization_results = optimizer.optimize
+                optimization_results = optimizer.optimize()
 
                 temp_dict = {'HPO-library': [this_hpo_library] * len(optimization_results.losses),
                              'HPO-method': [this_hpo_method] * len(optimization_results.losses),

@@ -48,11 +48,11 @@ space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_
 ML_AlGO = 'RandomForestRegressor'
 # HPO_LIB = 'optuna'
 # HPO_METHOD = 'TPE'
-N_RUNS = 2
-BUDGET = 10
+N_RUNS = 3
+BUDGET = 20
 N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('skopt', 'SMAC')]
-OPT_Schedule = [('skopt', 'SMAC')]
+OPT_Schedule = [('optuna', 'TPE')]
 
 trial = Trial(hp_space=space_rf, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse,
               n_runs=N_RUNS, budget=BUDGET, n_workers=N_WORKERS,
