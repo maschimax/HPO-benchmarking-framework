@@ -2,6 +2,7 @@ import optuna
 import skopt
 from optuna.samplers import TPESampler
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
 import time
 
 from hpo.baseoptimizer import BaseOptimizer
@@ -15,13 +16,6 @@ class OptunaOptimizer(BaseOptimizer):
                          random_seed)
 
     def optimize(self) -> TuningResult:
-
-        # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor':
-            this_objective = self.objective_rf_regressor
-
-        else:
-            raise NameError('Unknown ML-algorithm!')
 
         # Select the specified HPO-tuning method
         if self.hpo_method == 'TPE':
@@ -39,7 +33,7 @@ class OptunaOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        study.optimize(func=this_objective, n_trials=self.budget)
+        study.optimize(func=self.objective, n_trials=self.budget)
 
         for i in range(len(self.times)):
             # Subtract the start time to receive the wall clock time of each function evaluation
@@ -67,37 +61,40 @@ class OptunaOptimizer(BaseOptimizer):
 
         return result
 
-    def objective_rf_regressor(self, trial):
-        # Objective function for a RandomForestRegressor
+    def objective(self, trial):
+        """Objective function: This method converts the hyperparameters into a dictionary, passes them to the ML-model
+         for training and returns the validation loss."""
 
-        # Convert the skopt HP-space into an optuna HP-space
-        params = {}
+        # Convert the hyperparameters into a dictionary to pass them to the ML-model
+        dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                params[self.hp_space[i].name] = trial.suggest_int(name=self.hp_space[i].name,
-                                                                  low=self.hp_space[i].low,
-                                                                  high=self.hp_space[i].high)
+                dict_params[self.hp_space[i].name] = trial.suggest_int(name=self.hp_space[i].name,
+                                                                       low=self.hp_space[i].low,
+                                                                       high=self.hp_space[i].high)
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                params[self.hp_space[i].name] = trial.suggest_categorical(name=self.hp_space[i].name,
-                                                                          choices=list(self.hp_space[4].categories))
+                dict_params[self.hp_space[i].name] = trial.suggest_categorical(name=self.hp_space[i].name,
+                                                                               choices=list(self.hp_space[i].categories))
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                params[self.hp_space[i].name] = trial.suggest_float(name=self.hp_space[i].name,
-                                                                    low=self.hp_space[i].low,
-                                                                    high=self.hp_space[i].high)
+                dict_params[self.hp_space[i].name] = trial.suggest_float(name=self.hp_space[i].name,
+                                                                         low=self.hp_space[i].low,
+                                                                         high=self.hp_space[i].high)
             else:
                 raise NameError('The skopt HP-space could not be converted correctly!')
 
-        # Create ML-model for the HP-configuration selected by the HPO-method
-        rf_reg = RandomForestRegressor(random_state=self.random_seed, **params)
-        rf_reg.fit(self.x_train, self.y_train)
-        y_pred = rf_reg.predict(self.x_val)
+        # Select the corresponding objective function of the ML-Algorithm
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+            eval_func = self.train_evaluate_scikit_regressor
 
-        # Compute the validation loss according to the metric selected
-        val_loss = self.metric(self.y_val, y_pred)
+        elif self.ml_algorithm == 'KerasRegressor':
+            eval_func = self.train_evaluate_keras_regressor
 
-        # Measure the finish time of the iteration
-        self.times.append(time.time())
+        elif self.ml_algorithm == 'XGBoostRegressor':
+            eval_func = self.train_evaluate_xgboost_regressor
 
-        return val_loss
+        else:
+            raise NameError('Unknown ML-algorithm!')
+
+        return eval_func(params=dict_params)
