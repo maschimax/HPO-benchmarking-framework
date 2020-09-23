@@ -2,7 +2,7 @@ import hpbandster.core.nameserver as hpns
 from hpbandster.optimizers import BOHB
 import matplotlib.pyplot as plt
 
-from hpo.workers import RandomForestWorker
+from hpo.outdated.workers import RandomForestWorker
 import preprocessing as pp
 
 numWorkers = 4
