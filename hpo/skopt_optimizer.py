@@ -6,9 +6,9 @@ from hpo.results import TuningResult
 
 
 class SkoptOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                  random_seed):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                          random_seed)
 
     def optimize(self) -> TuningResult:
@@ -25,12 +25,12 @@ class SkoptOptimizer(BaseOptimizer):
         else:
             raise Exception('Unknown HPO-method!')
 
-        # Optimize on the predefined budget and measure the wall clock times
+        # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.budget, random_state=self.random_seed,
+        trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals, random_state=self.random_seed,
                                       acq_func=this_acq_func)
 
         for i in range(len(self.times)):

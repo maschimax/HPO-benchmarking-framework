@@ -71,7 +71,7 @@ def train_evaluate_rf(X_train, y_train, X_val, y_val, params):
     return val_loss
 
 
-def train_evaluate_keras(X_train, y_train, X_val, y_val, params):  # Assign budget as the number of epochs (int)
+def train_evaluate_keras(X_train, y_train, X_val, y_val, params):  # Assign n_func_evals as the number of epochs (int)
     model = keras.Sequential()
 
     model.add(keras.layers.InputLayer(input_shape=len(X_train.keys())))
