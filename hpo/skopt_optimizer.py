@@ -23,7 +23,7 @@ class SkoptOptimizer(BaseOptimizer):
             this_acq_func = 'EI'
 
         else:
-            raise NameError('Unknown HPO-method!')
+            raise Exception('Unknown HPO-method!')
 
         # Optimize on the predefined budget and measure the wall clock times
         start_time = time.time()
@@ -86,6 +86,6 @@ class SkoptOptimizer(BaseOptimizer):
             eval_func = self.train_evaluate_xgboost_regressor
 
         else:
-            raise NameError('Unknown ML-algorithm!')
+            raise Exception('Unknown ML-algorithm!')
 
         return eval_func(params=dict_params)

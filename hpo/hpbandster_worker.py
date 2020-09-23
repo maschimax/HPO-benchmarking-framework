@@ -32,7 +32,7 @@ class HPBandsterWorker(Worker):
         #     eval_func = self.train_evaluate_xgboost_regressor
 
         else:
-            raise NameError('Unknown ML-algorithm!')
+            raise Exception('Unknown ML-algorithm!')
 
         val_loss = eval_func(params=config)
 
@@ -62,7 +62,7 @@ class HPBandsterWorker(Worker):
                                                                   upper=hp_space[i].high))
 
             else:
-                raise NameError('The skopt HP-space could not be converted correctly!')
+                raise Exception('The skopt HP-space could not be converted correctly!')
 
         cs.add_hyperparameters(params_list)
 

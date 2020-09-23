@@ -26,7 +26,7 @@ class OptunaOptimizer(BaseOptimizer):
             this_optimizer = RandomSampler(seed=self.random_seed)
 
         else:
-            raise NameError('Unknown HPO-method!')
+            raise Exception('Unknown HPO-method!')
 
         # Create a study object and specify the optimization direction
         study = optuna.create_study(sampler=this_optimizer, direction='minimize')
@@ -85,7 +85,7 @@ class OptunaOptimizer(BaseOptimizer):
                                                                          low=self.hp_space[i].low,
                                                                          high=self.hp_space[i].high)
             else:
-                raise NameError('The skopt HP-space could not be converted correctly!')
+                raise Exception('The skopt HP-space could not be converted correctly!')
 
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
@@ -98,6 +98,6 @@ class OptunaOptimizer(BaseOptimizer):
             eval_func = self.train_evaluate_xgboost_regressor
 
         else:
-            raise NameError('Unknown ML-algorithm!')
+            raise Exception('Unknown ML-algorithm!')
 
         return eval_func(params=dict_params)
