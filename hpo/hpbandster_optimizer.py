@@ -1,6 +1,7 @@
 import time
 import hpbandster.core.nameserver as hpns
 from hpbandster.optimizers import BOHB
+from hpbandster.optimizers import HyperBand
 import pandas as pd
 
 from hpo.baseoptimizer import BaseOptimizer
@@ -9,9 +10,9 @@ from hpo.hpbandster_worker import HPBandsterWorker
 
 
 class HpbandsterOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                  random_seed):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                          random_seed)
 
     def optimize(self) -> TuningResult:
@@ -20,29 +21,39 @@ class HpbandsterOptimizer(BaseOptimizer):
         :return:
         """
         # Step 1: Start a nameserver
-        NS = hpns.NameServer(run_id='example1', host='127.0.0.1', port=None)
+        NS = hpns.NameServer(run_id='hpbandster', host='127.0.0.1', port=None)
         NS.start()
 
         # Step 2: Start a worker
         worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
                                   ml_algorithm=self.ml_algorithm, optimizer_object=self,
-                                  nameserver='127.0.0.1', run_id='example1')
+                                  nameserver='127.0.0.1', run_id='hpbandster')
 
         worker.run(background=True)
 
         # Step 3: Run an optimizer
-        # >>> BUDGET <<<
-        optimizer = BOHB(configspace=worker.get_configspace(self.hp_space), run_id='example1',
-                         nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=3.0)
+        # Select the specified HPO-tuning method
+        if self.hpo_method == 'BOHB':
+            eta = 3.0
+            optimizer = BOHB(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
+                             nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=eta)
 
-        # Optimize on the predefined budget and measure the wall clock times
+        elif self.hpo_method == 'Hyperband':
+            eta = 3.0
+            optimizer = HyperBand(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
+                                  nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=eta)
+
+        else:
+            raise Exception('Unknown HPO-method!')
+
+        # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         # >>> NECESSARY FOR HPBANDSTER?
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        # >>> n_iterations ??? <<<<
-        res = optimizer.run(n_iterations=int(self.budget / 3))  # set the number of iterations on the trial level?
+        res = optimizer.run(n_iterations=int(self.n_func_evals / eta))
+        # number of function evaluations = eta * n_iterations
 
         # >>> USE HPBANDSTER'S CAPABILITIES FOR TIME MEASUREMENT INSTEAD?
         for i in range(len(self.times)):
@@ -55,12 +66,10 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         id2config = res.get_id2config_mapping()
         incumbent = res.get_incumbent_id()
-        # inc_trajectory = res.get_incumbent_trajectory(
-        #     bigger_is_better=False)  # Reconsider the use of the 'bigger-is-better' Flag
 
         best_params = id2config[incumbent]['config']
 
-        runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
+        runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'n_func_evals',
                                         'loss', 'timestamps [finished]'])
         all_runs = res.get_all_runs()
 
@@ -88,7 +97,6 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         configurations = ()
         for i in range(len(losses)):
-
             this_config = (list(runs_df['config_id#0'])[i],
                            list(runs_df['config_id#1'])[i],
                            list(runs_df['config_id#2'])[i])

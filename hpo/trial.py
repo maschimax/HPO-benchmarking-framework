@@ -11,14 +11,14 @@ from hpo.results import TrialResult
 
 class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
-                 n_runs: int, budget: int, n_workers: int,
+                 n_runs: int, n_func_evals: int, n_workers: int,
                  x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
         self.metric = metric
         self.n_runs = n_runs
-        self.budget = budget
+        self.n_func_evals = n_func_evals
         self.n_workers = n_workers
         self.x_train = x_train
         self.y_train = y_train
@@ -27,13 +27,20 @@ class Trial:
         # Attribute for CPU / GPU selection required
 
     def run(self):
+        """
+        Run the hyperparameter optimization according to the optimization schedule.
+        :return: trial_results_dict: contains the optimization results of this trial
+        """
 
-        # Process the optimization schedule
-        results_dict = {}
+        # Initialize a dictionary for saving the trial results
+        trial_results_dict = {}
+
+        # Process the optimization schedule -> Iterate over the tuples (hpo_library, hpo_method)
         for opt_tuple in self.optimization_schedule:
             this_hpo_library = opt_tuple[0]
             this_hpo_method = opt_tuple[1]
 
+            # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
                                                'num_of_evaluation', 'losses', 'timestamps'])
             best_configs = ()
@@ -44,32 +51,32 @@ class Trial:
                 run_id = str(uuid.uuid4())
                 this_seed = i  # Random seed for this run
 
+                # Create an optimizer object
                 if this_hpo_library == 'skopt':
                     optimizer = SkoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
-                                               ml_algorithm=self.ml_algorithm,
-                                               x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
-                                               y_val=self.y_val,
-                                               metric=self.metric, budget=self.budget, random_seed=this_seed)
+                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
+                                               y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                               n_func_evals=self.n_func_evals, random_seed=this_seed)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
-                                                ml_algorithm=self.ml_algorithm,
-                                                x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
-                                                y_val=self.y_val,
-                                                metric=self.metric, budget=self.budget, random_seed=this_seed)
+                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
+                                                y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                                n_func_evals=self.n_func_evals, random_seed=this_seed)
 
                 elif this_hpo_library == 'hpbandster':
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
-                                                    ml_algorithm=self.ml_algorithm,
-                                                    x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
-                                                    y_val=self.y_val,
-                                                    metric=self.metric, budget=self.budget, random_seed=this_seed)
+                                                    ml_algorithm=self.ml_algorithm, x_train=self.x_train,
+                                                    x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+                                                    metric=self.metric, n_func_evals=self.n_func_evals, random_seed=this_seed)
 
                 else:
                     raise Exception('Unknown HPO-library!')
 
+                # Start the optimization
                 optimization_results = optimizer.optimize()
 
+                # Save the optimization results in a dictionary
                 temp_dict = {'HPO-library': [this_hpo_library] * len(optimization_results.losses),
                              'HPO-method': [this_hpo_method] * len(optimization_results.losses),
                              'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
@@ -79,9 +86,11 @@ class Trial:
                              'losses': optimization_results.losses,
                              'timestamps': optimization_results.timestamps}
 
+                # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
                 results_df = pd.concat(objs=[results_df, this_df], axis=0)
 
+                # Retrieve the best HP-configuration and the achieved loss
                 best_configs = best_configs + (optimization_results.best_configuration,)
                 best_losses.append(optimization_results.best_loss)
 
@@ -93,24 +102,33 @@ class Trial:
                     best_loss = best_losses[i]
                     idx_best = i
 
+            # Create a TrialResult-object to save the results of this trial
             TrialResultObject = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
                                             best_trial_loss=best_loss, hpo_library=this_hpo_library,
                                             hpo_method=this_hpo_method)
 
-            results_dict[opt_tuple] = TrialResultObject
+            # Append the TrialResult-object to the result dictionary
+            trial_results_dict[opt_tuple] = TrialResultObject
 
-        return results_dict
+        return trial_results_dict
 
     @staticmethod
-    def plot_learning_curve(results_dict: dict):
-        # Rework required
+    def plot_learning_curve(trial_results_dict: dict):
+        """
+        Plot the learning curves for the HPO-methods that have been evaluated in a trial.
+        :param trial_results_dict: contains the optimization results of a trial
+        :return: fig: matplotlib.figure.Figure
+        """
+
+        # Initialize the plot figure
         fig, ax = plt.subplots()
         mean_lines = []
 
-        for opt_tuple in results_dict.keys():
-            this_df = results_dict[opt_tuple].trial_result_df
+        # Iterate over each optimization tuples (hpo-library, hpo-method)
+        for opt_tuple in trial_results_dict.keys():
 
-            unique_ids = this_df['run_id'].unique()
+            this_df = trial_results_dict[opt_tuple].trial_result_df
+            unique_ids = this_df['run_id'].unique() # Unique id of each optimization run
 
             n_cols = len(unique_ids)
             n_rows = 0
@@ -156,34 +174,31 @@ class Trial:
 
             mean_line = ax.plot(mean_timestamps, mean_curve)
             mean_lines.append(mean_line[0])
-            # ax.plot(this_subframe['num_of_evaluation'], quant25_curve)
-            # ax.plot(this_subframe['num_of_evaluation'], quant75_curve)
             ax.fill_between(x=mean_timestamps, y1=quant25_curve,
                             y2=quant75_curve, alpha=0.2)
-            # ax.legend(mean_line, opt_tuple[1], loc='upper right')
 
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
-        plt.legend(mean_lines, [this_tuple[1] for this_tuple in results_dict.keys()], loc='upper right')
+        plt.legend(mean_lines, [this_tuple[1] for this_tuple in trial_results_dict.keys()], loc='upper right')
 
-        return plt.show()
+        return fig
 
-    def get_best_trial_result(self, results_dict: dict) -> dict:
-        for i in range(len(results_dict.keys())):
-            this_opt_tuple = list(results_dict.keys())[i]
+    def get_best_trial_result(self, trial_results_dict: dict) -> dict:
+        for i in range(len(trial_results_dict.keys())):
+            this_opt_tuple = list(trial_results_dict.keys())[i]
 
             if i == 0:
-                best_loss = results_dict[this_opt_tuple].best_loss
-                best_configuration = results_dict[this_opt_tuple].best_trial_configuration
-                best_library = results_dict[this_opt_tuple].hpo_library
-                best_method = results_dict[this_opt_tuple].hpo_method
+                best_loss = trial_results_dict[this_opt_tuple].best_loss
+                best_configuration = trial_results_dict[this_opt_tuple].best_trial_configuration
+                best_library = trial_results_dict[this_opt_tuple].hpo_library
+                best_method = trial_results_dict[this_opt_tuple].hpo_method
 
-            elif results_dict[this_opt_tuple].best_loss < best_loss:
-                best_loss = results_dict[this_opt_tuple].best_loss
-                best_configuration = results_dict[this_opt_tuple].best_trial_configuration
-                best_library = results_dict[this_opt_tuple].hpo_library
-                best_method = results_dict[this_opt_tuple].hpo_method
+            elif trial_results_dict[this_opt_tuple].best_loss < best_loss:
+                best_loss = trial_results_dict[this_opt_tuple].best_loss
+                best_configuration = trial_results_dict[this_opt_tuple].best_trial_configuration
+                best_library = trial_results_dict[this_opt_tuple].hpo_library
+                best_method = trial_results_dict[this_opt_tuple].hpo_method
 
         out_dict = {'ML-algorithm': self.ml_algorithm, 'HPO-method': best_method, 'HPO-library': best_library,
                     'HP-configuration': best_configuration,
@@ -191,5 +206,5 @@ class Trial:
         return out_dict
 
     @staticmethod
-    def get_metrics(results_dict: dict):
+    def get_metrics(trial_results_dict: dict):
         pass

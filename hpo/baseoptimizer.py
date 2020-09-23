@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from abc import ABC, abstractmethod
 import time
 import functools
@@ -15,7 +16,7 @@ from hpo.lr_schedules import fix, exponential, cosine
 class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
                  x_train: pd.DataFrame, x_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series,
-                 metric, budget: int, random_seed: int):
+                 metric, n_func_evals: int, random_seed: int):
         """
 
         :param hp_space:
@@ -26,7 +27,7 @@ class BaseOptimizer(ABC):
         :param y_train:
         :param y_val:
         :param metric
-        :param budget:
+        :param n_func_evals:
         :param random_seed
         """
 
@@ -38,7 +39,7 @@ class BaseOptimizer(ABC):
         self.y_train = y_train
         self.y_val = y_val
         self.metric = metric
-        self.budget = budget
+        self.n_func_evals = n_func_evals
         self.random_seed = random_seed
 
     @abstractmethod
@@ -65,7 +66,7 @@ class BaseOptimizer(ABC):
         # Probably needs to be implemented in the Trial class
         raise NotImplementedError
 
-    def train_evaluate_scikit_regressor(self, params: dict):
+    def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
         """ This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss"""
 
@@ -77,8 +78,21 @@ class BaseOptimizer(ABC):
         else:
             raise Exception('Unknown ML-algorithm!')
 
+        if 'hp_budget' in kwargs:
+            # For BOHB and Hyperband select the training data according to the budget selected
+            hp_budget = kwargs['hp_budget']
+            n_train = len(self.x_train)
+            n_budget = int(0.1 * hp_budget * n_train)
+            idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        else:
+            x_train = self.x_train
+            y_train = self.y_train
+
         # Train the model and make the prediction
-        model.fit(self.x_train, self.y_train)
+        model.fit(x_train, y_train)
         y_pred = model.predict(self.x_val)
 
         # Compute the validation loss according to the metric selected
@@ -89,7 +103,7 @@ class BaseOptimizer(ABC):
 
         return val_loss
 
-    def train_evaluate_keras_regressor(self, params: dict):
+    def train_evaluate_keras_regressor(self, params: dict, **kwargs):
         """ This method trains a keras model according to the selected HP-configuration and returns the
         validation loss"""
 
@@ -116,10 +130,10 @@ class BaseOptimizer(ABC):
 
         # Learning rate schedule
         if params["lr_schedule"] == "cosine":
-            schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=self.budget)
+            schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=self.n_func_evals)
 
         elif params["lr_schedule"] == "exponential":
-            schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=self.budget)
+            schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=self.n_func_evals)
 
         elif params["lr_schedule"] == "constant":
             schedule = functools.partial(fix, initial_lr=params["init_lr"])
@@ -132,7 +146,7 @@ class BaseOptimizer(ABC):
         callbacks_list = [lr]
 
         # Train the model
-        model.fit(self.x_train, self.y_train, epochs=self.budget, batch_size=params['batch_size'],
+        model.fit(self.x_train, self.y_train, epochs=self.n_func_evals, batch_size=params['batch_size'],
                   validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
                   verbose=1)
 
@@ -147,7 +161,7 @@ class BaseOptimizer(ABC):
 
         return val_loss
 
-    def train_evaluate_xgboost_regressor(self, params: dict):
+    def train_evaluate_xgboost_regressor(self, params: dict, **kwargs):
         """ This method trains a XGBoost model according to the selected HP-configuration and returns the
                 validation loss"""
 

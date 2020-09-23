@@ -8,9 +8,9 @@ from hpo.results import TuningResult
 
 
 class OptunaOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                  random_seed):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, budget,
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                          random_seed)
 
     def optimize(self) -> TuningResult:
@@ -31,12 +31,12 @@ class OptunaOptimizer(BaseOptimizer):
         # Create a study object and specify the optimization direction
         study = optuna.create_study(sampler=this_optimizer, direction='minimize')
 
-        # Optimize on the predefined budget and measure the wall clock times
+        # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        study.optimize(func=self.objective, n_trials=self.budget)
+        study.optimize(func=self.objective, n_trials=self.n_func_evals)
 
         for i in range(len(self.times)):
             # Subtract the start time to receive the wall clock time of each function evaluation

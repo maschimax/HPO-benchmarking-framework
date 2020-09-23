@@ -31,7 +31,7 @@ class RandomForestWorker(Worker):
                                        min_samples_split=config['min_samples_split'],
                                        max_features=config['max_features'])
 
-        # Train the model on the specified budget
+        # Train the model on the specified n_func_evals
         n_train = len(self.X_train)
         n_fit = int(0.1 * budget * n_train)
         ifit = np.random.randint(low=0, high=n_fit, size=n_fit)
@@ -92,7 +92,7 @@ class SVMWorker(Worker):
     def compute(self, config, budget, *args, **kwargs):
         svm_reg = SVR(C=config['C'], gamma=config['gamma'], epsilon=config['epsilon'])
 
-        # Train the model on the specified budget
+        # Train the model on the specified n_func_evals
         n_train = len(self.X_train)
         n_fit = int(0.1 * budget * n_train)
         ifit = np.random.randint(low=0, high=n_fit, size=n_fit)
