@@ -67,8 +67,12 @@ class BaseOptimizer(ABC):
         raise NotImplementedError
 
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
-        """ This method trains a scikit-learn model according to the selected HP-configuration and returns the
-        validation loss"""
+        """This method trains a scikit-learn model according to the selected HP-configuration and returns the
+        validation loss
+        :param params: dictionary of hyperparameters
+        :param kwargs: further keyword arguments (possibility
+        :return:
+        """
 
         # Create ML-model for the HP-configuration selected by the HPO-method
         if self.ml_algorithm == 'RandomForestRegressor':
@@ -79,7 +83,7 @@ class BaseOptimizer(ABC):
             raise Exception('Unknown ML-algorithm!')
 
         if 'hp_budget' in kwargs:
-            # For BOHB and Hyperband select the training data according to the budget selected
+            # For BOHB and Hyperband select the training data according to the budget of this iteration
             hp_budget = kwargs['hp_budget']
             n_train = len(self.x_train)
             n_budget = int(0.1 * hp_budget * n_train)
