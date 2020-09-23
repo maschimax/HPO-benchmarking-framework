@@ -1,16 +1,14 @@
 import preprocessing as pp
-import time
 import matplotlib.pyplot as plt
 
 import hpbandster.core.nameserver as hpns
 from hpbandster.optimizers import BOHB as BOHB
 from hpbandster.optimizers import RandomSearch
 import hpbandster.core.result as hpres
-import hpbandster.visualization as hpvis
 
-from hpo.workers import RandomForestWorker
-from hpo.workers import SVMWorker
-from hpo.workers import KerasRegressor
+from hpo.outdated.workers import RandomForestWorker
+from hpo.outdated.workers import SVMWorker
+from hpo.outdated.workers import KerasRegressor
 
 
 # ML-algorithm
