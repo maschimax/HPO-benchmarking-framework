@@ -35,7 +35,7 @@ class HPBandsterWorker(Worker):
             raise Exception('Unknown ML-algorithm!')
 
         # Pass the Hyperband budget (hpbandster specific) to the evaluation function
-        val_loss = eval_func(params=config, hp_budget=budget)
+        val_loss = eval_func(params=config, hb_budget=budget)
 
         return ({'loss': val_loss,
                  'info': {'validation_loss': val_loss}})

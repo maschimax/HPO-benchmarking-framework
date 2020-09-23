@@ -36,17 +36,17 @@ class HpbandsterOptimizer(BaseOptimizer):
         if self.hpo_method == 'BOHB':
             eta = 3.0
             optimizer = BOHB(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
-                             nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=eta)
+                             nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=eta)
 
         elif self.hpo_method == 'Hyperband':
             eta = 3.0
             optimizer = HyperBand(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
-                                  nameserver='127.0.0.1', min_budget=1, max_budget=9, eta=eta)
+                                  nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=eta)
 
         else:
             raise Exception('Unknown HPO-method!')
 
-        # Optimize on the predefined n_func_evals and measure the wall clock times
+        # Optimize on the predefined n_fßunc_evals and measure the wall clock times
         start_time = time.time()
         # >>> NECESSARY FOR HPBANDSTER?
         self.times = []  # Initialize a list for saving the wall clock times
@@ -69,7 +69,7 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         best_params = id2config[incumbent]['config']
 
-        runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'n_func_evals',
+        runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
                                         'loss', 'timestamps [finished]'])
         all_runs = res.get_all_runs()
 

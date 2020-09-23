@@ -70,8 +70,8 @@ class BaseOptimizer(ABC):
         """This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss
         :param params: dictionary of hyperparameters
-        :param kwargs: further keyword arguments (possibility
-        :return:
+        :param kwargs: further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train)
+        :return: val_loss: float
         """
 
         # Create ML-model for the HP-configuration selected by the HPO-method
@@ -82,11 +82,11 @@ class BaseOptimizer(ABC):
         else:
             raise Exception('Unknown ML-algorithm!')
 
-        if 'hp_budget' in kwargs:
+        if 'hb_budget' in kwargs:
             # For BOHB and Hyperband select the training data according to the budget of this iteration
-            hp_budget = kwargs['hp_budget']
+            hb_budget = kwargs['hb_budget']
             n_train = len(self.x_train)
-            n_budget = int(0.1 * hp_budget * n_train)
+            n_budget = int(0.1 * hb_budget * n_train)
             idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
             x_train = self.x_train.iloc[idx_train]
             y_train = self.y_train.iloc[idx_train]
@@ -108,8 +108,12 @@ class BaseOptimizer(ABC):
         return val_loss
 
     def train_evaluate_keras_regressor(self, params: dict, **kwargs):
-        """ This method trains a keras model according to the selected HP-configuration and returns the
-        validation loss"""
+        """This method trains a keras model according to the selected HP-configuration and returns the
+        validation loss
+        :param params: dictionary of hyperparameters
+        :param kwargs: further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train)
+        :return: val_loss: float
+        """
 
         # Initialize the neural network
         model = keras.Sequential()
@@ -166,8 +170,12 @@ class BaseOptimizer(ABC):
         return val_loss
 
     def train_evaluate_xgboost_regressor(self, params: dict, **kwargs):
-        """ This method trains a XGBoost model according to the selected HP-configuration and returns the
-                validation loss"""
+        """This method trains a XGBoost model according to the selected HP-configuration and returns the
+        validation loss
+        :param params: dictionary of hyperparameters
+        :param kwargs: further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train)
+        :return: val_loss: float
+        """
 
         # Initialize the model
         model = XGBRegressor(**params, random_state=self.random_seed)
