@@ -66,7 +66,7 @@ class Trial:
                                                     metric=self.metric, budget=self.budget, random_seed=this_seed)
 
                 else:
-                    raise NameError('Unknown HPO-library!')
+                    raise Exception('Unknown HPO-library!')
 
                 optimization_results = optimizer.optimize()
 
@@ -113,7 +113,15 @@ class Trial:
             unique_ids = this_df['run_id'].unique()
 
             n_cols = len(unique_ids)
-            n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
+            n_rows = 0
+
+            # Find the maximum number of function evaluations over all runs of this tuning tuple
+            for uniq in unique_ids:
+                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['num_of_evaluation'])
+                if num_of_evals > n_rows:
+                    n_rows = num_of_evals
+
+            # n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
@@ -122,23 +130,29 @@ class Trial:
                 this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
                 for i in range(n_rows):
 
-                    timestamps[i, j] = this_subframe['timestamps'][i]
+                    try:
+                        timestamps[i, j] = this_subframe['timestamps'][i]
 
-                    if i == 0:
-                        # best_losses[i, j] = results_dict[list(results_dict.keys())[j]].losses[i]
-                        best_losses[i, j] = this_subframe['losses'][i]
-                    elif this_subframe['losses'][i] < best_losses[i - 1, j]:
-                        best_losses[i, j] = this_subframe['losses'][i]
-                    else:
-                        best_losses[i, j] = best_losses[i - 1, j]
+                        if i == 0:
+                            best_losses[i, j] = this_subframe['losses'][i]
+
+                        elif this_subframe['losses'][i] < best_losses[i - 1, j]:
+                            best_losses[i, j] = this_subframe['losses'][i]
+
+                        else:
+                            best_losses[i, j] = best_losses[i - 1, j]
+
+                    except:
+                        timestamps[i, j] = float('nan')
+                        best_losses[i, j] = float('nan')
 
             # Compute the average loss over all runs
-            mean_curve = np.mean(best_losses, axis=1)
-            quant25_curve = np.quantile(best_losses, q=.25, axis=1)
-            quant75_curve = np.quantile(best_losses, q=.75, axis=1)
+            mean_curve = np.nanmean(best_losses, axis=1)
+            quant25_curve = np.nanquantile(best_losses, q=.25, axis=1)
+            quant75_curve = np.nanquantile(best_losses, q=.75, axis=1)
 
             # Compute average timestamps
-            mean_timestamps = np.mean(timestamps, axis=1)
+            mean_timestamps = np.nanmean(timestamps, axis=1)
 
             mean_line = ax.plot(mean_timestamps, mean_curve)
             mean_lines.append(mean_line[0])

@@ -40,10 +40,6 @@ class BaseOptimizer(ABC):
         self.metric = metric
         self.budget = budget
         self.random_seed = random_seed
-        # if self.times is None:
-        #     self.times = []
-        # else:
-        #     self.times = times
 
     @abstractmethod
     def optimize(self) -> TuningResult:
@@ -79,7 +75,7 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'SVR':
             model = SVR(**params)  # SVR has no random_state argument
         else:
-            raise NameError('Unknown ML-algorithm!')
+            raise Exception('Unknown ML-algorithm!')
 
         # Train the model and make the prediction
         model.fit(self.x_train, self.y_train)
@@ -129,7 +125,7 @@ class BaseOptimizer(ABC):
             schedule = functools.partial(fix, initial_lr=params["init_lr"])
 
         else:
-            raise NameError('Unknown learning rate schedule!')
+            raise Exception('Unknown learning rate schedule!')
 
         # Determine the learning rate for this iteration and pass it as callback
         lr = keras.callbacks.LearningRateScheduler(schedule)

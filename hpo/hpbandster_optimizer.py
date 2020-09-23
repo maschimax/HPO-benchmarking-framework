@@ -55,35 +55,45 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         id2config = res.get_id2config_mapping()
         incumbent = res.get_incumbent_id()
-        inc_trajectory = res.get_incumbent_trajectory(
-            bigger_is_better=False)  # Reconsider the use of the 'bigger-is-better' Flag
+        # inc_trajectory = res.get_incumbent_trajectory(
+        #     bigger_is_better=False)  # Reconsider the use of the 'bigger-is-better' Flag
 
         best_params = id2config[incumbent]['config']
 
-        # runs_df = pd.DataFrame(columns=['config_id', 'iteration', 'budget', 'loss', 'timestamps [finished]'])
-        # all_runs = res.get_all_runs()
-        #
-        # for i in range(len(all_runs)):
-        #     this_run = all_runs[i]
-        #     temp_dict = {'run_id': [i],
-        #                  'config_id': [str(this_run.config_id)],
-        #                  'iteration': this_run.config_id[0],
-        #                  'budget': this_run.budget,
-        #                  'loss': this_run.loss,
-        #                  'timestamps [finished]': this_run.time_stamps['finished']}
-        #     this_df = pd.DataFrame.from_dict(data=temp_dict)
-        #     this_df.set_index('run_id', inplace=True)
-        #     runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
+        runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
+                                        'loss', 'timestamps [finished]'])
+        all_runs = res.get_all_runs()
+
+        for i in range(len(all_runs)):
+            this_run = all_runs[i]
+            temp_dict = {'run_id': [i],
+                         'config_id#0': [this_run.config_id[0]],
+                         'config_id#1': [this_run.config_id[1]],
+                         'config_id#2': [this_run.config_id[2]],
+                         'iteration': this_run.config_id[0],
+                         'budget': this_run.budget,
+                         'loss': this_run.loss,
+                         'timestamps [finished]': this_run.time_stamps['finished']}
+            this_df = pd.DataFrame.from_dict(data=temp_dict)
+            this_df.set_index('run_id', inplace=True)
+            runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
+
+        runs_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=True)
+
+        losses = list(runs_df['loss'])
+        best_loss = min(losses)
+        evaluation_ids = list(range(1, len(losses) + 1))
+        timestamps = list(runs_df['timestamps [finished]'])
+        wall_clock_time = max(timestamps)
 
         configurations = ()
-        losses = inc_trajectory['losses']
-        timestamps = inc_trajectory['times_finished']
-        evaluation_ids = list(range(1, len(inc_trajectory['losses']) + 1))
-        for config_id in inc_trajectory['config_ids']:
-            configurations = configurations + (id2config[config_id]['config'],)
+        for i in range(len(losses)):
 
-        best_loss = min(losses)
-        wall_clock_time = max(timestamps)
+            this_config = (list(runs_df['config_id#0'])[i],
+                           list(runs_df['config_id#1'])[i],
+                           list(runs_df['config_id#2'])[i])
+
+            configurations = configurations + (id2config[this_config]['config'],)
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
