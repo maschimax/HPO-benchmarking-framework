@@ -63,7 +63,7 @@ def objective_func_fabolas(x, s):
     for i in range(len(x)):
         params[hps[i]] = int(x[i])
 
-    n_train = len(X_train)
+    # n_train = len(X_train)
     n_budget = s
     idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
     x_train_fab = X_train.iloc[idx_train]
