@@ -67,11 +67,15 @@ class BaseOptimizer(ABC):
         raise NotImplementedError
 
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
-        """This method trains a scikit-learn model according to the selected HP-configuration and returns the
+        """
+        This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss
-        :param params: dictionary of hyperparameters
-        :param kwargs: further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train)
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
         :return: val_loss: float
+            Validation loss of this run
         """
 
         # Create ML-model for the HP-configuration selected by the HPO-method
@@ -88,6 +92,13 @@ class BaseOptimizer(ABC):
             n_train = len(self.x_train)
             n_budget = int(0.1 * hb_budget * n_train)
             idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        elif 'fabolas_budget' in kwargs:
+            # For Fabolas select the training data according to the budget of this iteration
+            fabolas_budget = kwargs['fabolas_budget']
+            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
             x_train = self.x_train.iloc[idx_train]
             y_train = self.y_train.iloc[idx_train]
 
@@ -108,11 +119,15 @@ class BaseOptimizer(ABC):
         return val_loss
 
     def train_evaluate_keras_regressor(self, params: dict, **kwargs):
-        """This method trains a keras model according to the selected HP-configuration and returns the
+        """
+        This method trains a keras model according to the selected HP-configuration and returns the
         validation loss
-        :param params: dictionary of hyperparameters
-        :param kwargs: further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train)
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
         :return: val_loss: float
+            Validation loss of this run
         """
 
         # Initialize the neural network
@@ -170,11 +185,15 @@ class BaseOptimizer(ABC):
         return val_loss
 
     def train_evaluate_xgboost_regressor(self, params: dict, **kwargs):
-        """This method trains a XGBoost model according to the selected HP-configuration and returns the
+        """
+        This method trains a XGBoost model according to the selected HP-configuration and returns the
         validation loss
-        :param params: dictionary of hyperparameters
-        :param kwargs: further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train)
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
         :return: val_loss: float
+            Validation loss of this run
         """
 
         # Initialize the model

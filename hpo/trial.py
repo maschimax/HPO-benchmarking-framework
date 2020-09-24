@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import uuid
+from sklearn.ensemble import RandomForestRegressor
 
 from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.skopt_optimizer import SkoptOptimizer
 from hpo.hpbandster_optimizer import HpbandsterOptimizer
+from hpo.robo_optimizer import RoboOptimizer
 from hpo.results import TrialResult
 
 
@@ -29,7 +31,8 @@ class Trial:
     def run(self):
         """
         Run the hyperparameter optimization according to the optimization schedule.
-        :return: trial_results_dict: contains the optimization results of this trial
+        :return: trial_results_dict: dict
+            Contains the optimization results of this trial
         """
 
         # Initialize a dictionary for saving the trial results
@@ -68,7 +71,14 @@ class Trial:
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                     ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                     x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-                                                    metric=self.metric, n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                                    metric=self.metric, n_func_evals=self.n_func_evals,
+                                                    random_seed=this_seed)
+
+                elif this_hpo_library == 'RoBO':
+                    optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
+                                              ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
+                                              y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                              n_func_evals=self.n_func_evals, random_seed=this_seed)
 
                 else:
                     raise Exception('Unknown HPO-library!')
@@ -112,11 +122,11 @@ class Trial:
 
         return trial_results_dict
 
-    @staticmethod
-    def plot_learning_curve(trial_results_dict: dict):
+    def plot_learning_curve(self, trial_results_dict: dict):
         """
         Plot the learning curves for the HPO-methods that have been evaluated in a trial.
-        :param trial_results_dict: contains the optimization results of a trial
+        :param trial_results_dict: dict
+            Contains the optimization results of a trial
         :return: fig: matplotlib.figure.Figure
         """
 
@@ -128,7 +138,7 @@ class Trial:
         for opt_tuple in trial_results_dict.keys():
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
-            unique_ids = this_df['run_id'].unique() # Unique id of each optimization run
+            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
 
             n_cols = len(unique_ids)
             n_rows = 0
@@ -177,14 +187,28 @@ class Trial:
             ax.fill_between(x=mean_timestamps, y1=quant25_curve,
                             y2=quant75_curve, alpha=0.2)
 
+        # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
+        baseline_loss = self.get_baseline_loss()
+        baseline = ax.hlines(baseline_loss, xmin=min(mean_timestamps), xmax=max(mean_timestamps), linestyles='dashed',
+                             colors='m')
+
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
-        plt.legend(mean_lines, [this_tuple[1] for this_tuple in trial_results_dict.keys()], loc='upper right')
+        mean_lines.append(baseline)
+        labels = [this_tuple[1] for this_tuple in trial_results_dict.keys()]
+        labels.append('Default HPs')
+        plt.legend(mean_lines, labels, loc='upper right')
 
         return fig
 
     def get_best_trial_result(self, trial_results_dict: dict) -> dict:
+        """
+
+        :param trial_results_dict:
+        :return:
+        """
+
         for i in range(len(trial_results_dict.keys())):
             this_opt_tuple = list(trial_results_dict.keys())[i]
 
@@ -207,4 +231,27 @@ class Trial:
 
     @staticmethod
     def get_metrics(trial_results_dict: dict):
+        """
+
+        :param trial_results_dict:
+        :return:
+        """
         pass
+
+    def get_baseline_loss(self):
+        """
+        Computes the loss for the default hyperparameter configuration of the ML-algorithm (baseline)
+        :return:
+        baseline_loss: float
+            Validation loss of the baseline HP-configuration
+        """
+        if self.ml_algorithm == 'RandomForestRegressor':
+            model = RandomForestRegressor()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        # Add remaining ML-algorithms here
+
+        baseline_loss = self.metric(self.y_val, y_pred)
+
+        return baseline_loss
