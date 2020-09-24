@@ -44,8 +44,8 @@ space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='boost
 
 # Setting for the trial
 ML_AlGO = 'RandomForestRegressor'
-N_RUNS = 5
-N_FUNC_EVALS = 30  # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for
+N_RUNS = 2
+N_FUNC_EVALS = 15  # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for
 # BOHB and HB)
 N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
