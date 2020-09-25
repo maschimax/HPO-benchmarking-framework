@@ -2,10 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import uuid
+from sklearn.ensemble import RandomForestRegressor
+from tensorflow import keras
+from xgboost import XGBRegressor
 
 from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.skopt_optimizer import SkoptOptimizer
 from hpo.hpbandster_optimizer import HpbandsterOptimizer
+from hpo.robo_optimizer import RoboOptimizer
 from hpo.results import TrialResult
 
 
@@ -29,7 +33,8 @@ class Trial:
     def run(self):
         """
         Run the hyperparameter optimization according to the optimization schedule.
-        :return: trial_results_dict: contains the optimization results of this trial
+        :return: trial_results_dict: dict
+            Contains the optimization results of this trial
         """
 
         # Initialize a dictionary for saving the trial results
@@ -68,7 +73,14 @@ class Trial:
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                     ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                     x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-                                                    metric=self.metric, n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                                    metric=self.metric, n_func_evals=self.n_func_evals,
+                                                    random_seed=this_seed)
+
+                elif this_hpo_library == 'RoBO':
+                    optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
+                                              ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
+                                              y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                              n_func_evals=self.n_func_evals, random_seed=this_seed)
 
                 else:
                     raise Exception('Unknown HPO-library!')
@@ -112,12 +124,13 @@ class Trial:
 
         return trial_results_dict
 
-    @staticmethod
-    def plot_learning_curve(trial_results_dict: dict):
+    def plot_learning_curve(self, trial_results_dict: dict):
         """
         Plot the learning curves for the HPO-methods that have been evaluated in a trial.
-        :param trial_results_dict: contains the optimization results of a trial
+        :param trial_results_dict: dict
+            Contains the optimization results of a trial
         :return: fig: matplotlib.figure.Figure
+            Learning curves (loss over time)
         """
 
         # Initialize the plot figure
@@ -128,7 +141,7 @@ class Trial:
         for opt_tuple in trial_results_dict.keys():
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
-            unique_ids = this_df['run_id'].unique() # Unique id of each optimization run
+            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
 
             n_cols = len(unique_ids)
             n_rows = 0
@@ -143,11 +156,15 @@ class Trial:
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
+            # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+
+                # Iterate over all function evaluations
                 for i in range(n_rows):
 
+                    # Append timestamps and the descending loss values (learning curves)
                     try:
                         timestamps[i, j] = this_subframe['timestamps'][i]
 
@@ -166,25 +183,49 @@ class Trial:
 
             # Compute the average loss over all runs
             mean_curve = np.nanmean(best_losses, axis=1)
+
+            # 25% and 75% loss quantile for each point (function evaluation)
             quant25_curve = np.nanquantile(best_losses, q=.25, axis=1)
             quant75_curve = np.nanquantile(best_losses, q=.75, axis=1)
 
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
+            # Plot the mean loss over time
             mean_line = ax.plot(mean_timestamps, mean_curve)
             mean_lines.append(mean_line[0])
+
+            # Colored area to visualize the inter-quantile area
             ax.fill_between(x=mean_timestamps, y1=quant25_curve,
                             y2=quant75_curve, alpha=0.2)
 
+        # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
+        baseline_loss = self.get_baseline_loss()
+        baseline = ax.hlines(baseline_loss, xmin=min(mean_timestamps), xmax=max(mean_timestamps), linestyles='dashed',
+                             colors='m')
+
+        # Formatting of the plot
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
-        plt.legend(mean_lines, [this_tuple[1] for this_tuple in trial_results_dict.keys()], loc='upper right')
+        mean_lines.append(baseline)
+        labels = [this_tuple[1] for this_tuple in trial_results_dict.keys()]
+        labels.append('Default HPs')
+        plt.legend(mean_lines, labels, loc='upper right')
 
         return fig
 
     def get_best_trial_result(self, trial_results_dict: dict) -> dict:
+        """
+        Determine the best trial result according to the validation loss.
+        :param trial_results_dict:
+            Contains the optimization results of a trial
+        :return: out_dict: dictionary
+            Contains the best results of this trial
+        """
+
+        # Iterate over each optimization tuple (hpo-library, hpo-method) and determine the result that minimizes
+        # the loss
         for i in range(len(trial_results_dict.keys())):
             this_opt_tuple = list(trial_results_dict.keys())[i]
 
@@ -207,4 +248,50 @@ class Trial:
 
     @staticmethod
     def get_metrics(trial_results_dict: dict):
+        """
+
+        :param trial_results_dict:
+        :return:
+        """
         pass
+
+    def get_baseline_loss(self):
+        """
+        Computes the loss for the default hyperparameter configuration of the ML-algorithm (baseline).
+        :return:
+        baseline_loss: float
+            Validation loss of the baseline HP-configuration
+        """
+        if self.ml_algorithm == 'RandomForestRegressor':
+            model = RandomForestRegressor()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'KerasRegressor':
+            # >>> What are default parameters for a keras model?
+            # Baseline regression model from: https://www.tensorflow.org/tutorials/keras/regression#full_model
+            model = keras.Sequential()
+            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+            model.add(keras.layers.Dense(64, activation='relu'))
+            model.add(keras.layers.Dense(64, activation='relu'))
+            model.add(keras.layers.Dense(1))
+
+            model.compile(loss='mse', optimizer=keras.optimizers.Adam(0.001))
+
+            model.fit(self.x_train, self.y_train, epochs=100, validation_data=(self.x_val, self.y_val), verbose=0)
+
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'XGBoostRegressor':
+            model = XGBRegressor()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
+
+        # Add remaining ML-algorithms here
+
+        baseline_loss = self.metric(self.y_val, y_pred)
+
+        return baseline_loss

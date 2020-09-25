@@ -25,17 +25,17 @@ class HPBandsterWorker(Worker):
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
             eval_func = self.optimizer_object.train_evaluate_scikit_regressor
 
-        # elif self.ml_algorithm == 'KerasRegressor':
-        #     eval_func = self.train_evaluate_keras_regressor
+        elif self.ml_algorithm == 'KerasRegressor':
+            eval_func = self.optimizer_object.train_evaluate_keras_regressor
 
-        # elif self.ml_algorithm == 'XGBoostRegressor':
-        #     eval_func = self.train_evaluate_xgboost_regressor
+        elif self.ml_algorithm == 'XGBoostRegressor':
+            eval_func = self.optimizer_object.train_evaluate_xgboost_regressor
 
         else:
             raise Exception('Unknown ML-algorithm!')
 
         # Pass the Hyperband budget (hpbandster specific) to the evaluation function
-        val_loss = eval_func(params=config, hp_budget=budget)
+        val_loss = eval_func(params=config, hb_budget=budget)
 
         return ({'loss': val_loss,
                  'info': {'validation_loss': val_loss}})
