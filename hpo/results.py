@@ -21,4 +21,3 @@ class TrialResult:
         self.best_loss = best_trial_loss
         self.hpo_library = hpo_library
         self.hpo_method = hpo_method
-

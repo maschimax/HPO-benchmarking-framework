@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import uuid
 from sklearn.ensemble import RandomForestRegressor
+from tensorflow import keras
+from xgboost import XGBRegressor
 
 from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.skopt_optimizer import SkoptOptimizer
@@ -128,6 +130,7 @@ class Trial:
         :param trial_results_dict: dict
             Contains the optimization results of a trial
         :return: fig: matplotlib.figure.Figure
+            Learning curves (loss over time)
         """
 
         # Initialize the plot figure
@@ -153,11 +156,15 @@ class Trial:
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
+            # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+
+                # Iterate over all function evaluations
                 for i in range(n_rows):
 
+                    # Append timestamps and the descending loss values (learning curves)
                     try:
                         timestamps[i, j] = this_subframe['timestamps'][i]
 
@@ -176,14 +183,19 @@ class Trial:
 
             # Compute the average loss over all runs
             mean_curve = np.nanmean(best_losses, axis=1)
+
+            # 25% and 75% loss quantile for each point (function evaluation)
             quant25_curve = np.nanquantile(best_losses, q=.25, axis=1)
             quant75_curve = np.nanquantile(best_losses, q=.75, axis=1)
 
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
+            # Plot the mean loss over time
             mean_line = ax.plot(mean_timestamps, mean_curve)
             mean_lines.append(mean_line[0])
+
+            # Colored area to visualize the inter-quantile area
             ax.fill_between(x=mean_timestamps, y1=quant25_curve,
                             y2=quant75_curve, alpha=0.2)
 
@@ -192,6 +204,7 @@ class Trial:
         baseline = ax.hlines(baseline_loss, xmin=min(mean_timestamps), xmax=max(mean_timestamps), linestyles='dashed',
                              colors='m')
 
+        # Formatting of the plot
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
@@ -204,11 +217,15 @@ class Trial:
 
     def get_best_trial_result(self, trial_results_dict: dict) -> dict:
         """
-
+        Determine the best trial result according to the validation loss.
         :param trial_results_dict:
-        :return:
+            Contains the optimization results of a trial
+        :return: out_dict: dictionary
+            Contains the best results of this trial
         """
 
+        # Iterate over each optimization tuple (hpo-library, hpo-method) and determine the result that minimizes
+        # the loss
         for i in range(len(trial_results_dict.keys())):
             this_opt_tuple = list(trial_results_dict.keys())[i]
 
@@ -240,7 +257,7 @@ class Trial:
 
     def get_baseline_loss(self):
         """
-        Computes the loss for the default hyperparameter configuration of the ML-algorithm (baseline)
+        Computes the loss for the default hyperparameter configuration of the ML-algorithm (baseline).
         :return:
         baseline_loss: float
             Validation loss of the baseline HP-configuration
@@ -249,6 +266,29 @@ class Trial:
             model = RandomForestRegressor()
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'KerasRegressor':
+            # >>> What are default parameters for a keras model?
+            # Baseline regression model from: https://www.tensorflow.org/tutorials/keras/regression#full_model
+            model = keras.Sequential()
+            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+            model.add(keras.layers.Dense(64, activation='relu'))
+            model.add(keras.layers.Dense(64, activation='relu'))
+            model.add(keras.layers.Dense(1))
+
+            model.compile(loss='mse', optimizer=keras.optimizers.Adam(0.001))
+
+            model.fit(self.x_train, self.y_train, epochs=100, validation_data=(self.x_val, self.y_val), verbose=0)
+
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'XGBoostRegressor':
+            model = XGBRegressor()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
 
         # Add remaining ML-algorithms here
 

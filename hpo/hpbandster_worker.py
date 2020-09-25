@@ -25,11 +25,11 @@ class HPBandsterWorker(Worker):
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
             eval_func = self.optimizer_object.train_evaluate_scikit_regressor
 
-        # elif self.ml_algorithm == 'KerasRegressor':
-        #     eval_func = self.train_evaluate_keras_regressor
+        elif self.ml_algorithm == 'KerasRegressor':
+            eval_func = self.optimizer_object.train_evaluate_keras_regressor
 
-        # elif self.ml_algorithm == 'XGBoostRegressor':
-        #     eval_func = self.train_evaluate_xgboost_regressor
+        elif self.ml_algorithm == 'XGBoostRegressor':
+            eval_func = self.optimizer_object.train_evaluate_xgboost_regressor
 
         else:
             raise Exception('Unknown ML-algorithm!')
