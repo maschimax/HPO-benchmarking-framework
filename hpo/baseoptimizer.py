@@ -18,7 +18,7 @@ class BaseOptimizer(ABC):
                  x_train: pd.DataFrame, x_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series,
                  metric, n_func_evals: int, random_seed: int):
         """
-
+        Superclass for the individual optimizer classes of each HPO-library.
         :param hp_space:
         :param hpo_method:
         :param ml_algorithm:
@@ -67,11 +67,15 @@ class BaseOptimizer(ABC):
         raise NotImplementedError
 
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
-        """This method trains a scikit-learn model according to the selected HP-configuration and returns the
+        """
+        This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss
-        :param params: dictionary of hyperparameters
-        :param kwargs: further keyword arguments (possibility
-        :return:
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
+        :return: val_loss: float
+            Validation loss of this run
         """
 
         # Create ML-model for the HP-configuration selected by the HPO-method
@@ -82,12 +86,19 @@ class BaseOptimizer(ABC):
         else:
             raise Exception('Unknown ML-algorithm!')
 
-        if 'hp_budget' in kwargs:
+        if 'hb_budget' in kwargs:
             # For BOHB and Hyperband select the training data according to the budget of this iteration
-            hp_budget = kwargs['hp_budget']
+            hb_budget = kwargs['hb_budget']
             n_train = len(self.x_train)
-            n_budget = int(0.1 * hp_budget * n_train)
+            n_budget = int(0.1 * hb_budget * n_train)
             idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        elif 'fabolas_budget' in kwargs:
+            # For Fabolas select the training data according to the budget of this iteration
+            fabolas_budget = kwargs['fabolas_budget']
+            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
             x_train = self.x_train.iloc[idx_train]
             y_train = self.y_train.iloc[idx_train]
 
@@ -108,14 +119,43 @@ class BaseOptimizer(ABC):
         return val_loss
 
     def train_evaluate_keras_regressor(self, params: dict, **kwargs):
-        """ This method trains a keras model according to the selected HP-configuration and returns the
-        validation loss"""
+        """
+        This method trains a keras model according to the selected HP-configuration and returns the
+        validation loss
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of the total number of epochs for training)
+        :return: val_loss: float
+            Validation loss of this run
+        """
+        full_budget_epochs = 100  # see https://arxiv.org/abs/1905.04970
+
+        if 'hb_budget' in kwargs:
+            # For BOHB and Hyperband select the number of epochs according to the budget of this iteration
+            hb_budget = kwargs['hb_budget']
+            epochs = int(0.1 * hb_budget * full_budget_epochs)
+            x_train = self.x_train
+            y_train = self.y_train
+
+        elif 'fabolas_budget' in kwargs:
+            # For Fabolas select the training data according to the budget of this iteration
+            fabolas_budget = kwargs['fabolas_budget']
+            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+            epochs = full_budget_epochs
+
+        else:
+            x_train = self.x_train
+            y_train = self.y_train
+            epochs = full_budget_epochs  # train on the full budget
 
         # Initialize the neural network
         model = keras.Sequential()
 
         # Add input layer
-        model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+        model.add(keras.layers.InputLayer(input_shape=len(x_train.keys())))
 
         # Add first hidden layer
         model.add(keras.layers.Dense(params['layer1_size'], activation=params['layer1_activation']))
@@ -134,10 +174,10 @@ class BaseOptimizer(ABC):
 
         # Learning rate schedule
         if params["lr_schedule"] == "cosine":
-            schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=self.n_func_evals)
+            schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=epochs)
 
         elif params["lr_schedule"] == "exponential":
-            schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=self.n_func_evals)
+            schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=epochs)
 
         elif params["lr_schedule"] == "constant":
             schedule = functools.partial(fix, initial_lr=params["init_lr"])
@@ -150,7 +190,7 @@ class BaseOptimizer(ABC):
         callbacks_list = [lr]
 
         # Train the model
-        model.fit(self.x_train, self.y_train, epochs=self.n_func_evals, batch_size=params['batch_size'],
+        model.fit(x_train, y_train, epochs=epochs, batch_size=params['batch_size'],
                   validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
                   verbose=1)
 
@@ -166,14 +206,42 @@ class BaseOptimizer(ABC):
         return val_loss
 
     def train_evaluate_xgboost_regressor(self, params: dict, **kwargs):
-        """ This method trains a XGBoost model according to the selected HP-configuration and returns the
-                validation loss"""
+        """
+        This method trains a XGBoost model according to the selected HP-configuration and returns the
+        validation loss
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
+        :return: val_loss: float
+            Validation loss of this run
+        """
+
+        if 'hb_budget' in kwargs:
+            # For BOHB and Hyperband select the training data according to the budget of this iteration
+            hb_budget = kwargs['hb_budget']
+            n_train = len(self.x_train)
+            n_budget = int(0.1 * hb_budget * n_train)
+            idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        elif 'fabolas_budget' in kwargs:
+            # For Fabolas select the training data according to the budget of this iteration
+            fabolas_budget = kwargs['fabolas_budget']
+            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        else:
+            x_train = self.x_train
+            y_train = self.y_train
 
         # Initialize the model
         model = XGBRegressor(**params, random_state=self.random_seed)
 
         # Train the model and make the prediction
-        model.fit(self.x_train, self.y_train)
+        model.fit(x_train, y_train)
         y_pred = model.predict(self.x_val)
 
         # Compute the validation loss according to the metric selected

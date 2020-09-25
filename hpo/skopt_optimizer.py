@@ -67,8 +67,12 @@ class SkoptOptimizer(BaseOptimizer):
         return result
 
     def objective(self, params):
-        """Objective function: This method converts the hyperparameters into a dictionary, passes them to the ML-model
-         for training and returns the validation loss."""
+        """
+        Objective function: This method converts the hyperparameters into a dictionary, passes them to the ML-model
+        for training and returns the validation loss.
+        :param params:
+        :return:
+        """
 
         # Convert the hyperparameters into a dictionary to pass them to the ML-model
         dict_params = {}
