@@ -37,11 +37,13 @@ class HpbandsterOptimizer(BaseOptimizer):
             eta = 3.0
             optimizer = BOHB(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
                              nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=eta)
+            # Values for budget stages: https://arxiv.org/abs/1905.04970
 
         elif self.hpo_method == 'Hyperband':
             eta = 3.0
             optimizer = HyperBand(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
                                   nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=eta)
+            # Values for budget stages: https://arxiv.org/abs/1905.04970
 
         else:
             raise Exception('Unknown HPO-method!')
@@ -53,6 +55,7 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         # Start the optimization
         res = optimizer.run(n_iterations=int(self.n_func_evals / eta))
+        # Relation of budget stages, halving iterations and the number of evaluations: https://arxiv.org/abs/1905.04970
         # number of function evaluations = eta * n_iterations
 
         # >>> USE HPBANDSTER'S CAPABILITIES FOR TIME MEASUREMENT INSTEAD?

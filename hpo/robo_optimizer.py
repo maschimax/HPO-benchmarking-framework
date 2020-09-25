@@ -21,17 +21,17 @@ class RoboOptimizer(BaseOptimizer):
 
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                hp_space_lower[i,] = self.hp_space[i].low
-                hp_space_upper[i,] = self.hp_space[i].high
+                hp_space_lower[i, ] = self.hp_space[i].low
+                hp_space_upper[i, ] = self.hp_space[i].high
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
                 n_choices = len(list(self.hp_space[i].categories))
-                hp_space_lower[i,] = 0
-                hp_space_upper[i,] = n_choices - 1
+                hp_space_lower[i, ] = 0
+                hp_space_upper[i, ] = n_choices - 1
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                hp_space_lower[i,] = self.hp_space[i].low
-                hp_space_upper[i,] = self.hp_space[i].high
+                hp_space_lower[i, ] = self.hp_space[i].low
+                hp_space_upper[i, ] = self.hp_space[i].high
 
             else:
                 raise Exception('The skopt HP-space could not be converted correctly!')
@@ -45,10 +45,12 @@ class RoboOptimizer(BaseOptimizer):
 
         # Select the specified HPO-tuning method
         if self.hpo_method == 'Fabolas':
+
             # Budget correct? // Set further parameters?
             s_max = len(self.x_train)  # Maximum number of data points for the training data set
             s_min = int(0.05 * s_max)  # Maximum number of data points for the training data set
             n_init = int(self.n_func_evals / 3)  # Requirement of the fabolas implementation
+
             result_dict = fabolas(objective_function=self.objective_fabolas, s_min=s_min, s_max=s_max,
                                   lower=hp_space_lower, upper=hp_space_upper,
                                   num_iterations=self.n_func_evals, rng=rand_num_generator, n_init=n_init)
@@ -73,6 +75,9 @@ class RoboOptimizer(BaseOptimizer):
 
         elif self.hpo_method == 'Bohamiann':
             losses = result_dict['incumbent_values']
+
+        else:
+            raise Exception('Unknown HPO-method!')
 
         evaluation_ids = list(range(1, len(losses) + 1))
         best_loss = min(losses)
@@ -120,13 +125,13 @@ class RoboOptimizer(BaseOptimizer):
         dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                dict_params[self.hp_space[i].name] = int(cont_hp_space[i,])
+                dict_params[self.hp_space[i].name] = int(cont_hp_space[i, ])
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i,])]
+                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i, ])]
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                dict_params[self.hp_space[i].name] = cont_hp_space[i,]
+                dict_params[self.hp_space[i].name] = cont_hp_space[i, ]
 
             else:
                 raise Exception('The continuous HP-space could not be converted correctly!')
@@ -162,13 +167,13 @@ class RoboOptimizer(BaseOptimizer):
         dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                dict_params[self.hp_space[i].name] = int(cont_hp_space[i,])
+                dict_params[self.hp_space[i].name] = int(cont_hp_space[i, ])
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i,])]
+                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i, ])]
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                dict_params[self.hp_space[i].name] = cont_hp_space[i,]
+                dict_params[self.hp_space[i].name] = cont_hp_space[i, ]
 
             else:
                 raise Exception('The continuous HP-space could not be converted correctly!')
