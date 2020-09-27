@@ -10,7 +10,8 @@ from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.skopt_optimizer import SkoptOptimizer
 from hpo.hpbandster_optimizer import HpbandsterOptimizer
 from hpo.robo_optimizer import RoboOptimizer
-from hpo.results import TrialResult
+from hpo.results import TrialResult, MetricsResult
+from hpo.hpo_metrics import area_under_curve
 
 
 class Trial:
@@ -115,12 +116,12 @@ class Trial:
                     idx_best = i
 
             # Create a TrialResult-object to save the results of this trial
-            TrialResultObject = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
-                                            best_trial_loss=best_loss, hpo_library=this_hpo_library,
-                                            hpo_method=this_hpo_method)
+            trial_result_obj = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
+                                           best_trial_loss=best_loss, hpo_library=this_hpo_library,
+                                           hpo_method=this_hpo_method)
 
             # Append the TrialResult-object to the result dictionary
-            trial_results_dict[opt_tuple] = TrialResultObject
+            trial_results_dict[opt_tuple] = trial_result_obj
 
         return trial_results_dict
 
@@ -182,22 +183,22 @@ class Trial:
                         best_losses[i, j] = float('nan')
 
             # Compute the average loss over all runs
-            mean_curve = np.nanmean(best_losses, axis=1)
+            mean_trace_desc = np.nanmean(best_losses, axis=1)
 
             # 25% and 75% loss quantile for each point (function evaluation)
-            quant25_curve = np.nanquantile(best_losses, q=.25, axis=1)
-            quant75_curve = np.nanquantile(best_losses, q=.75, axis=1)
+            quant25_trace_desc = np.nanquantile(best_losses, q=.25, axis=1)
+            quant75_trace_desc = np.nanquantile(best_losses, q=.75, axis=1)
 
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
             # Plot the mean loss over time
-            mean_line = ax.plot(mean_timestamps, mean_curve)
+            mean_line = ax.plot(mean_timestamps, mean_trace_desc)
             mean_lines.append(mean_line[0])
 
             # Colored area to visualize the inter-quantile area
-            ax.fill_between(x=mean_timestamps, y1=quant25_curve,
-                            y2=quant75_curve, alpha=0.2)
+            ax.fill_between(x=mean_timestamps, y1=quant25_trace_desc,
+                            y2=quant75_trace_desc, alpha=0.2)
 
         # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
         baseline_loss = self.get_baseline_loss()
@@ -246,14 +247,114 @@ class Trial:
                     'Loss': best_loss}
         return out_dict
 
-    @staticmethod
-    def get_metrics(trial_results_dict: dict):
+    def get_metrics(self, trial_results_dict: dict):
         """
 
         :param trial_results_dict:
-        :return:
+        :return: metrics: dict
+            Dictionary that contains a dictionary with the computed metrics for each optimization tuple.
         """
-        pass
+
+        metrics = {}
+        baseline_loss = self.get_baseline_loss()
+
+        for opt_tuple in trial_results_dict.keys():
+
+            ####
+
+            this_df = trial_results_dict[opt_tuple].trial_result_df
+            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
+
+            n_cols = len(unique_ids)
+            n_rows = 0
+
+            # Find the maximum number of function evaluations over all runs of this tuning tuple
+            for uniq in unique_ids:
+                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['num_of_evaluation'])
+                if num_of_evals > n_rows:
+                    n_rows = num_of_evals
+
+            # n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
+            best_losses = np.zeros(shape=(n_rows, n_cols))
+            timestamps = np.zeros(shape=(n_rows, n_cols))
+
+            # Iterate over all runs (with varying random seeds)
+            for j in range(n_cols):
+                this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
+                this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+
+                # Iterate over all function evaluations
+                for i in range(n_rows):
+
+                    # Append timestamps and the descending loss values (learning curves)
+                    try:
+                        timestamps[i, j] = this_subframe['timestamps'][i]
+
+                        if i == 0:
+                            best_losses[i, j] = this_subframe['losses'][i]
+
+                        elif this_subframe['losses'][i] < best_losses[i - 1, j]:
+                            best_losses[i, j] = this_subframe['losses'][i]
+
+                        else:
+                            best_losses[i, j] = best_losses[i - 1, j]
+
+                    except:
+                        timestamps[i, j] = float('nan')
+                        best_losses[i, j] = float('nan')
+
+            # Compute the average loss over all runs
+            mean_trace_desc = np.nanmean(best_losses, axis=1)
+
+            # Compute average timestamps
+            mean_timestamps = np.nanmean(timestamps, axis=1)
+
+            ####
+
+            # ANYTIME PERFORMANCE
+            # 1. Wall clock time required to outperform the default configuration
+            time_outperform_default = float('inf')
+            for eval_num in range(len(mean_trace_desc)):
+                if mean_trace_desc[eval_num] < baseline_loss:
+                    time_outperform_default = mean_timestamps[eval_num]
+                    break
+
+            # 2. Area under curve (AUC)
+            auc = area_under_curve(list(mean_trace_desc), lower_bound=0.0)
+
+            # FINAL PERFORMANCE
+            # 3. Mean loss of the best configuration
+            best_mean_loss = min(mean_trace_desc)
+
+            # 4. Loss ratio (loss of best config. / loss of default config.)
+            loss_ratio = baseline_loss / best_mean_loss
+
+            # ROBUSTNESS
+            # 5. Standard dev. of the loss of the best found configuration
+            std_dev_best_loss = np.nanstd(best_losses, axis=1)
+            std_dev_best_loss = std_dev_best_loss[-1]
+
+            # 6. Total number of crashes during the optimization
+
+            # USABILITY
+            # 7. Wall clock time to find the best configuration
+            for eval_num in range(len(mean_trace_desc)):
+                if mean_trace_desc[eval_num] <= best_mean_loss:
+                    best_idx = eval_num
+                    break
+            time_best_config = mean_timestamps[best_idx]
+
+            # 8. Number of function evaluations to find the best configuration
+            metrics_object = MetricsResult(time_outperform_default=time_outperform_default,
+                                           area_under_curve=auc,
+                                           best_mean_loss=best_mean_loss,
+                                           loss_ratio=loss_ratio,
+                                           std_dev_best_loss=std_dev_best_loss,
+                                           time_best_config=time_best_config)
+
+            metrics[opt_tuple] = metrics_object
+
+        return metrics
 
     def get_baseline_loss(self):
         """

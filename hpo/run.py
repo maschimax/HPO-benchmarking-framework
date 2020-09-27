@@ -1,6 +1,8 @@
 import skopt
+from xgboost import XGBRegressor
+import pandas as pd
 
-from hpo.hpo_metrics import rmse
+from hpo.hpo_metrics import root_mean_squared_error
 import preprocessing as pp
 from hpo.trial import Trial
 
@@ -43,7 +45,7 @@ space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='boost
              skopt.space.Integer(1, 80, name='max_depth')]
 
 # Setting for the trial
-ML_AlGO = 'KerasRegressor'
+ML_AlGO = 'XGBoostRegressor'
 N_RUNS = 2
 N_FUNC_EVALS = 15  # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for
 # BOHB and HB to ensure comparability)
@@ -51,9 +53,9 @@ N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
 # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('RoBO', 'Fabolas'),
 # ('RoBO', 'Bohamiann')]
-OPT_Schedule = [('hpbandster', 'BOHB')]
+OPT_Schedule = [('optuna', 'RandomSearch')]
 # Create a new trial
-trial = Trial(hp_space=space_keras, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=rmse, n_runs=N_RUNS,
+trial = Trial(hp_space=space_xgb, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=root_mean_squared_error, n_runs=N_RUNS,
               n_func_evals=N_FUNC_EVALS, n_workers=N_WORKERS, x_train=X_train, y_train=y_train, x_val=X_val,
               y_val=y_val)
 
@@ -65,3 +67,24 @@ curves = trial.plot_learning_curve(res)
 curves.show()
 
 print(trial.get_best_trial_result(res))
+
+metrics = trial.get_metrics(res)
+
+bla = 0
+
+# # Train best model on the whole data set
+# x_data = pd.concat(objs=[X_train, X_val], axis=0)
+# y_data = pd.concat(objs=[y_train, y_val], axis=0)
+#
+# best_trial = trial.get_best_trial_result(res)
+#
+# best_model = XGBRegressor(**best_trial['HP-configuration'])
+# best_model.fit(x_data, y_data)
+#
+# y_pred = best_model.predict(X_test)
+#
+# sample_submission = pp.load_data(folder=FOLDER, file=SAMPLE_SUB)
+# this_submission = sample_submission.copy()
+#
+# this_submission['SalePrice'] = y_pred
+# this_submission.to_csv(r'C:\Users\Max\Documents\GitHub\housing_regression\datasets\submission.csv')
