@@ -21,3 +21,13 @@ class TrialResult:
         self.best_loss = best_trial_loss
         self.hpo_library = hpo_library
         self.hpo_method = hpo_method
+
+
+class MetricsResult:
+    def __init__(self, time_outperform_default, area_under_curve, best_mean_loss, loss_ratio, std_dev_best_loss, time_best_config):
+        self.time_outperform_default = time_outperform_default
+        self.area_under_curve = area_under_curve
+        self.best_mean_loss = best_mean_loss
+        self.loss_ratio = loss_ratio
+        self.std_dev_best_loss = std_dev_best_loss
+        self.time_best_config = time_best_config
