@@ -46,14 +46,14 @@ space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='boost
 
 # Setting for the trial
 ML_AlGO = 'XGBoostRegressor'
-N_RUNS = 2
-N_FUNC_EVALS = 15  # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for
+N_RUNS = 3
+N_FUNC_EVALS = 45  # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for
 # BOHB and HB to ensure comparability)
 N_WORKERS = 1
 # OPT_Schedule = [('optuna', 'TPE'), ('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
 # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('RoBO', 'Fabolas'),
 # ('RoBO', 'Bohamiann')]
-OPT_Schedule = [('optuna', 'RandomSearch')]
+OPT_Schedule = [('hpbandster', 'BOHB'), ('optuna', 'TPE'), ('optuna', 'RandomSearch')]
 # Create a new trial
 trial = Trial(hp_space=space_xgb, ml_algorithm=ML_AlGO, optimization_schedule=OPT_Schedule, metric=root_mean_squared_error, n_runs=N_RUNS,
               n_func_evals=N_FUNC_EVALS, n_workers=N_WORKERS, x_train=X_train, y_train=y_train, x_val=X_val,

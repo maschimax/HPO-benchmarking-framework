@@ -260,8 +260,6 @@ class Trial:
 
         for opt_tuple in trial_results_dict.keys():
 
-            ####
-
             this_df = trial_results_dict[opt_tuple].trial_result_df
             unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
 
@@ -309,8 +307,6 @@ class Trial:
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
-            ####
-
             # ANYTIME PERFORMANCE
             # 1. Wall clock time required to outperform the default configuration
             time_outperform_default = float('inf')
@@ -335,6 +331,7 @@ class Trial:
             std_dev_best_loss = std_dev_best_loss[-1]
 
             # 6. Total number of crashes during the optimization
+            # tbd
 
             # USABILITY
             # 7. Wall clock time to find the best configuration
@@ -345,13 +342,18 @@ class Trial:
             time_best_config = mean_timestamps[best_idx]
 
             # 8. Number of function evaluations to find the best configuration
+            evals_for_best_config = best_idx + 1
+
+            # Pass the computed metrics to a MetricsResult-object
             metrics_object = MetricsResult(time_outperform_default=time_outperform_default,
                                            area_under_curve=auc,
                                            best_mean_loss=best_mean_loss,
                                            loss_ratio=loss_ratio,
                                            std_dev_best_loss=std_dev_best_loss,
-                                           time_best_config=time_best_config)
+                                           time_best_config=time_best_config,
+                                           evals_for_best_config=evals_for_best_config)
 
+            # Assign the MetricsResult-object to a dictionary
             metrics[opt_tuple] = metrics_object
 
         return metrics
