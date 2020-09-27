@@ -47,24 +47,28 @@ class BaseOptimizer(ABC):
 
         raise NotImplementedError
 
-    def objective(self):
-
-        raise NotImplementedError
-
     @staticmethod
     def get_best_configuration(result: TuningResult):
-        # Returns the best configuration of this optimization run as a dictionary
+        """
+        Method returns the best hyperparameter configuration of this optimization run.
+        :param result: TuningResult
+            TuningResult-object that contains the results of an optimization run.
+        :return: result.best_configuration: dict
+            Best hp-configuration.
+        """
         return result.best_configuration
 
     @staticmethod
     def get_best_score(result: TuningResult):
+        """
+        Method returns the best best loss value of this optimization run.
+        :param result: TuningResult
+            TuningResult-object that contains the results of an optimization run.
+        :return: result.best_loss: dict
+            Best achieved loss of this optimization run.
+        """
         # Returns the validation score of the best configuration of this optimization run
         raise result.best_loss
-
-    @staticmethod
-    def get_metrics(result: TuningResult):
-        # Probably needs to be implemented in the Trial class
-        raise NotImplementedError
 
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
         """

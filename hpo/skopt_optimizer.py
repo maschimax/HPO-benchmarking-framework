@@ -12,6 +12,11 @@ class SkoptOptimizer(BaseOptimizer):
                          random_seed)
 
     def optimize(self) -> TuningResult:
+        """
+        Method performs a hyperparameter optimization run according to the selected HPO-method.
+        :return: result: TuningResult
+            TuningResult-object that contains the results of this optimization run.
+        """
 
         # Select the specified HPO-tuning method
         if self.hpo_method == 'SMAC':
@@ -68,10 +73,12 @@ class SkoptOptimizer(BaseOptimizer):
 
     def objective(self, params):
         """
-        Objective function: This method converts the hyperparameters into a dictionary, passes them to the ML-model
-        for training and returns the validation loss.
-        :param params:
-        :return:
+        Objective function: This method converts the given hyperparameters into a dictionary, passes them to the
+        ML-model for training and returns the validation loss.
+        :param params: dict
+            Hyperparameter configuration that has been selected by the HPO-method for this iteration.
+        :return: eval_func(params=dict_params)
+            Validation loss for the HP-configuration (params)
         """
 
         # Convert the hyperparameters into a dictionary to pass them to the ML-model
