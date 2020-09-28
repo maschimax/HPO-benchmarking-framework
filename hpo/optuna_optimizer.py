@@ -21,11 +21,11 @@ class OptunaOptimizer(BaseOptimizer):
         """
 
         # Select the specified HPO-tuning method
-        if self.hpo_method == 'TPE':
-            # Create a TPE-Sampler instance with the default parameters of hyperopt
-            this_optimizer = TPESampler(**TPESampler.hyperopt_parameters(), seed=self.random_seed)
+        # if self.hpo_method == 'TPE':
+        #     # Create a TPE-Sampler instance with the default parameters of hyperopt
+        #     this_optimizer = TPESampler(**TPESampler.hyperopt_parameters(), seed=self.random_seed)
 
-        elif self.hpo_method == 'CMA-ES':
+        if self.hpo_method == 'CMA-ES':
             this_optimizer = CmaEsSampler(seed=self.random_seed)
 
         elif self.hpo_method == 'RandomSearch':
