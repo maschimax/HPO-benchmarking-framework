@@ -10,6 +10,7 @@ from hpo.optuna_optimizer import OptunaOptimizer
 from hpo.skopt_optimizer import SkoptOptimizer
 from hpo.hpbandster_optimizer import HpbandsterOptimizer
 from hpo.robo_optimizer import RoboOptimizer
+from hpo.hyperopt_optimizer import HyperoptOptimizer
 from hpo.results import TrialResult, MetricsResult
 from hpo.hpo_metrics import area_under_curve
 
@@ -77,11 +78,18 @@ class Trial:
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
                                                     random_seed=this_seed)
 
-                elif this_hpo_library == 'RoBO':
+                elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                               y_train=self.y_train, y_val=self.y_val, metric=self.metric,
                                               n_func_evals=self.n_func_evals, random_seed=this_seed)
+
+                elif this_hpo_library == 'hyperopt':
+                    optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
+                                                  ml_algorithm=self.ml_algorithm, x_train=self.x_train,
+                                                  x_val=self.x_val,
+                                                  y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                                  n_func_evals=self.n_func_evals, random_seed=this_seed)
 
                 else:
                     raise Exception('Unknown HPO-library!')
