@@ -14,6 +14,12 @@ class RoboOptimizer(BaseOptimizer):
                          random_seed)
 
     def optimize(self) -> TuningResult:
+        """
+        Method performs a hyperparameter optimization run according to the selected HPO-method.
+        :return: result: TuningResult
+            TuningResult-object that contains the results of this optimization run.
+        :return:
+        """
 
         # Convert the skopt hyperparameter space into a continuous space for RoBO
         hp_space_lower = np.zeros(shape=(len(self.hp_space),))
@@ -112,13 +118,14 @@ class RoboOptimizer(BaseOptimizer):
 
     def objective_fabolas(self, cont_hp_space, s):
         """
-
-        :param self:
+        Objective function for FABOLAS: This method converts the given hyperparameters into a dictionary, passes them
+        to the ML-model for training and returns the validation loss and the evaluation time (cost).
         :param cont_hp_space: np.array
-        Array that contains the next hyperparameter configuration (continuous) to be evaluated
+            Array that contains the next hyperparameter configuration (continuous) to be evaluated
         :param s:
-        Fraction of s_max
-        :return:
+            Fraction of s_max
+        :return: val_loss: float, cost: float
+            Validation loss and evaluation cost (time)
         """
 
         # Transform the !continuous! hyperparameters into their respective types and save them in a dictionary
@@ -157,10 +164,12 @@ class RoboOptimizer(BaseOptimizer):
 
     def objective_bohamiann(self, cont_hp_space):
         """
-
+        Objective function for BOHAMIANN: This method converts the given hyperparameters into a dictionary, passes them
+        to the ML-model for training and returns the validation loss.
         :param cont_hp_space: np.array
-        Array that contains the next hyperparameter configuration (continuous) to be evaluated
-        :return:
+            Array that contains the next hyperparameter configuration (continuous) to be evaluated
+        :return: eval_func(params=dict_params): float
+            Validation loss for this HP-configuration.
         """
 
         # Transform the !continuous! hyperparameters into their respective types and save them in a dictionary
