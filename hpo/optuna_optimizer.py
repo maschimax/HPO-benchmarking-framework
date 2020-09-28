@@ -14,12 +14,18 @@ class OptunaOptimizer(BaseOptimizer):
                          random_seed)
 
     def optimize(self) -> TuningResult:
+        """
+        Method performs a hyperparameter optimization run according to the selected HPO-method.
+        :return: result: TuningResult
+            TuningResult-object that contains the results of this optimization run.
+        """
 
         # Select the specified HPO-tuning method
-        if self.hpo_method == 'TPE':
-            this_optimizer = TPESampler(seed=self.random_seed)
+        # if self.hpo_method == 'TPE':
+        #     # Create a TPE-Sampler instance with the default parameters of hyperopt
+        #     this_optimizer = TPESampler(**TPESampler.hyperopt_parameters(), seed=self.random_seed)
 
-        elif self.hpo_method == 'CMA-ES':
+        if self.hpo_method == 'CMA-ES':
             this_optimizer = CmaEsSampler(seed=self.random_seed)
 
         elif self.hpo_method == 'RandomSearch':
@@ -66,10 +72,12 @@ class OptunaOptimizer(BaseOptimizer):
 
     def objective(self, trial):
         """
-        Objective function: This method converts the hyperparameters into a dictionary, passes them to the ML-model
-        for training and returns the validation loss.
-        :param trial:
-        :return:
+        Objective function: This method converts the given hyperparameters into a dictionary, passes them to the
+        ML-model for training and returns the validation loss.
+        :param trial: optuna.trial._trial.Trial
+            Optuna Trial object, that suggests the next HP-configuration according to the selected HPO-method.
+        :return: eval_func(params=dict_params)
+            Validation loss for the HP-configuration
         """
 
         # Convert the hyperparameters into a dictionary to pass them to the ML-model

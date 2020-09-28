@@ -62,7 +62,7 @@ class HpbandsterOptimizer(BaseOptimizer):
         for i in range(len(self.times)):
             # Subtract the start time to receive the wall clock time of each function evaluation
             self.times[i] = self.times[i] - start_time
-        wall_clock_time = max(self.times)
+        # wall_clock_time = max(self.times)
 
         optimizer.shutdown(shutdown_workers=True)
         NS.shutdown()
@@ -85,7 +85,8 @@ class HpbandsterOptimizer(BaseOptimizer):
                          'iteration': this_run.config_id[0],
                          'budget': this_run.budget,
                          'loss': this_run.loss,
-                         'timestamps [finished]': this_run.time_stamps['finished']}
+                         'timestamps [finished]': self.times[i]}
+            # alternatively: 'timestamps [finished]': this_run.time_stamps['finished']
             this_df = pd.DataFrame.from_dict(data=temp_dict)
             this_df.set_index('run_id', inplace=True)
             runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
