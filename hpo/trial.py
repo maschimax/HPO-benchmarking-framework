@@ -18,7 +18,7 @@ from hpo.hpo_metrics import area_under_curve
 class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
-                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series):
+                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series, baseline=0.0):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -30,6 +30,7 @@ class Trial:
         self.y_train = y_train
         self.x_val = x_val
         self.y_val = y_val
+        self.baseline = baseline
         # Attribute for CPU / GPU selection required
 
     def run(self):
@@ -145,6 +146,7 @@ class Trial:
         # Initialize the plot figure
         fig, ax = plt.subplots()
         mean_lines = []
+        max_time = 0  # necessary to limit the length of the baseline curve (default configuration)
 
         # Iterate over each optimization tuples (hpo-library, hpo-method)
         for opt_tuple in trial_results_dict.keys():
@@ -200,6 +202,9 @@ class Trial:
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
+            if max(mean_timestamps) > max_time:
+                max_time = max(mean_timestamps)
+
             # Plot the mean loss over time
             mean_line = ax.plot(mean_timestamps, mean_trace_desc)
             mean_lines.append(mean_line[0])
@@ -208,9 +213,16 @@ class Trial:
             ax.fill_between(x=mean_timestamps, y1=quant25_trace_desc,
                             y2=quant75_trace_desc, alpha=0.2)
 
+        # Check whether a baseline has already been calculated
+        if self.baseline == 0.0:
+            # Compute a new baseline
+            baseline_loss = self.get_baseline_loss()
+            self.baseline = baseline_loss
+        else:
+            baseline_loss = self.baseline
+
         # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
-        baseline_loss = self.get_baseline_loss()
-        baseline = ax.hlines(baseline_loss, xmin=min(mean_timestamps), xmax=max(mean_timestamps), linestyles='dashed',
+        baseline = ax.hlines(baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
                              colors='m')
 
         # Formatting of the plot
@@ -259,12 +271,27 @@ class Trial:
         """
 
         :param trial_results_dict:
-        :return: metrics: dict
+        :return: metrics: dict, metrics: pd.DataFrame
             Dictionary that contains a dictionary with the computed metrics for each optimization tuple.
+            Pandas DataFrame that contains the computed metrics.
         """
 
         metrics = {}
-        baseline_loss = self.get_baseline_loss()
+        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'time_outperform_default', 'AUC', 'best_mean_loss',
+                'loss_ratio', 'std_dev_best_loss', 'time_best_config', 'evals_best_config']
+
+        metrics_df = pd.DataFrame(columns=cols)
+
+        # Check whether a baseline has already been calculated
+        if self.baseline == 0.0:
+            # Compute a new baseline
+            baseline_loss = self.get_baseline_loss()
+            self.baseline = baseline_loss
+        else:
+            baseline_loss = self.baseline
+
+        # Row index for pandas DataFrame
+        idx = 1
 
         for opt_tuple in trial_results_dict.keys():
 
@@ -364,7 +391,29 @@ class Trial:
             # Assign the MetricsResult-object to a dictionary
             metrics[opt_tuple] = metrics_object
 
-        return metrics
+            # Dictionary with new metrics
+            metrics_dict = {'idx': [idx],
+                            'HPO-library': opt_tuple[0],
+                            'HPO-method': opt_tuple[1],
+                            'ML-algorithm': self.ml_algorithm,
+                            'time_outperform_default': time_outperform_default,
+                            'AUC': auc,
+                            'best_mean_loss': best_mean_loss,
+                            'loss_ratio': loss_ratio,
+                            'std_dev_best_loss': std_dev_best_loss,
+                            'time_best_config': time_best_config,
+                            'evals_best_config': evals_for_best_config}
+
+            # Create pandas DataFrame from dictionary
+            this_metrics_df = pd.DataFrame.from_dict(data=metrics_dict)
+            this_metrics_df.set_index(keys='idx', drop=True, inplace=True)
+
+            # Append the new metrics / results to the whole metrics DataFrame
+            metrics_df = pd.concat(objs=[metrics_df, this_metrics_df], axis=0)
+
+            idx = idx + 1
+
+        return metrics, metrics_df
 
     def get_baseline_loss(self):
         """
@@ -374,13 +423,14 @@ class Trial:
             Validation loss of the baseline HP-configuration
         """
         if self.ml_algorithm == 'RandomForestRegressor':
-            model = RandomForestRegressor()
+            model = RandomForestRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
         elif self.ml_algorithm == 'KerasRegressor':
             # >>> What are default parameters for a keras model?
             # Baseline regression model from: https://www.tensorflow.org/tutorials/keras/regression#full_model
+
             model = keras.Sequential()
             model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
             model.add(keras.layers.Dense(64, activation='relu'))
@@ -394,7 +444,7 @@ class Trial:
             y_pred = model.predict(self.x_val)
 
         elif self.ml_algorithm == 'XGBoostRegressor':
-            model = XGBRegressor()
+            model = XGBRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 

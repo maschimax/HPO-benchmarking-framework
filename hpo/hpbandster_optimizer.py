@@ -17,21 +17,23 @@ class HpbandsterOptimizer(BaseOptimizer):
 
     def optimize(self) -> TuningResult:
         """
-
-        :return:
+        Method performs a hyperparameter optimization run according to the selected HPO-method.
+        :return: result: TuningResult
+            TuningResult-object that contains the results of this optimization run.
         """
-        # Step 1: Start a nameserver
+
+        # Start a nameserver
         NS = hpns.NameServer(run_id='hpbandster', host='127.0.0.1', port=None)
         NS.start()
 
-        # Step 2: Start a worker
+        # Start a worker
         worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
                                   ml_algorithm=self.ml_algorithm, optimizer_object=self,
                                   nameserver='127.0.0.1', run_id='hpbandster')
 
         worker.run(background=True)
 
-        # Step 3: Run an optimizer
+        # Run an optimizer
         # Select the specified HPO-tuning method
         if self.hpo_method == 'BOHB':
             eta = 3.0
@@ -48,9 +50,8 @@ class HpbandsterOptimizer(BaseOptimizer):
         else:
             raise Exception('Unknown HPO-method!')
 
-        # Optimize on the predefined n_fßunc_evals and measure the wall clock times
+        # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
-        # >>> NECESSARY FOR HPBANDSTER?
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
@@ -58,24 +59,27 @@ class HpbandsterOptimizer(BaseOptimizer):
         # Relation of budget stages, halving iterations and the number of evaluations: https://arxiv.org/abs/1905.04970
         # number of function evaluations = eta * n_iterations
 
-        # >>> USE HPBANDSTER'S CAPABILITIES FOR TIME MEASUREMENT INSTEAD?
         for i in range(len(self.times)):
             # Subtract the start time to receive the wall clock time of each function evaluation
             self.times[i] = self.times[i] - start_time
-        # wall_clock_time = max(self.times)
+        wall_clock_time = max(self.times)
 
+        # Shutdown the optimizer and the server
         optimizer.shutdown(shutdown_workers=True)
         NS.shutdown()
 
+        # Extract the results and create an TuningResult instance to save them
         id2config = res.get_id2config_mapping()
         incumbent = res.get_incumbent_id()
 
+        # Best hyperparameter configuration
         best_params = id2config[incumbent]['config']
 
         runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
                                         'loss', 'timestamps [finished]'])
         all_runs = res.get_all_runs()
 
+        # Iterate over all runs
         for i in range(len(all_runs)):
             this_run = all_runs[i]
             temp_dict = {'run_id': [i],
@@ -91,13 +95,13 @@ class HpbandsterOptimizer(BaseOptimizer):
             this_df.set_index('run_id', inplace=True)
             runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
 
+        # Sort according to the timestamps
         runs_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=True)
 
         losses = list(runs_df['loss'])
         best_loss = min(losses)
         evaluation_ids = list(range(1, len(losses) + 1))
-        timestamps = list(runs_df['timestamps [finished]'])
-        wall_clock_time = max(timestamps)
+        # timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
 
         configurations = ()
         for i in range(len(losses)):
@@ -108,7 +112,7 @@ class HpbandsterOptimizer(BaseOptimizer):
             configurations = configurations + (id2config[this_config]['config'],)
 
         # Pass the results to a TuningResult-object
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_params,
                               wall_clock_time=wall_clock_time)
 

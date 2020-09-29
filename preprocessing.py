@@ -1,22 +1,13 @@
 import pandas as pd
 import numpy as np
-import os
 from sklearn.model_selection import train_test_split
-from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-from xgboost import XGBRegressor
-import tensorflow as tf
-from tensorflow import keras
 from category_encoders import CountEncoder
 
 def load_data(folder, file):
-        filename = os.path.join(folder, file)
-        return pd.read_csv(filename, index_col = 'Id')
+    filepath = folder / file
+    return pd.read_csv(filepath, index_col='Id')
 
 def process(train_data, test_data, standardization, logarithmic, count_encoding):
     # columns with NaN-values in train and test set
