@@ -192,9 +192,9 @@ plt.show()
 # xgb_best.fit(X, y)
 #
 # TEST_FILE = 'test.csv'
-# SAMPLE_SUB = 'sample_submission.csv'
+# submission_file = 'sample_submission.csv'
 #
-# sample_submission = pp.load_data(FOLDER, SAMPLE_SUB)
+# sample_submission = pp.load_data(FOLDER, submission_file)
 # submission = sample_submission.copy()
 #
 # y_pred = xgb_best.predict(X_test)
