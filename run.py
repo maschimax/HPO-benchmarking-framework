@@ -91,7 +91,7 @@ for this_method in args.hpo_methods:
     elif this_method == 'TPE':
         opt_schedule.append(('hyperopt', this_method))
 
-    elif this_method == 'BOHB' or this_method == 'Hyberband':
+    elif this_method == 'BOHB' or this_method == 'Hyperband':
         opt_schedule.append(('hpbandster', this_method))
 
     elif this_method == 'Fabolas' or this_method == 'Bohamiann':
@@ -99,6 +99,8 @@ for this_method in args.hpo_methods:
 
     else:
         raise Exception('Something went wrong! Please check the for-loop that matches HPO-methods and libraries.')
+
+print('Optimization schedule: ', opt_schedule)
 
 # Select the hyperparameter space according to the ML-algorithm
 if ML_ALGO == 'RandomForestRegressor':
