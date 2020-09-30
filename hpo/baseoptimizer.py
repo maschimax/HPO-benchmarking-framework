@@ -6,6 +6,8 @@ import functools
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
@@ -87,6 +89,10 @@ class BaseOptimizer(ABC):
             model = RandomForestRegressor(**params, random_state=self.random_seed)
         elif self.ml_algorithm == 'SVR':
             model = SVR(**params)  # SVR has no random_state argument
+        elif self.ml_algorithm == 'AdaBoostRegressor':
+            model = AdaBoostRegressor(**params, random_state=self.random_seed)
+        elif self.ml_algorithm == 'DecisionTreeRegressor':
+            model = DecisionTreeRegressor(**params, random_state=self.random_seed)
         else:
             raise Exception('Unknown ML-algorithm!')
 
@@ -114,7 +120,7 @@ class BaseOptimizer(ABC):
         model.fit(x_train, y_train)
         y_pred = model.predict(self.x_val)
 
-        # Compute the validation loss according to the metric selected
+        # Compute the validation loss according to the loss_metric selected
         val_loss = self.metric(self.y_val, y_pred)
 
         # Measure the finish time of the iteration
@@ -201,7 +207,7 @@ class BaseOptimizer(ABC):
         # Make the prediction
         y_pred = model.predict(self.x_val)
 
-        # Compute the validation loss according to the metric selected
+        # Compute the validation loss according to the loss_metric selected
         val_loss = self.metric(self.y_val, y_pred)
 
         # Measure the finish time of the iteration
@@ -248,7 +254,7 @@ class BaseOptimizer(ABC):
         model.fit(x_train, y_train)
         y_pred = model.predict(self.x_val)
 
-        # Compute the validation loss according to the metric selected
+        # Compute the validation loss according to the loss_metric selected
         val_loss = self.metric(self.y_val, y_pred)
 
         # Measure the finish time of the iteration

@@ -1,0 +1,5 @@
+;HPO-library;HPO-method;ML-algorithm;Runs;Evaluations;Workers;time_outperform_default;AUC;best_mean_loss;loss_ratio;std_dev_best_loss;time_best_config;evals_best_config
+1;hyperopt;TPE;RandomForestRegressor;5;45;1;inf;35163,26674;34035,22796;0,9898071;1136,572064;48,48837729;42
+2;skopt;SMAC;RandomForestRegressor;5;45;1;51,02400246;34852,55586;33535,69671;1,00455078;796,8975886;51,02400246;37
+3;hpbandster;BOHB;RandomForestRegressor;5;45;1;inf;37028,7259;34786,01608;0,96844405;1097,146132;43,8740077;78
+4;optuna;RandomSearch;RandomForestRegressor;5;45;1;inf;35927,66149;34967,60001;0,963414998;485,3995334;40,44527493;45

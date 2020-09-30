@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import uuid
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
@@ -277,8 +278,9 @@ class Trial:
         """
 
         metrics = {}
-        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'time_outperform_default', 'AUC', 'best_mean_loss',
-                'loss_ratio', 'std_dev_best_loss', 'time_best_config', 'evals_best_config']
+        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers',
+                'time_outperform_default', 'AUC', 'best_mean_loss', 'loss_ratio', 'std_dev_best_loss',
+                'time_best_config', 'evals_best_config']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -396,6 +398,9 @@ class Trial:
                             'HPO-library': opt_tuple[0],
                             'HPO-method': opt_tuple[1],
                             'ML-algorithm': self.ml_algorithm,
+                            'Runs': self.n_runs,
+                            'Evaluations': self.n_func_evals,
+                            'Workers': self.n_workers,
                             'time_outperform_default': time_outperform_default,
                             'AUC': auc,
                             'best_mean_loss': best_mean_loss,
@@ -424,6 +429,16 @@ class Trial:
         """
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'AdaBoostRegressor':
+            model = AdaBoostRegressor(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'DecisionTreeRegressor':
+            model = DecisionTreeRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 

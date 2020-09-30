@@ -1,34 +1,18 @@
-import skopt
 import time
 import os
 from pathlib import Path
 import argparse
 
+from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt
+
 from hpo.hpo_metrics import root_mean_squared_error
 import preprocessing as pp
 from hpo.trial import Trial
 
-parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
-
-parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
-                    choices=['RandomForestRegressor', 'KerasRegressor', 'XGBoostRegressor', 'SVR'])
-parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
-                    choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
-                             'Bohamiann'])
-parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
-parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).', default=5)
-parser.add_argument('--n_workers', type=int, help='Number of workers to be used for the optimization (parallelization)',
-                    default=1)
-
-args = parser.parse_args()
-
-print('Optimize: ' + args.ml_algorithm)
-print('With HPO-methods: ')
-for this_method in args.hpo_methods:
-    print(this_method)
-print('------')
-print('Setup: ' + str(args.n_func_evals) + ' evaluations, ' + str(args.n_runs) + ' runs, ' +
-      str(args.n_workers) + ' worker(s).')
+# Flag for debug mode (yes/no)
+# yes -> set parameters for this trial in source code (below)
+# no -> call script via terminal and pass arguments via argparse
+debug = True
 
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
@@ -44,108 +28,134 @@ test_raw = pp.load_data(data_folder, test_file)
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
 
-# Define HP-space according to the skopt library
-space_rf = [skopt.space.Integer(1, 200, name='n_estimators'),
-            skopt.space.Integer(1, 80, name='max_depth'),
-            skopt.space.Integer(1, 30, name='min_samples_leaf'),
-            skopt.space.Integer(2, 20, name='min_samples_split'),
-            skopt.space.Categorical(['auto', 'sqrt'], name='max_features')]
-# skopt.space.Real(0.1, 0.9, name='max_samples')
-
-space_svr = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
-             skopt.space.Categorical(['scale', 'auto'], name='gamma'),
-             skopt.space.Real(low=1e-3, high=1e+0, name='epsilon')]
-
-space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
-               skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
-               skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
-               skopt.space.Categorical(['relu', 'tanh'], name='layer1_activation'),
-               skopt.space.Categorical(['relu', 'tanh'], name='layer2_activation'),
-               skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer1_size'),
-               skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer2_size'),
-               skopt.space.Categorical([.0, .3, .6], name='dropout1'),
-               skopt.space.Categorical([.0, .3, .6], name='dropout2')]
-
-space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
-             skopt.space.Integer(1, 200, name='n_estimators'),
-             skopt.space.Integer(1, 80, name='max_depth')]
-
-# Setting for the trial
-ML_ALGO = args.ml_algorithm
-N_RUNS = args.n_runs
-# Optimization budget is limited by the number of function evaluations (should be dividable by 3 for BOHB and HB
-# to ensure comparability)
-N_FUNC_EVALS = args.n_func_evals
-N_WORKERS = args.n_workers
-
-# Create the optimization schedule by matching the hpo-methods with their libraries
-opt_schedule = []
-for this_method in args.hpo_methods:
-
-    if this_method == 'SMAC' or this_method == 'GPBO':
-        opt_schedule.append(('skopt', this_method))
-
-    elif this_method == 'CMA-ES' or this_method == 'RandomSearch':
-        opt_schedule.append(('optuna', this_method))
-
-    elif this_method == 'TPE':
-        opt_schedule.append(('hyperopt', this_method))
-
-    elif this_method == 'BOHB' or this_method == 'Hyperband':
-        opt_schedule.append(('hpbandster', this_method))
-
-    elif this_method == 'Fabolas' or this_method == 'Bohamiann':
-        opt_schedule.append(('robo', this_method))
-
-    else:
-        raise Exception('Something went wrong! Please check the for-loop that matches HPO-methods and libraries.')
-
-print('Optimization schedule: ', opt_schedule)
-
-# Select the hyperparameter space according to the ML-algorithm
-if ML_ALGO == 'RandomForestRegressor':
+if debug:
+    # Set parameters manually
     hp_space = space_rf
+    ml_algo = 'RandomForestRegressor'
+    opt_schedule = [('hyperopt', 'TPE')]
+    # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
+    # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
+    # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
+    n_runs = 3
+    n_func_evals = 15
+    n_workers = 1
+    loss_metric = root_mean_squared_error
 
-elif ML_ALGO == 'KerasRegressor':
-    hp_space = space_keras
-
-elif ML_ALGO == 'XGBoostRegressor':
-    hp_space = space_xgb
-
-elif ML_ALGO == 'SVR':
-    hp_space = space_svr
 
 else:
-    raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
+    parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
 
-# Possible schedule combinations -> OPT_Schedule = [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
-# ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
-# ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-# OPT_Schedule = [('hyperopt', 'TPE'), ('skopt', 'SMAC'), ('hpbandster', 'BOHB'), ('optuna', 'RandomSearch')]
+    parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
+                        choices=['RandomForestRegressor', 'KerasRegressor', 'XGBoostRegressor', 'SVR',
+                                 'AdaBoostRegressor', 'DecisionTreeRegressor'])
+    parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
+                        choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
+                                 'Bohamiann'])
+    parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
+    parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).', default=5)
+    parser.add_argument('--n_workers', type=int, help='Number of workers to be used for the optimization (parallelization)',
+                        default=1)
+    parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
+                        choices=['root_mean_squared_error'])
+
+    args = parser.parse_args()
+
+    # Settings for this trial
+    ml_algo = args.ml_algorithm
+    n_runs = args.n_runs
+    # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for BOHB and HB
+    # to ensure comparability)
+    n_func_evals = args.n_func_evals
+    n_workers = args.n_workers
+
+    # Create the optimization schedule by matching the hpo-methods with their libraries
+    opt_schedule = []
+    for this_method in args.hpo_methods:
+
+        if this_method == 'SMAC' or this_method == 'GPBO':
+            opt_schedule.append(('skopt', this_method))
+
+        elif this_method == 'CMA-ES' or this_method == 'RandomSearch':
+            opt_schedule.append(('optuna', this_method))
+
+        elif this_method == 'TPE':
+            opt_schedule.append(('hyperopt', this_method))
+
+        elif this_method == 'BOHB' or this_method == 'Hyperband':
+            opt_schedule.append(('hpbandster', this_method))
+
+        elif this_method == 'Fabolas' or this_method == 'Bohamiann':
+            opt_schedule.append(('robo', this_method))
+
+        else:
+            raise Exception('Something went wrong! Please check the for-loop that matches HPO-methods and libraries.')
+
+    # Select the hyperparameter space according to the ML-algorithm
+    if ml_algo == 'RandomForestRegressor':
+        hp_space = space_rf
+
+    elif ml_algo == 'KerasRegressor':
+        hp_space = space_keras
+
+    elif ml_algo == 'XGBoostRegressor':
+        hp_space = space_xgb
+
+    elif ml_algo == 'SVR':
+        hp_space = space_svr
+
+    elif ml_algo == 'AdaBoostRegressor':
+        hp_space = space_ada
+
+    elif ml_algo == 'DecisionTreeRegrssor':
+        hp_space = space_dt
+
+    else:
+        raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
+
+    # Identify the correct loss loss_metric
+    if args.loss_metric == 'root_mean_squared_error':
+        loss_metric = root_mean_squared_error
+
+    else:
+        raise Exception('This loss metric has not yet been implemented.')
+
+
+# Display a summary of the trial settings
+print('Optimize: ' + ml_algo)
+print('With HPO-methods: ')
+for this_tuple in opt_schedule:
+    print(this_tuple[1])
+print('------')
+print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, ' + str(n_workers) + ' worker(s).')
+print('------')
+print('Optimization schedule: ', opt_schedule)
+
 
 # Create a new trial
-trial = Trial(hp_space=hp_space, ml_algorithm=ML_ALGO, optimization_schedule=opt_schedule, metric=root_mean_squared_error,
-              n_runs=N_RUNS, n_func_evals=N_FUNC_EVALS, n_workers=N_WORKERS,
+trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
+              metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
               x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
 
 # Run the optimizations
 res = trial.run()
 
 # Analyze the results
+print('Best configuration found:')
 print(trial.get_best_trial_result(res))
 
-res_folder = r'C:\Users\Max\Documents\GitHub\housing_regression\hpo\results'
+abs_results_path = os.path.abspath(path='hpo/results')
+res_folder = Path(abs_results_path)
 
 curves = trial.plot_learning_curve(res)
 # curves.show()
 
-curves_str = 'learning_curves_' + ML_ALGO + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.jpg'
+curves_str = 'learning_curves_' + ml_algo + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.jpg'
 curves_path = os.path.join(res_folder, curves_str)
 curves.savefig(fname=curves_path)
 
 metrics, metrics_df = trial.get_metrics(res)
 
-metrics_str = 'metrics_' + ML_ALGO + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.csv'
+metrics_str = 'metrics_' + ml_algo + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
 metrics_df.to_csv(metrics_path)
 
