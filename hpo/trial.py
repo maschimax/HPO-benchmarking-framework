@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import uuid
+import math
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
 from tensorflow import keras
@@ -51,7 +52,7 @@ class Trial:
 
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'num_of_evaluation', 'losses', 'timestamps'])
+                                               'eval_count', 'losses', 'timestamps', 'run_successful'])
             best_configs = ()
             best_losses = []
 
@@ -105,9 +106,10 @@ class Trial:
                              'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
                              'run_id': [run_id] * len(optimization_results.losses),
                              'random_seed': [i] * len(optimization_results.losses),
-                             'num_of_evaluation': list(range(1, len(optimization_results.losses) + 1)),
+                             'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'losses': optimization_results.losses,
-                             'timestamps': optimization_results.timestamps}
+                             'timestamps': optimization_results.timestamps,
+                             'run_successful': optimization_results.successful}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
@@ -160,18 +162,18 @@ class Trial:
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['num_of_evaluation'])
+                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
-            # n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
+            # n_rows = int(len(this_df['eval_count']) / n_cols)
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
-                this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+                this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
                 # Iterate over all function evaluations
                 for i in range(n_rows):
@@ -280,7 +282,7 @@ class Trial:
         metrics = {}
         cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers',
                 'time_outperform_default', 'AUC', 'best_mean_loss', 'loss_ratio', 'std_dev_best_loss',
-                'time_best_config', 'evals_best_config']
+                'time_best_config', 'evals_best_config', 'number_of_crashes']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -305,7 +307,7 @@ class Trial:
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['num_of_evaluation'])
+                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
@@ -313,10 +315,17 @@ class Trial:
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
+            # Count the number of algorithm crashes that occurred during optimization
+            number_of_crashes_this_algo = 0
+
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
-                this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+                this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
+
+                # Check, whether this run was completed successfully
+                if not all(this_subframe['run_successful']):
+                    number_of_crashes_this_algo = number_of_crashes_this_algo + 1
 
                 # Iterate over all function evaluations
                 for i in range(n_rows):
@@ -367,19 +376,27 @@ class Trial:
             std_dev_best_loss = np.nanstd(best_losses, axis=1)
             std_dev_best_loss = std_dev_best_loss[-1]
 
-            # 6. Total number of crashes during the optimization
-            # tbd
+            # 6. Total number of crashes during the optimization (for each HPO-method)
+            # number_of_crashes_this_algo
 
             # USABILITY
-            # 7. Wall clock time to find the best configuration
-            for eval_num in range(len(mean_trace_desc)):
-                if mean_trace_desc[eval_num] <= best_mean_loss:
-                    best_idx = eval_num
-                    break
-            time_best_config = mean_timestamps[best_idx]
+            if math.isnan(best_mean_loss):
+                # Only crashed runs for this HPO-method
+                best_idx = float('nan')
+                time_best_config = float('nan')
+                evals_for_best_config = float('nan')
 
-            # 8. Number of function evaluations to find the best configuration
-            evals_for_best_config = best_idx + 1
+            else:
+                for eval_num in range(len(mean_trace_desc)):
+                    if mean_trace_desc[eval_num] <= best_mean_loss:
+                        best_idx = eval_num  # index of the first evaluation, that reaches the best loss
+                        break
+
+                # 7. Wall clock time to find the best configuration
+                time_best_config = mean_timestamps[best_idx]
+
+                # 8. Number of function evaluations to find the best configuration
+                evals_for_best_config = best_idx + 1
 
             # Pass the computed metrics to a MetricsResult-object
             metrics_object = MetricsResult(time_outperform_default=time_outperform_default,
@@ -388,7 +405,8 @@ class Trial:
                                            loss_ratio=loss_ratio,
                                            std_dev_best_loss=std_dev_best_loss,
                                            time_best_config=time_best_config,
-                                           evals_for_best_config=evals_for_best_config)
+                                           evals_for_best_config=evals_for_best_config,
+                                           number_of_crashes=number_of_crashes_this_algo)
 
             # Assign the MetricsResult-object to a dictionary
             metrics[opt_tuple] = metrics_object
@@ -407,7 +425,8 @@ class Trial:
                             'loss_ratio': loss_ratio,
                             'std_dev_best_loss': std_dev_best_loss,
                             'time_best_config': time_best_config,
-                            'evals_best_config': evals_for_best_config}
+                            'evals_best_config': evals_for_best_config,
+                            'number_of_crashes': number_of_crashes_this_algo}
 
             # Create pandas DataFrame from dictionary
             this_metrics_df = pd.DataFrame.from_dict(data=metrics_dict)
@@ -471,3 +490,8 @@ class Trial:
         baseline_loss = self.metric(self.y_val, y_pred)
 
         return baseline_loss
+
+    @staticmethod
+    def train_best_model(trial_results_dict: dict):
+        # TBD
+        raise NotImplementedError

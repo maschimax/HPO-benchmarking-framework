@@ -42,31 +42,49 @@ class OptunaOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        study.optimize(func=self.objective, n_trials=self.n_func_evals)
+        try:
+            study.optimize(func=self.objective, n_trials=self.n_func_evals)
+            run_successful = True
 
-        for i in range(len(self.times)):
-            # Subtract the start time to receive the wall clock time of each function evaluation
-            self.times[i] = self.times[i] - start_time
-        wall_clock_time = max(self.times)
+        # Algorithm crashed
+        except:
+            # Add a warning here
+            run_successful = False
 
-        # Create a TuningResult-object to store the optimization results
-        # Transformation of the results into a TuningResult-Object
-        all_trials = study.get_trials()
-        best_params = study.best_params
-        best_loss = study.best_value
+        # If the optimization run was successful, determine the optimization results
+        if run_successful:
 
-        evaluation_ids = []  # Number the evaluations / iterations of this run
-        losses = []  # Loss of each iteration
-        configurations = ()  # HP-configuration of each iteration
-        for i in range(len(all_trials)):
-            evaluation_ids.append(all_trials[i].number)
-            losses.append(all_trials[i].value)
-            configurations = configurations + (all_trials[i].params,)
+            for i in range(len(self.times)):
+                # Subtract the start time to receive the wall clock time of each function evaluation
+                self.times[i] = self.times[i] - start_time
+            wall_clock_time = max(self.times)
+
+            # Timestamps
+            timestamps = self.times
+
+            # Create a TuningResult-object to store the optimization results
+            # Transformation of the results into a TuningResult-Object
+            all_trials = study.get_trials()
+            best_configuration = study.best_params
+            best_loss = study.best_value
+
+            evaluation_ids = []  # Number the evaluations / iterations of this run
+            losses = []  # Loss of each iteration
+            configurations = ()  # HP-configuration of each iteration
+            for i in range(len(all_trials)):
+                evaluation_ids.append(all_trials[i].number)
+                losses.append(all_trials[i].value)
+                configurations = configurations + (all_trials[i].params,)
+
+        # Run not successful (algorithm crashed)
+        else:
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
+                self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_params,
-                              wall_clock_time=wall_clock_time)
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
+                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
+                              wall_clock_time=wall_clock_time, successful=run_successful)
 
         return result
 
