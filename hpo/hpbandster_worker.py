@@ -18,11 +18,9 @@ class HPBandsterWorker(Worker):
 
     def compute(self, config, budget, *args, **kwargs):  # <<< ersetzt die objective function aus der optimizer Klasse?
 
-        # >>> Varying random seed <<<
-        # >>> Budget <<<
-
         # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
             eval_func = self.optimizer_object.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
@@ -44,7 +42,7 @@ class HPBandsterWorker(Worker):
     def get_configspace(hp_space: dict):
         cs = CS.ConfigurationSpace()
 
-        # hyperparameters
+        # Transform the skopt hyperparameter space into the required format for hpbandster
         params_list = []
         for i in range(len(hp_space)):
 

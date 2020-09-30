@@ -144,7 +144,8 @@ class RoboOptimizer(BaseOptimizer):
                 raise Exception('The continuous HP-space could not be converted correctly!')
 
         # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
@@ -188,7 +189,8 @@ class RoboOptimizer(BaseOptimizer):
                 raise Exception('The continuous HP-space could not be converted correctly!')
 
         # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+            self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
