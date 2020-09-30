@@ -55,65 +55,83 @@ class HpbandsterOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        res = optimizer.run(n_iterations=int(self.n_func_evals / eta))
-        # Relation of budget stages, halving iterations and the number of evaluations: https://arxiv.org/abs/1905.04970
-        # number of function evaluations = eta * n_iterations
+        try:
+            res = optimizer.run(n_iterations=int(self.n_func_evals / eta))
+            # Relation of budget stages, halving iterations and the number of evaluations: https://arxiv.org/abs/1905.04970
+            # number of function evaluations = eta * n_iterations
+            run_successful = True
 
-        for i in range(len(self.times)):
-            # Subtract the start time to receive the wall clock time of each function evaluation
-            self.times[i] = self.times[i] - start_time
-        wall_clock_time = max(self.times)
+        # Algorithm crashed
+        except:
+            # Add a warning here
+            run_successful = False
 
-        # Shutdown the optimizer and the server
-        optimizer.shutdown(shutdown_workers=True)
-        NS.shutdown()
+        # If the optimization run was successful, determine the optimization results
+        if run_successful:
 
-        # Extract the results and create an TuningResult instance to save them
-        id2config = res.get_id2config_mapping()
-        incumbent = res.get_incumbent_id()
+            for i in range(len(self.times)):
+                # Subtract the start time to receive the wall clock time of each function evaluation
+                self.times[i] = self.times[i] - start_time
+            wall_clock_time = max(self.times)
 
-        # Best hyperparameter configuration
-        best_params = id2config[incumbent]['config']
+            # Timestamps
+            timestamps = self.times
 
-        runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
-                                        'loss', 'timestamps [finished]'])
-        all_runs = res.get_all_runs()
+            # Shutdown the optimizer and the server
+            optimizer.shutdown(shutdown_workers=True)
+            NS.shutdown()
 
-        # Iterate over all runs
-        for i in range(len(all_runs)):
-            this_run = all_runs[i]
-            temp_dict = {'run_id': [i],
-                         'config_id#0': [this_run.config_id[0]],
-                         'config_id#1': [this_run.config_id[1]],
-                         'config_id#2': [this_run.config_id[2]],
-                         'iteration': this_run.config_id[0],
-                         'budget': this_run.budget,
-                         'loss': this_run.loss,
-                         'timestamps [finished]': self.times[i]}
-            # alternatively: 'timestamps [finished]': this_run.time_stamps['finished']
-            this_df = pd.DataFrame.from_dict(data=temp_dict)
-            this_df.set_index('run_id', inplace=True)
-            runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
+            # Extract the results and create an TuningResult instance to save them
+            id2config = res.get_id2config_mapping()
+            incumbent = res.get_incumbent_id()
 
-        # Sort according to the timestamps
-        runs_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=True)
+            # Best hyperparameter configuration
+            best_configuration = id2config[incumbent]['config']
 
-        losses = list(runs_df['loss'])
-        best_loss = min(losses)
-        evaluation_ids = list(range(1, len(losses) + 1))
-        # timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
+            runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
+                                            'loss', 'timestamps [finished]'])
+            all_runs = res.get_all_runs()
 
-        configurations = ()
-        for i in range(len(losses)):
-            this_config = (list(runs_df['config_id#0'])[i],
-                           list(runs_df['config_id#1'])[i],
-                           list(runs_df['config_id#2'])[i])
+            # Iterate over all runs
+            for i in range(len(all_runs)):
+                this_run = all_runs[i]
+                temp_dict = {'run_id': [i],
+                             'config_id#0': [this_run.config_id[0]],
+                             'config_id#1': [this_run.config_id[1]],
+                             'config_id#2': [this_run.config_id[2]],
+                             'iteration': this_run.config_id[0],
+                             'budget': this_run.budget,
+                             'loss': this_run.loss,
+                             'timestamps [finished]': self.times[i]}
+                # alternatively: 'timestamps [finished]': this_run.time_stamps['finished']
+                this_df = pd.DataFrame.from_dict(data=temp_dict)
+                this_df.set_index('run_id', inplace=True)
+                runs_df = pd.concat(objs=[runs_df, this_df], axis=0)
 
-            configurations = configurations + (id2config[this_config]['config'],)
+            # Sort according to the timestamps
+            runs_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=True)
+
+            losses = list(runs_df['loss'])
+            best_loss = min(losses)
+            evaluation_ids = list(range(1, len(losses) + 1))
+            # timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
+
+            configurations = ()
+            for i in range(len(losses)):
+                this_config = (list(runs_df['config_id#0'])[i],
+                               list(runs_df['config_id#1'])[i],
+                               list(runs_df['config_id#2'])[i])
+
+                configurations = configurations + (id2config[this_config]['config'],)
+
+        # Run not successful (algorithm crashed)
+        else:
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
+                self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_params,
-                              wall_clock_time=wall_clock_time)
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
+                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
+                              wall_clock_time=wall_clock_time, successful=run_successful)
 
         return result

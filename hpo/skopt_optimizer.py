@@ -35,39 +35,54 @@ class SkoptOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
-                                      random_state=self.random_seed, acq_func=this_acq_func)
+        try:
+            trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
+                                          random_state=self.random_seed, acq_func=this_acq_func)
+            run_successful = True
 
-        for i in range(len(self.times)):
-            # Subtract the start time to receive the wall clock time of each function evaluation
-            self.times[i] = self.times[i] - start_time
-        wall_clock_time = max(self.times)
+        # Algorithm crashed
+        except:
+            run_successful = False
 
-        # Create a TuningResult-object to store the optimization results
-        # Transformation of the results into a TuningResult-Object
-        best_loss = trial_result.fun
-        losses = list(trial_result.func_vals)  # Loss of each iteration
+        # If the optimization run was successful, determine the optimization results
+        if run_successful:
 
-        # Determine the best HP-configuration of this run
-        best_configuration = {}
-        for i in range(len(self.hp_space)):
-            best_configuration[self.hp_space[i].name] = trial_result.x[i]
+            for i in range(len(self.times)):
+                # Subtract the start time to receive the wall clock time of each function evaluation
+                self.times[i] = self.times[i] - start_time
+            wall_clock_time = max(self.times)
 
-        # Number the evaluations / iterations of this run
-        evaluation_ids = list(range(1, len(trial_result.func_vals) + 1))
+            # Timestamps
+            timestamps = self.times
 
-        # Determine the HP-configuration of each evaluation / iteration
-        configurations = ()
-        for i in range(len(trial_result.x_iters)):
-            this_config = {}
-            for j in range(len(self.hp_space)):
-                this_config[self.hp_space[j].name] = trial_result.x_iters[i][j]
-            configurations = configurations + (this_config,)
+            best_loss = trial_result.fun
+            losses = list(trial_result.func_vals)  # Loss of each iteration
+
+            # Determine the best HP-configuration of this run
+            best_configuration = {}
+            for i in range(len(self.hp_space)):
+                best_configuration[self.hp_space[i].name] = trial_result.x[i]
+
+            # Number the evaluations / iterations of this run
+            evaluation_ids = list(range(1, len(trial_result.func_vals) + 1))
+
+            # Determine the HP-configuration of each evaluation / iteration
+            configurations = ()
+            for i in range(len(trial_result.x_iters)):
+                this_config = {}
+                for j in range(len(self.hp_space)):
+                    this_config[self.hp_space[j].name] = trial_result.x_iters[i][j]
+                configurations = configurations + (this_config,)
+
+        # Run not successful (algorithm crashed)
+        else:
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
+                self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time)
+                              wall_clock_time=wall_clock_time, successful=run_successful)
 
         return result
 

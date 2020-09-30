@@ -72,6 +72,22 @@ class BaseOptimizer(ABC):
         # Returns the validation score of the best configuration of this optimization run
         raise result.best_loss
 
+    def impute_results_for_crash(self):
+        """
+        In case the optimization fails, this method generates default values for the variables that are expected as the
+        result of an optimization run.
+        :return:
+            Imputed values for the tuning results variables.
+        """
+        evaluation_ids = [float('nan')] * self.n_func_evals
+        timestamps = [float('nan')] * self.n_func_evals
+        losses = [float('nan')] * self.n_func_evals
+        configurations = tuple([float('nan')] * self.n_func_evals)
+        best_loss = [float('nan')]
+        best_configuration = {'params': None}
+        wall_clock_time = float('nan')
+        return evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time
+
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
         """
         This method trains a scikit-learn model according to the selected HP-configuration and returns the
@@ -87,12 +103,16 @@ class BaseOptimizer(ABC):
         # Create ML-model for the HP-configuration selected by the HPO-method
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(**params, random_state=self.random_seed)
+
         elif self.ml_algorithm == 'SVR':
             model = SVR(**params)  # SVR has no random_state argument
+
         elif self.ml_algorithm == 'AdaBoostRegressor':
             model = AdaBoostRegressor(**params, random_state=self.random_seed)
+
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             model = DecisionTreeRegressor(**params, random_state=self.random_seed)
+
         else:
             raise Exception('Unknown ML-algorithm!')
 

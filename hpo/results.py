@@ -3,7 +3,7 @@ import pandas as pd
 
 class TuningResult:
     def __init__(self, evaluation_ids: list, timestamps: list, losses: list, configurations: tuple, best_loss: float,
-                 best_configuration: dict, wall_clock_time):
+                 best_configuration: dict, wall_clock_time, successful: True):
         self.evaluation_ids = evaluation_ids  # list
         self.timestamps = timestamps  # list
         self.losses = losses  # list
@@ -11,6 +11,7 @@ class TuningResult:
         self.best_loss = best_loss  # float
         self.best_configuration = best_configuration  # dictionary
         self.wall_clock_time = wall_clock_time
+        self.successful = successful  # Flag that indicates, whether the run was finished successfully or not
 
 
 class TrialResult:
@@ -25,7 +26,7 @@ class TrialResult:
 
 class MetricsResult:
     def __init__(self, time_outperform_default, area_under_curve, best_mean_loss, loss_ratio, std_dev_best_loss,
-                 time_best_config, evals_for_best_config):
+                 time_best_config, evals_for_best_config, number_of_crashes):
         self.time_outperform_default = time_outperform_default
         self.area_under_curve = area_under_curve
         self.best_mean_loss = best_mean_loss
@@ -33,3 +34,4 @@ class MetricsResult:
         self.std_dev_best_loss = std_dev_best_loss
         self.time_best_config = time_best_config
         self.evals_for_best_config = evals_for_best_config
+        self.number_of_crashes = number_of_crashes

@@ -58,61 +58,76 @@ class HyperoptOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        res = fmin(fn=self.objective, space=hyperopt_space, trials=trials, algo=this_optimizer,
-                   max_evals=self.n_func_evals, rstate=rand_num_generator)
+        try:
+            res = fmin(fn=self.objective, space=hyperopt_space, trials=trials, algo=this_optimizer,
+                       max_evals=self.n_func_evals, rstate=rand_num_generator)
+            run_successful = True
 
-        for i in range(len(self.times)):
-            # Subtract the start time to receive the wall clock time of each function evaluation
-            self.times[i] = self.times[i] - start_time
-        wall_clock_time = max(self.times)
+        # Algorithm crashed
+        except:
+            # Add a warning here
+            run_successful = False
 
-        # Create a TuningResult-object to store the optimization results
-        # Transformation of the results into a TuningResult-Object
+        # If the optimization run was successful, determine the optimization results
+        if run_successful:
 
-        # Number the evaluations / iterations of this run
-        evaluation_ids = list(range(1, len(trials.tids) + 1))
+            for i in range(len(self.times)):
+                # Subtract the start time to receive the wall clock time of each function evaluation
+                self.times[i] = self.times[i] - start_time
+            wall_clock_time = max(self.times)
 
-        # Loss of each iteration
-        losses = []
-        for this_result in trials.results:
-            losses.append(this_result['loss'])
+            # Timestamps
+            timestamps = self.times
 
-        # Best loss
-        best_loss = min(losses)
+            # Number the evaluations / iterations of this run
+            evaluation_ids = list(range(1, len(trials.tids) + 1))
 
-        # Determine the best HP-configuration of this run
-        best_params = {}
-        for i in range(len(self.hp_space)):
+            # Loss of each iteration
+            losses = []
+            for this_result in trials.results:
+                losses.append(this_result['loss'])
 
-            if type(self.hp_space[i]) == skopt.space.space.Categorical:
-                # Hyperopt only returns indexes for categorical hyperparameters
-                categories = self.hp_space[i].categories
-                cat_idx = res[self.hp_space[i].name]
-                best_params[self.hp_space[i].name] = categories[cat_idx]
+            # Best loss
+            best_loss = min(losses)
 
-            else:
-                best_params[self.hp_space[i].name] = res[self.hp_space[i].name]
-
-        # HP-configuration of each iteration
-        configurations = ()
-        for trial in trials.trials:
-            this_config = {}
+            # Determine the best HP-configuration of this run
+            best_configuration = {}
             for i in range(len(self.hp_space)):
 
                 if type(self.hp_space[i]) == skopt.space.space.Categorical:
                     # Hyperopt only returns indexes for categorical hyperparameters
                     categories = self.hp_space[i].categories
-                    cat_idx = trial['misc']['vals'][self.hp_space[i].name][0]
-                    this_config[self.hp_space[i].name] = categories[cat_idx]
-                else:
-                    this_config[self.hp_space[i].name] = trial['misc']['vals'][self.hp_space[i].name][0]
+                    cat_idx = res[self.hp_space[i].name]
+                    best_configuration[self.hp_space[i].name] = categories[cat_idx]
 
-            configurations = configurations + (this_config,)
+                else:
+                    best_configuration[self.hp_space[i].name] = res[self.hp_space[i].name]
+
+            # HP-configuration of each iteration
+            configurations = ()
+            for trial in trials.trials:
+                this_config = {}
+                for i in range(len(self.hp_space)):
+
+                    if type(self.hp_space[i]) == skopt.space.space.Categorical:
+                        # Hyperopt only returns indexes for categorical hyperparameters
+                        categories = self.hp_space[i].categories
+                        cat_idx = trial['misc']['vals'][self.hp_space[i].name][0]
+                        this_config[self.hp_space[i].name] = categories[cat_idx]
+                    else:
+                        this_config[self.hp_space[i].name] = trial['misc']['vals'][self.hp_space[i].name][0]
+
+                configurations = configurations + (this_config,)
+
+        # Run not successful (algorithm crashed)
+        else:
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
+                self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_params,
-                              wall_clock_time=wall_clock_time)
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
+                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
+                              wall_clock_time=wall_clock_time, successful=run_successful)
 
         return result
 
