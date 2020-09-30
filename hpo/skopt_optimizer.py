@@ -35,8 +35,8 @@ class SkoptOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals, random_state=self.random_seed,
-                                      acq_func=this_acq_func)
+        trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
+                                      random_state=self.random_seed, acq_func=this_acq_func)
 
         for i in range(len(self.times)):
             # Subtract the start time to receive the wall clock time of each function evaluation
@@ -87,7 +87,8 @@ class SkoptOptimizer(BaseOptimizer):
             dict_params[self.hp_space[i].name] = params[i]
 
         # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':

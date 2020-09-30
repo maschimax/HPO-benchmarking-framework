@@ -1,10 +1,11 @@
-from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
+from hyperopt import fmin, tpe, hp, Trials, STATUS_OK, STATUS_FAIL
 import skopt
 import numpy as np
 import time
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
+
 
 class HyperoptOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
@@ -31,7 +32,8 @@ class HyperoptOptimizer(BaseOptimizer):
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
                 hyperopt_space[self.hp_space[i].name] = hp.choice(self.hp_space[i].name,
-                                                                  range(self.hp_space[i].low, self.hp_space[i].high + 1))
+                                                                  range(self.hp_space[i].low,
+                                                                        self.hp_space[i].high + 1))
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
                 hyperopt_space[self.hp_space[i].name] = hp.choice(self.hp_space[i].name,
@@ -124,7 +126,8 @@ class HyperoptOptimizer(BaseOptimizer):
             Dictionary that contains the validation loss, the optimization status and the evaluation time
         """
         # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
@@ -136,8 +139,13 @@ class HyperoptOptimizer(BaseOptimizer):
         else:
             raise Exception('Unknown ML-algorithm!')
 
-        val_loss = eval_func(params=params)
+        try:
+            val_loss = eval_func(params=params)
+            status = STATUS_OK
+        except:
+            status = STATUS_FAIL
+            val_loss = float('nan')
 
         return {'loss': val_loss,
-                'status': STATUS_OK,
+                'status': status,
                 'eval_time': time.time()}

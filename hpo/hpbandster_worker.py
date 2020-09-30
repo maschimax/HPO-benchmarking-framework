@@ -19,7 +19,8 @@ class HPBandsterWorker(Worker):
     def compute(self, config, budget, *args, **kwargs):  # <<< ersetzt die objective function aus der optimizer Klasse?
 
         # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR':
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
             eval_func = self.optimizer_object.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
