@@ -7,9 +7,9 @@ from hpo.results import TuningResult
 
 class SkoptOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                 random_seed):
+                 random_seed, n_workers):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                         random_seed)
+                         random_seed, n_workers)
 
     def optimize(self) -> TuningResult:
         """
@@ -37,7 +37,8 @@ class SkoptOptimizer(BaseOptimizer):
         # Start the optimization
         try:
             trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
-                                          random_state=self.random_seed, acq_func=this_acq_func)
+                                          random_state=self.random_seed, acq_func=this_acq_func,
+                                          n_jobs=self.n_workers)
             run_successful = True
 
         # Algorithm crashed

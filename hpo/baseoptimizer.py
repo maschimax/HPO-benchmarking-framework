@@ -18,7 +18,7 @@ from hpo.lr_schedules import fix, exponential, cosine
 class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
                  x_train: pd.DataFrame, x_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series,
-                 metric, n_func_evals: int, random_seed: int):
+                 metric, n_func_evals: int, random_seed: int, n_workers: int):
         """
         Superclass for the individual optimizer classes of each HPO-library.
         :param hp_space:
@@ -43,6 +43,7 @@ class BaseOptimizer(ABC):
         self.metric = metric
         self.n_func_evals = n_func_evals
         self.random_seed = random_seed
+        self.n_workers = n_workers
 
     @abstractmethod
     def optimize(self) -> TuningResult:
@@ -102,15 +103,18 @@ class BaseOptimizer(ABC):
 
         # Create ML-model for the HP-configuration selected by the HPO-method
         if self.ml_algorithm == 'RandomForestRegressor':
-            model = RandomForestRegressor(**params, random_state=self.random_seed)
+            model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
         elif self.ml_algorithm == 'SVR':
-            model = SVR(**params)  # SVR has no random_state argument
+            # SVR has no random_state and no n_jobs parameters
+            model = SVR(**params)
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
+            # AdaBoostRegrssor has no n_jobs parameter
             model = AdaBoostRegressor(**params, random_state=self.random_seed)
 
         elif self.ml_algorithm == 'DecisionTreeRegressor':
+            # DecisionTreeRegressor has no n_jobs parameter
             model = DecisionTreeRegressor(**params, random_state=self.random_seed)
 
         else:
@@ -268,7 +272,7 @@ class BaseOptimizer(ABC):
             y_train = self.y_train
 
         # Initialize the model
-        model = XGBRegressor(**params, random_state=self.random_seed)
+        model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
         # Train the model and make the prediction
         model.fit(x_train, y_train)

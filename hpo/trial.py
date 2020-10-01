@@ -66,33 +66,37 @@ class Trial:
                     optimizer = SkoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                                y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                               n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                               n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                               n_workers=self.n_workers)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                 ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                                 y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                                n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                                n_workers=self.n_workers)
 
                 elif this_hpo_library == 'hpbandster':
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                     ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                     x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
-                                                    random_seed=this_seed)
+                                                    random_seed=this_seed, n_workers=self.n_workers)
 
                 elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                               y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                              n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                              n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                              n_workers=self.n_workers)
 
                 elif this_hpo_library == 'hyperopt':
                     optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                   ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                   x_val=self.x_val,
                                                   y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                                  n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                                  n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                                  n_workers=self.n_workers)
 
                 else:
                     raise Exception('Unknown HPO-library!')
