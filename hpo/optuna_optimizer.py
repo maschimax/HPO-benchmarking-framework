@@ -2,10 +2,16 @@ import optuna
 import skopt
 from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 import time
+from multiprocessing import Pool
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
 
+
+def load_study_and_optimize(st_name, st_storage, n_func_evals, objective_func):
+    this_study = optuna.load_study(st_name, st_storage)
+    this_study.optimize(objective_func, n_func_evals)
+    return
 
 class OptunaOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
@@ -35,21 +41,33 @@ class OptunaOptimizer(BaseOptimizer):
             raise Exception('Unknown HPO-method!')
 
         # Create a study object and specify the optimization direction
-        study = optuna.create_study(sampler=this_optimizer, direction='minimize')
+        study_name = 'hpo_study'
+        study_storage = 'sqlite:///hpo.db'
+        study = optuna.create_study(sampler=this_optimizer, direction='minimize',
+                                    study_name=study_name, storage=study_storage, load_if_exists=True)
 
         # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        try:
-            study.optimize(func=self.objective, n_trials=self.n_func_evals)
-            run_successful = True
+        # try:
+            # for worker in range(self.n_workers):
+            #     worker = optuna.load_study(study_name='hpo_study', storage=study_storage)
+            #     worker.optimize(func=self.objective, n_trials=self.n_func_evals)
+
+        with Pool(processes=self.n_workers) as pool:
+            pool.apply(func=load_study_and_optimize, args=(study_name, study_name, self.n_func_evals, self.objective))
+            pool.close()
+            pool.join()
+
+        # study.optimize(func=self.objective, n_trials=self.n_func_evals)
+        run_successful = True
 
         # Algorithm crashed
-        except:
-            # Add a warning here
-            run_successful = False
+        # except:
+        #     # Add a warning here
+        #     run_successful = False
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:
