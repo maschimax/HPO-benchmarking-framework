@@ -1,3 +1,0 @@
-,HPO-library,HPO-method,ML-algorithm,time_outperform_default,AUC,best_mean_loss,loss_ratio,std_dev_best_loss,time_best_config,evals_best_config
-1,hyperopt,TPE,RandomForestRegressor,inf,36335.943329798945,35360.29322465304,0.9619718253648701,1057.9957200899169,7.17094235420227,7
-2,skopt,SMAC,RandomForestRegressor,inf,36143.27032232899,35267.58019609039,0.9645007009164569,1199.7243621442715,15.315664386749267,14

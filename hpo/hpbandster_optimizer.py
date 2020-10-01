@@ -61,10 +61,27 @@ class HpbandsterOptimizer(BaseOptimizer):
             # number of function evaluations = eta * n_iterations
             run_successful = True
 
+            # Check whether one of the evaluations failed (hpbandster continues the optimization procedure even if
+            # the objective function cannot be evaluated)
+            for config_key in res.data.keys():
+                this_result = res.data[config_key].results
+
+                for this_eval in this_result.keys():
+                    this_success_flag = this_result[this_eval]['info']
+
+                    # The run wasn't successful, if one of the evaluations failed
+                    if not this_success_flag:
+                        run_successful = False
+                        break
+
         # Algorithm crashed
         except:
             # Add a warning here
             run_successful = False
+
+        # Shutdown the optimizer and the server
+        optimizer.shutdown(shutdown_workers=True)
+        NS.shutdown()
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:
@@ -76,10 +93,6 @@ class HpbandsterOptimizer(BaseOptimizer):
 
             # Timestamps
             timestamps = self.times
-
-            # Shutdown the optimizer and the server
-            optimizer.shutdown(shutdown_workers=True)
-            NS.shutdown()
 
             # Extract the results and create an TuningResult instance to save them
             id2config = res.get_id2config_mapping()

@@ -1,5 +1,0 @@
-;HPO-library;HPO-method;ML-algorithm;time_outperform_default;AUC;best_mean_loss;loss_ratio;std_dev_best_loss;time_best_config;evals_best_config
-1;hyperopt;TPE;RandomForestRegressor;72,48149753;34667,19896;33511,20408;1,023217327;111,4651584;72,48149753;38
-2;skopt;SMAC;RandomForestRegressor;63,16157842;35053,23001;33603,39393;1,020410163;901,2277086;70,00368849;44
-3;hpbandster;BOHB;RandomForestRegressor;69,60287738;36662,54459;33792,59278;1,014697064;208,1785935;69,60287738;70
-4;optuna;RandomSearch;RandomForestRegressor;inf;35785,01359;34549,64046;0,992463141;420,625983;55,00407243;45
