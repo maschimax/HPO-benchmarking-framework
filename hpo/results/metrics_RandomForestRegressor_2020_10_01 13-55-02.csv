@@ -1,0 +1,3 @@
+,HPO-library,HPO-method,ML-algorithm,Runs,Evaluations,Workers,time_outperform_default,AUC,best_mean_loss,loss_ratio,std_dev_best_loss,time_best_config,evals_best_config,number_of_crashes
+1,skopt,SMAC,RandomForestRegressor,2,15,1,inf,35557.80050024912,35257.54909966311,0.9501533874579076,458.10131973245734,6.427085995674133,3,0
+2,optuna,RandomSearch,RandomForestRegressor,2,15,1,inf,37453.85733643794,35807.35097160017,0.9355643129556909,824.5936339719483,12.777190446853638,11,0

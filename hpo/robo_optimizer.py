@@ -9,9 +9,9 @@ from hpo.results import TuningResult
 
 class RoboOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                 random_seed):
+                 random_seed, n_workers):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                         random_seed)
+                         random_seed, n_workers)
 
     def optimize(self) -> TuningResult:
         """
