@@ -1,3 +1,0 @@
-;HPO-library;HPO-method;ML-algorithm;Runs;Evaluations;Workers;time_outperform_default;AUC;best_mean_loss;loss_ratio;std_dev_best_loss;time_best_config;evals_best_config
-1;hyperopt;TPE;AdaBoostRegressor;3;15;1;4,196453969;41866,23761;38628,59962;1,020468264;358,8127929;11,67022165;12
-2;optuna;RandomSearch;AdaBoostRegressor;3;15;1;inf;40662,16714;39448,26031;0,999264852;592,1407201;5,563699404;6

@@ -12,7 +12,7 @@ from hpo.trial import Trial
 # Flag for debug mode (yes/no)
 # yes -> set parameters for this trial in source code (below)
 # no -> call script via terminal and pass arguments via argparse
-debug = True
+debug = False
 
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
@@ -36,7 +36,7 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-    n_runs = 3
+    n_runs = 2
     n_func_evals = 15
     n_workers = 1
     loss_metric = root_mean_squared_error

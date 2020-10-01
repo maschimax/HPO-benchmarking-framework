@@ -32,11 +32,18 @@ class HPBandsterWorker(Worker):
         else:
             raise Exception('Unknown ML-algorithm!')
 
-        # Pass the Hyperband budget (hpbandster specific) to the evaluation function
-        val_loss = eval_func(params=config, hb_budget=budget)
+        try:
+            # Pass the Hyperband budget (hpbandster specific) to the evaluation function
+            val_loss = eval_func(params=config, hb_budget=budget)
+            training_successful = True
+
+        # If the training fails (algorithm crash)
+        except:
+            val_loss = float('nan')
+            training_successful = False
 
         return ({'loss': val_loss,
-                 'info': {'validation_loss': val_loss}})
+                 'info': training_successful})
 
     @staticmethod
     def get_configspace(hp_space: dict):
