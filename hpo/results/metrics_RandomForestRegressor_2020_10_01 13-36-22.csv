@@ -1,6 +1,6 @@
-,HPO-library,HPO-method,ML-algorithm,Runs,Evaluations,Workers,time_outperform_default,AUC,best_mean_loss,loss_ratio,std_dev_best_loss,time_best_config,evals_best_config,number_of_crashes
-1,optuna,RandomSearch,RandomForestRegressor,5,60,1,inf,35319.447909170754,34482.00241662827,0.9610704234153749,330.16752209566044,67.25688457489014,57,0
-2,skopt,SMAC,RandomForestRegressor,5,60,1,inf,34602.049051037815,33226.85508804647,0.9973749418939459,623.41658702023,92.64236845970154,60,0
-3,hpbandster,BOHB,RandomForestRegressor,5,60,1,inf,36518.06003958018,34798.008630902565,0.9523427910564133,994.2493917381897,116.6474057674408,137,0
-4,robo,Fabolas,RandomForestRegressor,5,60,1,inf,76293.71757139827,69675.40018363735,0.47562888157679295,3167.0892468002316,11.0104829788208,42,0
-5,hyperopt,TPE,RandomForestRegressor,5,60,1,inf,34934.26438936811,33840.65492728535,0.97928461295939,794.2411524559016,60.970822191238405,52,0
+;HPO-library;HPO-method;ML-algorithm;Runs;Evaluations;Workers;time_outperform_default;AUC;best_mean_loss;loss_ratio;std_dev_best_loss;time_best_config;evals_best_config;number_of_crashes
+1;optuna;RandomSearch;RandomForestRegressor;5;60;1;inf;35319,44791;34482,00242;0,961070423;330,1675221;67,25688457;57;0
+2;skopt;SMAC;RandomForestRegressor;5;60;1;inf;34602,04905;33226,85509;0,997374942;623,416587;92,64236846;60;0
+3;hpbandster;BOHB;RandomForestRegressor;5;60;1;inf;36518,06004;34798,00863;0,952342791;994,2493917;116,6474058;137;0
+4;robo;Fabolas;RandomForestRegressor;5;60;1;inf;76293,71757;69675,40018;0,475628882;3167,089247;11,01048298;42;0
+5;hyperopt;TPE;RandomForestRegressor;5;60;1;inf;34934,26439;33840,65493;0,979284613;794,2411525;60,97082219;52;0

@@ -2,7 +2,7 @@ import optuna
 import skopt
 from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 import time
-from multiprocessing import Pool
+from multiprocessing import Pool, Process
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
@@ -51,23 +51,32 @@ class OptunaOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        # try:
+        try:
             # for worker in range(self.n_workers):
             #     worker = optuna.load_study(study_name='hpo_study', storage=study_storage)
             #     worker.optimize(func=self.objective, n_trials=self.n_func_evals)
 
-        with Pool(processes=self.n_workers) as pool:
-            pool.apply(func=load_study_and_optimize, args=(study_name, study_name, self.n_func_evals, self.objective))
-            pool.close()
-            pool.join()
+            # with Pool(processes=self.n_workers) as pool:
+            #     pool.apply(func=load_study_and_optimize, args=(study_name, study_name, self.n_func_evals, self.objective))
+            #     pool.close()
+            #     pool.join()
 
-        # study.optimize(func=self.objective, n_trials=self.n_func_evals)
-        run_successful = True
+            # proc = []
+            # for i in range(self.n_workers):
+            #     p = Process(target=load_study_and_optimize, args=(study_name, study_name, self.n_func_evals, self.objective))
+            #     p.start()
+            #     proc.append(p)
+            #
+            # for p in proc:
+            #     p.join()
+
+            study.optimize(func=self.objective, n_trials=self.n_func_evals)
+            run_successful = True
 
         # Algorithm crashed
-        # except:
-        #     # Add a warning here
-        #     run_successful = False
+        except:
+            # Add a warning here
+            run_successful = False
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:

@@ -26,12 +26,21 @@ class HpbandsterOptimizer(BaseOptimizer):
         NS = hpns.NameServer(run_id='hpbandster', host='127.0.0.1', port=None)
         NS.start()
 
-        # Start a worker
-        worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-                                  ml_algorithm=self.ml_algorithm, optimizer_object=self,
-                                  nameserver='127.0.0.1', run_id='hpbandster')
+        # # Start a worker
+        # worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+        #                           ml_algorithm=self.ml_algorithm, optimizer_object=self,
+        #                           nameserver='127.0.0.1', run_id='hpbandster')
+        #
+        # worker.run(background=True)
 
-        worker.run(background=True)
+        # Start the workers
+        workers = []
+        for i in range(self.n_workers):
+            worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+                                      ml_algorithm=self.ml_algorithm, optimizer_object=self,
+                                      nameserver='127.0.0.1', run_id='hpbandster', id=i)
+            worker.run(background=True)
+            workers.append(worker)
 
         # Run an optimizer
         # Select the specified HPO-tuning method
@@ -56,7 +65,7 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         # Start the optimization
         try:
-            res = optimizer.run(n_iterations=int(self.n_func_evals / eta))
+            res = optimizer.run(n_iterations=int(self.n_func_evals / eta), min_n_workers=self.n_workers)
             # Relation of budget stages, halving iterations and the number of evaluations: https://arxiv.org/abs/1905.04970
             # number of function evaluations = eta * n_iterations
             run_successful = True
