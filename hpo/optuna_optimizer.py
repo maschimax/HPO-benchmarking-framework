@@ -2,16 +2,12 @@ import optuna
 import skopt
 from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 import time
-from multiprocessing import Pool, Process
+from multiprocessing import Process
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
+from hpo import optuna_multiproc_target
 
-
-def load_study_and_optimize(st_name, st_storage, n_func_evals, objective_func):
-    this_study = optuna.load_study(st_name, st_storage)
-    this_study.optimize(objective_func, n_func_evals)
-    return
 
 class OptunaOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
@@ -43,51 +39,56 @@ class OptunaOptimizer(BaseOptimizer):
         # Create a study object and specify the optimization direction
         study_name = 'hpo_study'
         study_storage = 'sqlite:///hpo.db'
+
+        # Delete old study objects ('fresh start') >> otherwise the old results will be included
+        try:
+            optuna.delete_study(study_name, study_storage)
+        except:
+            print('No old optuna study objects found!')
+
         study = optuna.create_study(sampler=this_optimizer, direction='minimize',
                                     study_name=study_name, storage=study_storage, load_if_exists=True)
 
         # Optimize on the predefined n_func_evals and measure the wall clock times
-        start_time = time.time()
+        # start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
-        # try:
-            # for worker in range(self.n_workers):
-            #     worker = optuna.load_study(study_name='hpo_study', storage=study_storage)
-            #     worker.optimize(func=self.objective, n_trials=self.n_func_evals)
+        try:
 
-            # with Pool(processes=self.n_workers) as pool:
-            #     pool.apply(func=load_study_and_optimize, args=(study_name, study_name, self.n_func_evals, self.objective))
-            #     pool.close()
-            #     pool.join()
+            # Split the total number of function evaluations between the processes for multiprocessing:
+            # First process performs the equal share + the remainder
+            n_evals_first_proc = int(self.n_func_evals / self.n_workers) + (self.n_func_evals % self.n_workers)
+            # All remaining process perform the equal share of evaluations
+            n_evals_remain_proc = int(self.n_func_evals / self.n_workers)
 
-        proc = []
-        for i in range(self.n_workers):
-            p = Process(target=load_study_and_optimize, args=(study_name, study_name, self.n_func_evals, self.objective))
-            p.start()
-            proc.append(p)
+            processes = []
+            for i in range(self.n_workers):
 
-        for p in proc:
-            p.join()
+                if i == 0:
+                    n_evals = n_evals_first_proc
+                else:
+                    n_evals = n_evals_remain_proc
 
-        # study.optimize(func=self.objective, n_trials=self.n_func_evals)
-        run_successful = True
+                p = Process(target=optuna_multiproc_target.load_study_and_optimize,
+                            args=(study_name, study_storage, n_evals, self.objective))
+
+                p.start()
+                processes.append(p)
+
+            for p in processes:
+                p.join()
+
+            # study.optimize(func=self.objective, n_trials=self.n_func_evals)
+            run_successful = True
 
         # Algorithm crashed
-        # except:
-        #     # Add a warning here
-        #     run_successful = False
+        except:
+            # Add a warning here
+            run_successful = False
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:
-
-            for i in range(len(self.times)):
-                # Subtract the start time to receive the wall clock time of each function evaluation
-                self.times[i] = self.times[i] - start_time
-            wall_clock_time = max(self.times)
-
-            # Timestamps
-            timestamps = self.times
 
             # Create a TuningResult-object to store the optimization results
             # Transformation of the results into a TuningResult-Object
@@ -95,13 +96,28 @@ class OptunaOptimizer(BaseOptimizer):
             best_configuration = study.best_params
             best_loss = study.best_value
 
+            start_times = []  # Start time of each trial
+            finish_times = []  # Finish time of each trial
             evaluation_ids = []  # Number the evaluations / iterations of this run
             losses = []  # Loss of each iteration
             configurations = ()  # HP-configuration of each iteration
+
             for i in range(len(all_trials)):
+                start_times.append(all_trials[i].datetime_start)
+                finish_times.append(all_trials[i].datetime_complete)
+
                 evaluation_ids.append(all_trials[i].number)
                 losses.append(all_trials[i].value)
                 configurations = configurations + (all_trials[i].params,)
+
+            abs_start_time = min(start_times)  # start time of the first trial
+            timestamps = []
+            for i in range(len(start_times)):
+                this_time = finish_times[i] - abs_start_time  # time difference to the start of the first trial
+                this_timestamp = this_time.total_seconds()  # conversion into float value
+                timestamps.append(this_timestamp)
+
+            wall_clock_time = max(timestamps)
 
         # Run not successful (algorithm crashed)
         else:
@@ -135,7 +151,8 @@ class OptunaOptimizer(BaseOptimizer):
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
                 dict_params[self.hp_space[i].name] = trial.suggest_categorical(name=self.hp_space[i].name,
-                                                                               choices=list(self.hp_space[i].categories))
+                                                                               choices=list(
+                                                                                   self.hp_space[i].categories))
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
                 dict_params[self.hp_space[i].name] = trial.suggest_float(name=self.hp_space[i].name,
