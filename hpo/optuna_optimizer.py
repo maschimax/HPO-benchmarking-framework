@@ -1,7 +1,7 @@
 import optuna
 import skopt
 from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
-import time
+import pandas as pd
 from multiprocessing import Process
 
 from hpo.baseoptimizer import BaseOptimizer
@@ -103,28 +103,46 @@ class OptunaOptimizer(BaseOptimizer):
 
             start_times = []  # Start time of each trial
             finish_times = []  # Finish time of each trial
-            evaluation_ids = []  # Number the evaluations / iterations of this run
-            losses = []  # Loss of each iteration
-            configurations = ()  # HP-configuration of each iteration
+            # evaluation_ids = []  # Number the evaluations / iterations of this run
+            unsorted_losses = []  # Loss of each iteration
+            unsorted_configurations = ()  # HP-configuration of each iteration
+
+            # Number the evaluations / iterations of this run
+            evaluation_ids = list(range(1, len(all_trials) + 1))
 
             for i in range(len(all_trials)):
                 start_times.append(all_trials[i].datetime_start)
                 finish_times.append(all_trials[i].datetime_complete)
 
-                evaluation_ids.append(all_trials[i].number)
-                losses.append(all_trials[i].value)
-                configurations = configurations + (all_trials[i].params,)
+                # evaluation_ids.append(all_trials[i].number)
+                unsorted_losses.append(all_trials[i].value)
+                unsorted_configurations = unsorted_configurations + (all_trials[i].params,)
 
             abs_start_time = min(start_times)  # start time of the first trial
-            timestamps = []
+            unsorted_timestamps = []
             for i in range(len(start_times)):
                 this_time = finish_times[i] - abs_start_time  # time difference to the start of the first trial
                 this_timestamp = this_time.total_seconds()  # conversion into float value
-                timestamps.append(this_timestamp)
+                unsorted_timestamps.append(this_timestamp)
 
-            wall_clock_time = max(timestamps)
+            wall_clock_time = max(unsorted_timestamps)
 
-        # Run not successful (algorithm crashed)
+            ids = list(range(1, len(all_trials) + 1))
+            temp_dict = {'ids': ids,
+                         'timestamps [finished]': unsorted_timestamps,
+                         'losses': unsorted_losses,
+                         'configurations': unsorted_configurations,
+                         }
+
+            unsorted_df = pd.DataFrame.from_dict(data=temp_dict)
+            unsorted_df.set_index('ids', inplace=True)
+            sorted_df = unsorted_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=False)
+
+            timestamps = list(sorted_df['timestamps [finished]'])
+            losses = list(sorted_df['losses'])
+            configurations = tuple(sorted_df['configurations'])
+
+            # Run not successful (algorithm crashed)
         else:
             evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
                 self.impute_results_for_crash()
