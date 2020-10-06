@@ -3,10 +3,12 @@ import hpbandster.core.nameserver as hpns
 from hpbandster.optimizers import BOHB
 from hpbandster.optimizers import HyperBand
 import pandas as pd
+from multiprocessing import Process
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
 from hpo.hpbandster_worker import HPBandsterWorker
+from hpo import multiproc_target_funcs
 
 
 class HpbandsterOptimizer(BaseOptimizer):
@@ -26,6 +28,11 @@ class HpbandsterOptimizer(BaseOptimizer):
         NS = hpns.NameServer(run_id='hpbandster', host='127.0.0.1', port=None)
         NS.start()
 
+        # Optimize on the predefined n_func_evals and measure the wall clock times
+        start_time = time.time()
+        self.times = []  # Initialize a list for saving the wall clock times
+
+        # No parallelization
         # # Start a worker
         # worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
         #                           ml_algorithm=self.ml_algorithm, optimizer_object=self,
@@ -33,40 +40,47 @@ class HpbandsterOptimizer(BaseOptimizer):
         #
         # worker.run(background=True)
 
-        # Start the workers
-        workers = []
+        # Thread based parallelization - Start the workers
+        # workers = []
+        # for i in range(self.n_workers):
+        #     worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+        #                               ml_algorithm=self.ml_algorithm, optimizer_object=self,
+        #                               nameserver='127.0.0.1', run_id='hpbandster', id=i)
+        #     worker.run(background=True)
+        #     workers.append(worker)
+
+        # Process based parallelization - Start the workers
+        processes = []
         for i in range(self.n_workers):
-            worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-                                      ml_algorithm=self.ml_algorithm, optimizer_object=self,
-                                      nameserver='127.0.0.1', run_id='hpbandster', id=i)
-            worker.run(background=True)
-            workers.append(worker)
+            p = Process(target=multiproc_target_funcs.initialize_worker,
+                        args=(self.x_train, self.x_val, self.y_train, self.y_val,
+                              self.ml_algorithm, self, '127.0.0.1', 'hpbandster'))
+
+            p.start()
+            processes.append(p)
 
         # Run an optimizer
         # Select the specified HPO-tuning method
         if self.hpo_method == 'BOHB':
             eta = 3.0
-            optimizer = BOHB(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
+            optimizer = BOHB(configspace=HPBandsterWorker.get_configspace(self.hp_space), run_id='hpbandster',
                              nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=eta)
             # Values for budget stages: https://arxiv.org/abs/1905.04970
 
         elif self.hpo_method == 'Hyperband':
             eta = 3.0
-            optimizer = HyperBand(configspace=worker.get_configspace(self.hp_space), run_id='hpbandster',
+            optimizer = HyperBand(configspace=HPBandsterWorker.get_configspace(self.hp_space), run_id='hpbandster',
                                   nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=eta)
             # Values for budget stages: https://arxiv.org/abs/1905.04970
 
         else:
             raise Exception('Unknown HPO-method!')
 
-        # Optimize on the predefined n_func_evals and measure the wall clock times
-        start_time = time.time()
-        self.times = []  # Initialize a list for saving the wall clock times
-
         # Start the optimization
         try:
             res = optimizer.run(n_iterations=int(self.n_func_evals / eta), min_n_workers=self.n_workers)
-            # Relation of budget stages, halving iterations and the number of evaluations: https://arxiv.org/abs/1905.04970
+            # Relation of budget stages, halving iterations and the number of evaluations:
+            # https://arxiv.org/abs/1905.04970
             # number of function evaluations = eta * n_iterations
             run_successful = True
 
@@ -92,16 +106,20 @@ class HpbandsterOptimizer(BaseOptimizer):
         optimizer.shutdown(shutdown_workers=True)
         NS.shutdown()
 
+        # Join the processes
+        for p in processes:
+            p.join()
+
         # If the optimization run was successful, determine the optimization results
         if run_successful:
 
-            for i in range(len(self.times)):
-                # Subtract the start time to receive the wall clock time of each function evaluation
-                self.times[i] = self.times[i] - start_time
-            wall_clock_time = max(self.times)
-
-            # Timestamps
-            timestamps = self.times
+            # for i in range(len(self.times)):
+            #     # Subtract the start time to receive the wall clock time of each function evaluation
+            #     self.times[i] = self.times[i] - start_time
+            # wall_clock_time = max(self.times)
+            #
+            # # Timestamps
+            # timestamps = self.times
 
             # Extract the results and create an TuningResult instance to save them
             id2config = res.get_id2config_mapping()
@@ -124,7 +142,7 @@ class HpbandsterOptimizer(BaseOptimizer):
                              'iteration': this_run.config_id[0],
                              'budget': this_run.budget,
                              'loss': this_run.loss,
-                             'timestamps [finished]': self.times[i]}
+                             'timestamps [finished]': this_run.time_stamps['finished']}
                 # alternatively: 'timestamps [finished]': this_run.time_stamps['finished']
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
                 this_df.set_index('run_id', inplace=True)
@@ -136,7 +154,8 @@ class HpbandsterOptimizer(BaseOptimizer):
             losses = list(runs_df['loss'])
             best_loss = min(losses)
             evaluation_ids = list(range(1, len(losses) + 1))
-            # timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
+            timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
+            wall_clock_time = max(timestamps)
 
             configurations = ()
             for i in range(len(losses)):

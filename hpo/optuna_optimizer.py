@@ -6,7 +6,7 @@ from multiprocessing import Process
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
-from hpo import optuna_multiproc_target
+from hpo import multiproc_target_funcs
 
 
 class OptunaOptimizer(BaseOptimizer):
@@ -72,7 +72,7 @@ class OptunaOptimizer(BaseOptimizer):
                     else:
                         n_evals = n_evals_remain_proc
 
-                    p = Process(target=optuna_multiproc_target.load_study_and_optimize,
+                    p = Process(target=multiproc_target_funcs.load_study_and_optimize,
                                 args=(study_name, study_storage, n_evals, self.objective))
 
                     p.start()
