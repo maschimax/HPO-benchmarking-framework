@@ -56,30 +56,35 @@ class OptunaOptimizer(BaseOptimizer):
         # Start the optimization
         try:
 
-            # Split the total number of function evaluations between the processes for multiprocessing:
-            # First process performs the equal share + the remainder
-            n_evals_first_proc = int(self.n_func_evals / self.n_workers) + (self.n_func_evals % self.n_workers)
-            # All remaining process perform the equal share of evaluations
-            n_evals_remain_proc = int(self.n_func_evals / self.n_workers)
+            # Parallelization
+            if self.n_workers > 1:
+                # Split the total number of function evaluations between the processes for multiprocessing:
+                # First process performs the equal share + the remainder
+                n_evals_first_proc = int(self.n_func_evals / self.n_workers) + (self.n_func_evals % self.n_workers)
+                # All remaining process perform the equal share of evaluations
+                n_evals_remain_proc = int(self.n_func_evals / self.n_workers)
 
-            processes = []
-            for i in range(self.n_workers):
+                processes = []
+                for i in range(self.n_workers):
 
-                if i == 0:
-                    n_evals = n_evals_first_proc
-                else:
-                    n_evals = n_evals_remain_proc
+                    if i == 0:
+                        n_evals = n_evals_first_proc
+                    else:
+                        n_evals = n_evals_remain_proc
 
-                p = Process(target=optuna_multiproc_target.load_study_and_optimize,
-                            args=(study_name, study_storage, n_evals, self.objective))
+                    p = Process(target=optuna_multiproc_target.load_study_and_optimize,
+                                args=(study_name, study_storage, n_evals, self.objective))
 
-                p.start()
-                processes.append(p)
+                    p.start()
+                    processes.append(p)
 
-            for p in processes:
-                p.join()
+                for p in processes:
+                    p.join()
 
-            # study.optimize(func=self.objective, n_trials=self.n_func_evals)
+            # No parallelization
+            else:
+                study.optimize(func=self.objective, n_trials=self.n_func_evals)
+
             run_successful = True
 
         # Algorithm crashed

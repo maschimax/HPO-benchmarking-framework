@@ -38,7 +38,7 @@ if debug:
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
     n_runs = 3
     n_func_evals = 45
-    n_workers = 4
+    n_workers = 1
     loss_metric = root_mean_squared_error
 
 
