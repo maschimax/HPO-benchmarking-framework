@@ -33,31 +33,24 @@ class HpbandsterOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # No parallelization
-        # # Start a worker
-        # worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-        #                           ml_algorithm=self.ml_algorithm, optimizer_object=self,
-        #                           nameserver='127.0.0.1', run_id='hpbandster')
-        #
-        # worker.run(background=True)
+        if self.n_workers == 1:
+            # Start a worker
+            worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+                                      ml_algorithm=self.ml_algorithm, optimizer_object=self,
+                                      nameserver='127.0.0.1', run_id='hpbandster')
 
-        # Thread based parallelization - Start the workers
-        # workers = []
-        # for i in range(self.n_workers):
-        #     worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-        #                               ml_algorithm=self.ml_algorithm, optimizer_object=self,
-        #                               nameserver='127.0.0.1', run_id='hpbandster', id=i)
-        #     worker.run(background=True)
-        #     workers.append(worker)
+            worker.run(background=True)
 
         # Process based parallelization - Start the workers
-        processes = []
-        for i in range(self.n_workers):
-            p = Process(target=multiproc_target_funcs.initialize_worker,
-                        args=(self.x_train, self.x_val, self.y_train, self.y_val,
-                              self.ml_algorithm, self, '127.0.0.1', 'hpbandster'))
+        elif self.n_workers > 1:
+            processes = []
+            for i in range(self.n_workers):
+                p = Process(target=multiproc_target_funcs.initialize_worker,
+                            args=(self.x_train, self.x_val, self.y_train, self.y_val,
+                                  self.ml_algorithm, self, '127.0.0.1', 'hpbandster'))
 
-            p.start()
-            processes.append(p)
+                p.start()
+                processes.append(p)
 
         # Run an optimizer
         # Select the specified HPO-tuning method
@@ -106,9 +99,10 @@ class HpbandsterOptimizer(BaseOptimizer):
         optimizer.shutdown(shutdown_workers=True)
         NS.shutdown()
 
-        # Join the processes
-        for p in processes:
-            p.join()
+        if self.n_workers > 1:
+            # Join the processes (only for parallelization)
+            for p in processes:
+                p.join()
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:

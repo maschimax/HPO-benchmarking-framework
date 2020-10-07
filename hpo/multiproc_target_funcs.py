@@ -45,8 +45,3 @@ def initialize_worker(x_train, x_val, y_train, y_val, ml_algo, optimizer_obj, na
                               nameserver=nameserver, run_id=run_id)
     worker.run(background=False)
     return
-
-
-def test_func(i):
-    print('Test: ', i)
-    return

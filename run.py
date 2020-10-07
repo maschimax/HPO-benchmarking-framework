@@ -36,9 +36,9 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-    n_runs = 5
-    n_func_evals = 60
-    n_workers = 1
+    n_runs = 3
+    n_func_evals = 15
+    n_workers = 4
     loss_metric = root_mean_squared_error
 
 
