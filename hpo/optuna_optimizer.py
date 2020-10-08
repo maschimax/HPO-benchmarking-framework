@@ -9,7 +9,6 @@ from hpo.results import TuningResult
 from hpo import multiproc_target_funcs
 
 
-
 class OptunaOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                  random_seed, n_workers):
