@@ -25,13 +25,13 @@ class TrialResult:
 
 
 class MetricsResult:
-    def __init__(self, time_outperform_default, area_under_curve, best_mean_loss, loss_ratio, std_dev_best_loss,
+    def __init__(self, time_outperform_default, area_under_curve, best_mean_loss, loss_ratio, interquantile_range,
                  time_best_config, evals_for_best_config, number_of_crashes):
         self.time_outperform_default = time_outperform_default
         self.area_under_curve = area_under_curve
         self.best_mean_loss = best_mean_loss
         self.loss_ratio = loss_ratio
-        self.std_dev_best_loss = std_dev_best_loss
+        self.interquantile_range = interquantile_range
         self.time_best_config = time_best_config
         self.evals_for_best_config = evals_for_best_config
         self.number_of_crashes = number_of_crashes

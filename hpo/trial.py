@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 import uuid
 import math
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
@@ -236,10 +237,20 @@ class Trial:
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
+        # ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+
+        # Add a legend
         mean_lines.append(baseline)
-        labels = [this_tuple[1] for this_tuple in trial_results_dict.keys()]
-        labels.append('Default HPs')
-        plt.legend(mean_lines, labels, loc='upper right')
+        legend_labels = [this_tuple[1] for this_tuple in trial_results_dict.keys()]
+        legend_labels.append('Default HPs')
+        plt.legend(mean_lines, legend_labels, loc='upper right')
+
+        # Add a title
+        font = {'weight': 'semibold',
+                'size': 'large'}
+
+        title_label = self.ml_algorithm + " - " + str(self.n_workers) + " worker(s) - " + str(self.n_runs) + " runs"
+        plt.title(label=title_label, fontdict=font, loc='center')
 
         return fig
 
@@ -285,8 +296,9 @@ class Trial:
 
         metrics = {}
         cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers',
-                'time_outperform_default', 'AUC', 'best_mean_loss', 'loss_ratio', 'std_dev_best_loss',
-                'time_best_config', 'evals_best_config', 'number_of_crashes']
+                't outperform default [s]', 'Area under curve (AUC)', 'Mean(best loss)', 'Loss ratio',
+                'Interquartile range(best_loss)', 't best configuration [s]', 'Evaluations for best configuration',
+                'Crashes']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -376,9 +388,10 @@ class Trial:
             loss_ratio = baseline_loss / best_mean_loss
 
             # ROBUSTNESS
-            # 5. Standard dev. of the loss of the best found configuration
-            std_dev_best_loss = np.nanstd(best_losses, axis=1)
-            std_dev_best_loss = std_dev_best_loss[-1]
+            # 5. Interquantile range of the loss of the best found configuration
+            quant75 = np.nanquantile(best_losses, q=.75, axis=1)
+            quant25 = np.nanquantile(best_losses, q=.25, axis=1)
+            interq_range = (quant75 - quant25)[-1]
 
             # 6. Total number of crashes during the optimization (for each HPO-method)
             # number_of_crashes_this_algo
@@ -407,7 +420,7 @@ class Trial:
                                            area_under_curve=auc,
                                            best_mean_loss=best_mean_loss,
                                            loss_ratio=loss_ratio,
-                                           std_dev_best_loss=std_dev_best_loss,
+                                           interquantile_range=interq_range,
                                            time_best_config=time_best_config,
                                            evals_for_best_config=evals_for_best_config,
                                            number_of_crashes=number_of_crashes_this_algo)
@@ -423,14 +436,14 @@ class Trial:
                             'Runs': self.n_runs,
                             'Evaluations': self.n_func_evals,
                             'Workers': self.n_workers,
-                            'time_outperform_default': time_outperform_default,
-                            'AUC': auc,
-                            'best_mean_loss': best_mean_loss,
-                            'loss_ratio': loss_ratio,
-                            'std_dev_best_loss': std_dev_best_loss,
-                            'time_best_config': time_best_config,
-                            'evals_best_config': evals_for_best_config,
-                            'number_of_crashes': number_of_crashes_this_algo}
+                            't outperform default [s]': time_outperform_default,
+                            'Area under curve (AUC)': auc,
+                            'Mean(best loss)': best_mean_loss,
+                            'Loss ratio': loss_ratio,
+                            'Interquartile range(best_loss)': interq_range,
+                            't best configuration [s]': time_best_config,
+                            'Evaluations for best configuration': evals_for_best_config,
+                            'Crashes': number_of_crashes_this_algo}
 
             # Create pandas DataFrame from dictionary
             this_metrics_df = pd.DataFrame.from_dict(data=metrics_dict)
