@@ -4,22 +4,15 @@ from hyperopt.mongoexp import MongoTrials
 import os
 from multiprocessing import Process
 
-# os.mkdir("./mongo_db")
-# os.system("mongod --dbpath ./mongo_db --port 1234 --directoryperdb --journal")
-
-os.system(
-    "mongod --dbpath /home/max/Desktop/Projects/housing_regression/mongodb --port 1234 --fork --logpath "
-    "/home/max/Desktop/Projects/housing_regression/log_mongodb --directoryperdb --journal")
-
+# Requirement: Select correct database in mongo shell before
 
 def target_func1(evals):
-    trials = MongoTrials('mongo://localhost:1234/mongo_db/jobs', exp_key='exp2')
+    trials = MongoTrials('mongo://localhost:27017/mongo_hpo/jobs', exp_key='exp1')
     best = fmin(math.sin, hp.uniform('x', -2, 2), trials=trials, algo=tpe.suggest, max_evals=evals)
     return best
 
-
 def target_func2():
-    os.system("hyperopt-mongo-worker --mongo=localhost:1234/mongo_db --poll-interval=0.1")
+    os.system("hyperopt-mongo-worker --mongo=localhost:27017/mongo_hpo --poll-interval=0.1")
     return
 
 
@@ -27,7 +20,7 @@ proc = []
 for i in range(4):
     if i == 0:
 
-        p = Process(target=target_func1, args=(10,))
+        p = Process(target=target_func1, args=(20,))
     else:
         p = Process(target=target_func2)
 

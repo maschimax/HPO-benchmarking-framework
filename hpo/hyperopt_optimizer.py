@@ -1,10 +1,13 @@
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK, STATUS_FAIL
+from hyperopt.mongoexp import MongoTrials
 import skopt
 import numpy as np
 import time
+from multiprocessing import Process
 
 from hpo.baseoptimizer import BaseOptimizer
 from hpo.results import TuningResult
+from hpo import multiproc_target_funcs
 
 
 class HyperoptOptimizer(BaseOptimizer):
@@ -47,9 +50,6 @@ class HyperoptOptimizer(BaseOptimizer):
             else:
                 raise Exception('The skopt HP-space could not be converted correctly!')
 
-        # Initialize a trial instance
-        trials = Trials()
-
         # Set the random seed of the random number generator
         rand_num_generator = np.random.RandomState(seed=self.random_seed)
 
@@ -57,16 +57,43 @@ class HyperoptOptimizer(BaseOptimizer):
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
-        # Start the optimization
-        try:
-            res = fmin(fn=self.objective, space=hyperopt_space, trials=trials, algo=this_optimizer,
-                       max_evals=self.n_func_evals, rstate=rand_num_generator)
-            run_successful = True
+        # No parallelization
+        if self.n_workers == 1:
 
-        # Algorithm crashed
-        except:
-            # Add a warning here
-            run_successful = False
+            # Initialize a trial instance
+            trials = Trials()
+
+            # Start the optimization
+            try:
+                res = fmin(fn=self.objective, space=hyperopt_space, trials=trials, algo=this_optimizer,
+                           max_evals=self.n_func_evals, rstate=rand_num_generator)
+                run_successful = True
+
+            # Algorithm crashed
+            except:
+                # Add a warning here
+                run_successful = False
+
+        # Parallelization -> use multiprocessing
+        else:
+
+            processes = []
+            for i in range(self.n_workers + 1):
+
+                if i == 0:
+                    # >>> USE UNIQUE EXPERIMENT ID FOR EACH TRIAL
+                    trials = MongoTrials('mongo://localhost:27017/mongo_hpo/jobs', exp_key='exp4')
+                    p = Process(target=multiproc_target_funcs.hyperopt_target1,
+                                args=(self.objective, hyperopt_space, trials, this_optimizer, self.n_func_evals,
+                                      rand_num_generator))
+                else:
+                    p = Process(target=multiproc_target_funcs.hyperopt_target2)
+
+                p.start()
+                processes.append(p)
+
+            for p in processes:
+                p.join()
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:
