@@ -32,12 +32,12 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'CMA-ES'), ('skopt', 'SMAC'), ('optuna', 'RandomSearch'), ('hpbandster', 'BOHB')]
+    opt_schedule = [('hyperopt', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-    n_runs = 5
-    n_func_evals = 120
+    n_runs = 1
+    n_func_evals = 20
     n_workers = 4
     loss_metric = root_mean_squared_error
 

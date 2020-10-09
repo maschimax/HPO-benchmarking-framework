@@ -1,5 +1,7 @@
 import optuna
 from hpo.hpbandster_worker import HPBandsterWorker
+import os
+from hyperopt import fmin
 
 
 def load_study_and_optimize(st_name, st_storage, n_func_evals, objective_func):
@@ -44,4 +46,16 @@ def initialize_worker(x_train, x_val, y_train, y_val, ml_algo, optimizer_obj, na
                               ml_algorithm=ml_algo, optimizer_object=optimizer_obj,
                               nameserver=nameserver, run_id=run_id)
     worker.run(background=False)
+    return
+
+
+def hyperopt_target1(objective, hyperopt_space, trials, this_optimizer, n_func_evals, rand_num_generator):
+    res = fmin(fn=objective, space=hyperopt_space, trials=trials, algo=this_optimizer,
+               max_evals=n_func_evals, rstate=rand_num_generator)
+    return
+
+
+def hyperopt_target2():
+    os.system("hyperopt-mongo-worker --mongo=localhost:27017/mongo_hpo --poll-interval=0.1")
+
     return
