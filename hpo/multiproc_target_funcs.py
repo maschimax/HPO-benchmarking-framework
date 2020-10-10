@@ -56,6 +56,7 @@ def hyperopt_target1(objective, hyperopt_space, trials, this_optimizer, n_func_e
 
 
 def hyperopt_target2():
-    os.system("hyperopt-mongo-worker --mongo=localhost:27017/mongo_hpo --poll-interval=0.1")
+    # check args in hyperopt.mongoexp main_worker()
+    os.system("hyperopt-mongo-worker --mongo=localhost:27017/mongo_hpo --poll-interval=0.1 --reserve-timeout=20.0")
 
     return

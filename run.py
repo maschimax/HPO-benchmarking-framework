@@ -36,11 +36,10 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-    n_runs = 1
+    n_runs = 3
     n_func_evals = 20
     n_workers = 4
     loss_metric = root_mean_squared_error
-
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
