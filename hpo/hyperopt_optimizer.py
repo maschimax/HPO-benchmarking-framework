@@ -76,31 +76,45 @@ class HyperoptOptimizer(BaseOptimizer):
 
         # Parallelization -> use multiprocessing
         else:
+            try:
+                processes = []
+                for i in range(self.n_workers + 1):
 
-            processes = []
-            for i in range(self.n_workers + 1):
+                    if i == 0:
+                        # >>> USE UNIQUE EXPERIMENT ID FOR EACH TRIAL
+                        trials = MongoTrials('mongo://localhost:27017/mongo_hpo/jobs', exp_key='exp104')
+                        p = Process(target=multiproc_target_funcs.hyperopt_target1,
+                                    args=(self.objective, hyperopt_space, trials, this_optimizer, self.n_func_evals,
+                                          rand_num_generator))
+                    else:
+                        p = Process(target=multiproc_target_funcs.hyperopt_target2)
 
-                if i == 0:
-                    # >>> USE UNIQUE EXPERIMENT ID FOR EACH TRIAL
-                    trials = MongoTrials('mongo://localhost:27017/mongo_hpo/jobs', exp_key='exp4')
-                    p = Process(target=multiproc_target_funcs.hyperopt_target1,
-                                args=(self.objective, hyperopt_space, trials, this_optimizer, self.n_func_evals,
-                                      rand_num_generator))
-                else:
-                    p = Process(target=multiproc_target_funcs.hyperopt_target2)
+                    p.start()
+                    processes.append(p)
 
-                p.start()
-                processes.append(p)
+                for p in processes:
+                    p.join()
 
-            for p in processes:
-                p.join()
+                run_successful = True
+
+            except:
+                run_successful = False
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:
+            print(trials.trials)
+            exit(0)
+            # for i in range(len(self.times)):
+            #     # Subtract the start time to receive the wall clock time of each function evaluation
+            #     self.times[i] = self.times[i] - start_time
+            # wall_clock_time = max(self.times)
 
-            for i in range(len(self.times)):
+            # Determine the timestamps for each evaluation of the blackbox-function
+            for i in range(len(trials.trials)):
                 # Subtract the start time to receive the wall clock time of each function evaluation
-                self.times[i] = self.times[i] - start_time
+                this_trial = trials.trials[i]
+                this_eval_time = this_trial['result']['eval_time']
+                self.times[i] = this_eval_time - start_time
             wall_clock_time = max(self.times)
 
             # Timestamps
@@ -124,11 +138,14 @@ class HyperoptOptimizer(BaseOptimizer):
                 if type(self.hp_space[i]) == skopt.space.space.Categorical:
                     # Hyperopt only returns indexes for categorical hyperparameters
                     categories = self.hp_space[i].categories
-                    cat_idx = res[self.hp_space[i].name]
+                    # cat_idx = res[self.hp_space[i].name]
+                    cat_idx = trials.best_trial['misc']['vals'][self.hp_space[i].name][0]
                     best_configuration[self.hp_space[i].name] = categories[cat_idx]
 
                 else:
-                    best_configuration[self.hp_space[i].name] = res[self.hp_space[i].name]
+                    # best_configuration[self.hp_space[i].name] = res[self.hp_space[i].name]
+                    best_configuration[self.hp_space[i].name] = \
+                        trials.best_trial['misc']['vals'][self.hp_space[i].name][0]
 
             # HP-configuration of each iteration
             configurations = ()
