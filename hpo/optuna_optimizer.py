@@ -30,6 +30,9 @@ class OptunaOptimizer(BaseOptimizer):
         if self.hpo_method == 'CMA-ES':
             this_optimizer = CmaEsSampler(seed=self.random_seed)
 
+        elif self.hpo_method == 'TPE':
+            this_optimizer = TPESampler(seed=self.random_seed)
+
         elif self.hpo_method == 'RandomSearch':
             this_optimizer = RandomSampler(seed=self.random_seed)
 
@@ -56,7 +59,7 @@ class OptunaOptimizer(BaseOptimizer):
         # Start the optimization
         try:
 
-            # Parallelization
+            # Process based parallelization using multiprocessing
             if self.n_workers > 1:
                 # Split the total number of function evaluations between the processes for multiprocessing:
                 # First process performs the equal share + the remainder
@@ -64,6 +67,7 @@ class OptunaOptimizer(BaseOptimizer):
                 # All remaining process perform the equal share of evaluations
                 n_evals_remain_proc = int(self.n_func_evals / self.n_workers)
 
+                # Start parallel workers
                 processes = []
                 for i in range(self.n_workers):
 
