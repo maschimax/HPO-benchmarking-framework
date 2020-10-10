@@ -57,9 +57,7 @@ class HyperoptOptimizer(BaseOptimizer):
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
-        # No parallelization
         if self.n_workers == 1:
-
             # Initialize a trial instance
             trials = Trials()
 
@@ -74,40 +72,57 @@ class HyperoptOptimizer(BaseOptimizer):
                 # Add a warning here
                 run_successful = False
 
-        # Parallelization -> use multiprocessing
         else:
-            try:
-                processes = []
-                for i in range(self.n_workers + 1):
+            raise Exception('Parallelization not implemented for hyperopt framework.')
 
-                    if i == 0:
-                        # >>> USE UNIQUE EXPERIMENT ID FOR EACH TRIAL
-                        trials = MongoTrials('mongo://localhost:27017/mongo_hpo/jobs', exp_key='exp104')
-                        p = Process(target=multiproc_target_funcs.hyperopt_target1,
-                                    args=(self.objective, hyperopt_space, trials, this_optimizer, self.n_func_evals,
-                                          rand_num_generator))
-                    else:
-                        p = Process(target=multiproc_target_funcs.hyperopt_target2)
-
-                    p.start()
-                    processes.append(p)
-
-                for p in processes:
-                    p.join()
-
-                run_successful = True
-
-            except:
-                run_successful = False
+        # >>>>>>>>>>>
+        # ATTEMPT TO PARALELLIZE HYPEROPT VIA MONGODB >>> problems to access the trials results
+        # # No parallelization
+        # if self.n_workers == 1:
+        #
+        #     # Initialize a trial instance
+        #     trials = Trials()
+        #
+        #     # Start the optimization
+        #     try:
+        #         res = fmin(fn=self.objective, space=hyperopt_space, trials=trials, algo=this_optimizer,
+        #                    max_evals=self.n_func_evals, rstate=rand_num_generator)
+        #         run_successful = True
+        #
+        #     # Algorithm crashed
+        #     except:
+        #         # Add a warning here
+        #         run_successful = False
+        #
+        # # Parallelization -> use multiprocessing
+        # else:
+        #     try:
+        #         processes = []
+        #         for i in range(self.n_workers + 1):
+        #
+        #             if i == 0:
+        #                 # >>> USE UNIQUE EXPERIMENT ID FOR EACH TRIAL
+        #                 trials = MongoTrials('mongo://localhost:27017/mongo_hpo/jobs', exp_key='exp104')
+        #                 p = Process(target=multiproc_target_funcs.hyperopt_target1,
+        #                             args=(self.objective, hyperopt_space, trials, this_optimizer, self.n_func_evals,
+        #                                   rand_num_generator))
+        #             else:
+        #                 p = Process(target=multiproc_target_funcs.hyperopt_target2)
+        #
+        #             p.start()
+        #             processes.append(p)
+        #
+        #         for p in processes:
+        #             p.join()
+        #
+        #         run_successful = True
+        #
+        #     except:
+        #         run_successful = False
+        # >>>>>>>>>>>
 
         # If the optimization run was successful, determine the optimization results
         if run_successful:
-            print(trials.trials)
-            exit(0)
-            # for i in range(len(self.times)):
-            #     # Subtract the start time to receive the wall clock time of each function evaluation
-            #     self.times[i] = self.times[i] - start_time
-            # wall_clock_time = max(self.times)
 
             # Determine the timestamps for each evaluation of the blackbox-function
             for i in range(len(trials.trials)):

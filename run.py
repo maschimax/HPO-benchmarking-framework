@@ -12,7 +12,7 @@ from hpo.trial import Trial
 # Flag for debug mode (yes/no)
 # yes -> set parameters for this trial in source code (below)
 # no -> call script via terminal and pass arguments via argparse
-debug = True
+debug = False
 
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
@@ -32,13 +32,13 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('hyperopt', 'TPE')]
+    opt_schedule = [('optuna', 'TPE'), ('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
     n_runs = 3
-    n_func_evals = 20
-    n_workers = 4
+    n_func_evals = 60
+    n_workers = 1
     loss_metric = root_mean_squared_error
 
 else:
@@ -74,11 +74,11 @@ else:
         if this_method == 'SMAC' or this_method == 'GPBO':
             opt_schedule.append(('skopt', this_method))
 
-        elif this_method == 'CMA-ES' or this_method == 'RandomSearch':
+        elif this_method == 'CMA-ES' or this_method == 'RandomSearch' or this_method == 'TPE':
             opt_schedule.append(('optuna', this_method))
 
-        elif this_method == 'TPE':
-            opt_schedule.append(('hyperopt', this_method))
+        # elif this_method == 'TPE':
+        #     opt_schedule.append(('hyperopt', this_method))
 
         elif this_method == 'BOHB' or this_method == 'Hyperband':
             opt_schedule.append(('hpbandster', this_method))
