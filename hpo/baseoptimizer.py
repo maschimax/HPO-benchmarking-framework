@@ -89,6 +89,35 @@ class BaseOptimizer(ABC):
         wall_clock_time = float('nan')
         return evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time
 
+    def get_warmstart_configuration(self):
+        """
+        Determine the default hyperparameter configuration of the selected ML-algorithm. This configuration can be used
+        as a warmstart configuration for the HPO-method.
+        :return: default_params: dict
+            Dictionary that contains the default HPs.
+        """
+        if self.ml_algorithm == 'RandomForestRegressor':
+            default_model = RandomForestRegressor(random_state=self.random_seed)
+
+        elif self.ml_algorithm == 'SVR':
+            # SVR has no random_state parameter
+            default_model = SVR()
+
+        elif self.ml_algorithm == 'AdaBoostRegressor':
+            default_model = AdaBoostRegressor(random_state=self.random_seed)
+
+        elif self.ml_algorithm == 'DecisionTreeRegressor':
+            default_model = DecisionTreeRegressor(random_state=self.random_seed)
+
+            # Add remaining ML-algorithms here
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
+
+        default_params = default_model.get_params()
+
+        return default_params
+
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
         """
         This method trains a scikit-learn model according to the selected HP-configuration and returns the
