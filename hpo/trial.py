@@ -21,7 +21,8 @@ from hpo.hpo_metrics import area_under_curve
 class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
-                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series, baseline=0.0):
+                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series, baseline=0.0,
+                 do_warmstart='No'):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -34,6 +35,7 @@ class Trial:
         self.x_val = x_val
         self.y_val = y_val
         self.baseline = baseline
+        self.do_warmstart = do_warmstart
         # Attribute for CPU / GPU selection required
 
     def run(self):
@@ -68,7 +70,7 @@ class Trial:
                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                                y_train=self.y_train, y_val=self.y_val, metric=self.metric,
                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
-                                               n_workers=self.n_workers)
+                                               n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,

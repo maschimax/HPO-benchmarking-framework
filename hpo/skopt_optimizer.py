@@ -7,9 +7,11 @@ from hpo.results import TuningResult
 
 class SkoptOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                 random_seed, n_workers):
+                 random_seed, n_workers, do_warmstart):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                          random_seed, n_workers)
+
+        self.do_warmstart = do_warmstart
 
     def optimize(self) -> TuningResult:
         """
@@ -30,6 +32,42 @@ class SkoptOptimizer(BaseOptimizer):
         else:
             raise Exception('Unknown HPO-method!')
 
+        # Use a warmstart configuration?
+        if self.do_warmstart == 'Yes':
+
+            try:
+
+                # Initialize a list for saving the warmstart configuration
+                warmstart_config = []
+
+                # Retrieve the default hyperparameters for the ML-algorithm
+                default_params = self.get_warmstart_configuration()
+
+                # Iterate over all hyperparameters of this ML-algorithms and append the default values to the list
+                for i in range(len(self.hp_space)):
+
+                    this_param = self.hp_space[i].name
+                    this_warmstart_value = default_params[this_param]
+
+                    # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
+                    # different (e.g. int)
+                    if this_warmstart_value is None:
+                        # Try to impute these values
+                        warmstart_config.append(int(0.5 * (self.hp_space[i].low + self.hp_space[i].high)))
+                    else:
+                        # Otherwise append the warmstart value (default case)
+                        warmstart_config.append(this_warmstart_value)
+
+                # pass the warmstart configuration as a kwargs dict
+                kwargs = {'x0': warmstart_config}
+
+            except:
+                print('Warmstarting skopt went wrong!')
+                kwargs = {}
+
+        else:
+            kwargs = {}
+
         # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
@@ -38,7 +76,8 @@ class SkoptOptimizer(BaseOptimizer):
         try:
             trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
                                           random_state=self.random_seed, acq_func=this_acq_func,
-                                          n_jobs=self.n_workers)
+                                          n_jobs=self.n_workers, **kwargs)
+
             run_successful = True
 
         # Algorithm crashed

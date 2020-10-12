@@ -32,14 +32,15 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'TPE'), ('optuna', 'RandomSearch')]
+    opt_schedule = [('skopt', 'GPBO')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-    n_runs = 3
+    n_runs = 2
     n_func_evals = 60
     n_workers = 1
     loss_metric = root_mean_squared_error
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
@@ -51,11 +52,16 @@ else:
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
     parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
-    parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).', default=5)
-    parser.add_argument('--n_workers', type=int, help='Number of workers to be used for the optimization (parallelization)',
+    parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).',
+                        default=5)
+    parser.add_argument('--n_workers', type=int,
+                        help='Number of workers to be used for the optimization (parallelization)',
                         default=1)
     parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
                         choices=['root_mean_squared_error'])
+    parser.add_argument('--warmstart', type=str,
+                        help="Use the algorithm's default HP-configuration for warmstart (yes/no).",
+                        default='No', choices=['Yes', 'No'])
 
     args = parser.parse_args()
 
@@ -66,6 +72,7 @@ else:
     # to ensure comparability)
     n_func_evals = args.n_func_evals
     n_workers = args.n_workers
+    do_warmstart = args.warmstart
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -133,7 +140,7 @@ print('Optimization schedule: ', opt_schedule)
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
-              x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
+              x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val, do_warmstart=do_warmstart)
 
 # Run the optimizations
 res = trial.run()
