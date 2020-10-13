@@ -60,10 +60,15 @@ optimizer = TPESampler()
 
 wst_study_name = 'wst-study'
 
-wst_study = optuna.create_study(study_name=wst_study_name, storage='sqlite:///wst.db')
+print('Warmstart')
+
+wst_study = optuna.create_study(sampler=optimizer, study_name=wst_study_name, storage='sqlite:///wst1.db')
 wst_study.optimize(func=wst_objective, n_trials=1)
 
-opt_study = optuna.create_study(study_name=wst_study_name, storage='sqlite:///wst.db', load_if_exists=True)
+print('Optimization')
+
+opt_study = optuna.create_study(sampler=optimizer, study_name=wst_study_name, storage='sqlite:///wst1.db',
+                                load_if_exists=True)
 opt_study.optimize(func=objective, n_trials=10)
 
 
