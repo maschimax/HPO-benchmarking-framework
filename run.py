@@ -118,7 +118,7 @@ else:
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
 
-    # Identify the correct loss loss_metric
+    # Identify the correct loss metric
     if args.loss_metric == 'root_mean_squared_error':
         loss_metric = root_mean_squared_error
 
@@ -132,7 +132,8 @@ print('With HPO-methods: ')
 for this_tuple in opt_schedule:
     print(this_tuple[1])
 print('------')
-print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, ' + str(n_workers) + ' worker(s).')
+print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, ' + str(n_workers) +
+      ' worker(s), warmstart: ' + do_warmstart + '.')
 print('------')
 print('Optimization schedule: ', opt_schedule)
 
