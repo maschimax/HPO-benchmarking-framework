@@ -55,7 +55,7 @@ class Trial:
 
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'eval_count', 'losses', 'timestamps', 'run_successful'])
+                                               'eval_count', 'losses', 'timestamps', 'run_successful', 'warmstart'])
             best_configs = ()
             best_losses = []
 
@@ -91,7 +91,7 @@ class Trial:
                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                               y_train=self.y_train, y_val=self.y_val, metric=self.metric,
                                               n_func_evals=self.n_func_evals, random_seed=this_seed,
-                                              n_workers=self.n_workers)
+                                              n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'hyperopt':
                     optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -116,7 +116,8 @@ class Trial:
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'losses': optimization_results.losses,
                              'timestamps': optimization_results.timestamps,
-                             'run_successful': optimization_results.successful}
+                             'run_successful': optimization_results.successful,
+                             'warmstart': optimization_results.did_warmstart}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
@@ -137,7 +138,7 @@ class Trial:
             # Create a TrialResult-object to save the results of this trial
             trial_result_obj = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
                                            best_trial_loss=best_loss, hpo_library=this_hpo_library,
-                                           hpo_method=this_hpo_method)
+                                           hpo_method=this_hpo_method, did_warmstart=optimization_results.did_warmstart)
 
             # Append the TrialResult-object to the result dictionary
             trial_results_dict[opt_tuple] = trial_result_obj
@@ -297,10 +298,10 @@ class Trial:
         """
 
         metrics = {}
-        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Wall clock time [s]',
-                't outperform default [s]', 'Area under curve (AUC)', 'Mean(best loss)', 'Loss ratio',
-                'Interquartile range(best_loss)', 't best configuration [s]', 'Evaluations for best configuration',
-                'Crashes']
+        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Warmstart',
+                'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean(best loss)',
+                'Loss ratio', 'Interquartile range(best_loss)', 't best configuration [s]',
+                'Evaluations for best configuration', 'Crashes']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -319,6 +320,9 @@ class Trial:
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
             unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
+
+            # Flag indicates, whether a warmstart of the HPO-method was performed successfully
+            did_warmstart = trial_results_dict[opt_tuple].did_warmstart
 
             n_cols = len(unique_ids)
             n_rows = 0
@@ -442,6 +446,7 @@ class Trial:
                             'Runs': self.n_runs,
                             'Evaluations': self.n_func_evals,
                             'Workers': self.n_workers,
+                            'Warmstart': did_warmstart,
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
                             'Area under curve (AUC)': auc,

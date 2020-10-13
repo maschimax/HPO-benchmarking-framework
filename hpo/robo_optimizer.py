@@ -9,9 +9,11 @@ from hpo.results import TuningResult
 
 class RoboOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                 random_seed, n_workers):
+                 random_seed, n_workers, do_warmstart):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                          random_seed, n_workers)
+
+        self.do_warmstart = do_warmstart
 
     def optimize(self) -> TuningResult:
         """
@@ -49,6 +51,71 @@ class RoboOptimizer(BaseOptimizer):
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
+        # Use a warmstart configuration (only possible for BOHAMIANN, not FABOLAS)
+        if self.do_warmstart == 'Yes':
+
+            # Initialize numpy arrays for saving the warmstart configuration and the warmstart loss
+            warmstart_config = np.zeros(shape=(1, len(self.hp_space)))
+            warmstart_loss = np.zeros(shape=(1, 1))
+
+            # Retrieve the default hyperparameters and the default loss for the ML-algorithm
+            default_params, default_loss = self.get_warmstart_configuration()
+
+            # Pass the default loss to the according numpy array
+            warmstart_loss[0, 0] = default_loss
+
+            try:
+
+                # Iterate over all HPs of this ML-algorithm and append the default values to the numpy array
+                for i in range(len(self.hp_space)):
+
+                    this_param = self.hp_space[i].name
+
+                    # Categorical HPs need to be encoded as integer values for RoBO
+                    if type(self.hp_space[i]) == skopt.space.space.Categorical:
+
+                        choices = self.hp_space[i].categories
+                        this_warmstart_value_cat = default_params[this_param]
+
+                        # Find the index of the default / warmstart HP in the list of possible choices
+                        for j in range(len(choices)):
+                            if this_warmstart_value_cat == choices[j]:
+                                this_warmstart_value = j
+
+                    # For all non-categorical HPs
+                    else:
+                        this_warmstart_value = default_params[this_param]
+
+                        # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
+                        # different (e.g. int)
+                        if this_warmstart_value is None:
+                            # Try to impute these values by the mean value
+                            this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
+
+                    # Pass the warmstart value to the according numpy array
+                    warmstart_config[0, i] = this_warmstart_value
+
+                # Pass the warmstart configuration as a kwargs dict
+                kwargs = {'X_init': warmstart_config,
+                          'Y_init': warmstart_loss}
+
+                # Set flag to indicate that a warmstart took place
+                did_warmstart = True
+
+            except:
+                print('Warmstarting RoBO went wrong!')
+                kwargs = {}
+
+                # Set flag to indicate that NO warmstart took place
+                did_warmstart = False
+
+        # No warmstart requested
+        else:
+            kwargs = {}
+
+            # Set flag to indicate that NO warmstart took place
+            did_warmstart = False
+
         # Select the specified HPO-tuning method
         try:
             if self.hpo_method == 'Fabolas':
@@ -67,7 +134,7 @@ class RoboOptimizer(BaseOptimizer):
                 result_dict = bayesian_optimization(objective_function=self.objective_bohamiann,
                                                     lower=hp_space_lower, upper=hp_space_upper,
                                                     model_type='bohamiann', num_iterations=self.n_func_evals,
-                                                    rng=rand_num_generator)
+                                                    rng=rand_num_generator, **kwargs)
                 run_successful = True
 
             else:
@@ -130,7 +197,7 @@ class RoboOptimizer(BaseOptimizer):
         # Pass the results to a TuningResult-Object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
 
         return result
 
