@@ -297,7 +297,7 @@ class Trial:
         """
 
         metrics = {}
-        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers',
+        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Wall clock time [s]',
                 't outperform default [s]', 'Area under curve (AUC)', 'Mean(best loss)', 'Loss ratio',
                 'Interquartile range(best_loss)', 't best configuration [s]', 'Evaluations for best configuration',
                 'Crashes']
@@ -371,6 +371,9 @@ class Trial:
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
+            # Wall clock time
+            wall_clock_time = max(mean_timestamps)
+
             # ANYTIME PERFORMANCE
             # 1. Wall clock time required to outperform the default configuration
             time_outperform_default = float('inf')
@@ -418,7 +421,8 @@ class Trial:
                 evals_for_best_config = best_idx + 1
 
             # Pass the computed metrics to a MetricsResult-object
-            metrics_object = MetricsResult(time_outperform_default=time_outperform_default,
+            metrics_object = MetricsResult(wall_clock_time=wall_clock_time,
+                                           time_outperform_default=time_outperform_default,
                                            area_under_curve=auc,
                                            best_mean_loss=best_mean_loss,
                                            loss_ratio=loss_ratio,
@@ -438,6 +442,7 @@ class Trial:
                             'Runs': self.n_runs,
                             'Evaluations': self.n_func_evals,
                             'Workers': self.n_workers,
+                            'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
                             'Area under curve (AUC)': auc,
                             'Mean(best loss)': best_mean_loss,
