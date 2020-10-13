@@ -41,9 +41,9 @@ class SkoptOptimizer(BaseOptimizer):
                 warmstart_config = []
 
                 # Retrieve the default hyperparameters for the ML-algorithm
-                default_params = self.get_warmstart_configuration()
+                default_params, _ = self.get_warmstart_configuration()
 
-                # Iterate over all hyperparameters of this ML-algorithms and append the default values to the list
+                # Iterate over all hyperparameters of this ML-algorithm and append the default values to the list
                 for i in range(len(self.hp_space)):
 
                     this_param = self.hp_space[i].name
@@ -52,21 +52,31 @@ class SkoptOptimizer(BaseOptimizer):
                     # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                     # different (e.g. int)
                     if this_warmstart_value is None:
-                        # Try to impute these values
+                        # Try to impute these values by the mean value
                         warmstart_config.append(int(0.5 * (self.hp_space[i].low + self.hp_space[i].high)))
                     else:
                         # Otherwise append the warmstart value (default case)
                         warmstart_config.append(this_warmstart_value)
 
-                # pass the warmstart configuration as a kwargs dict
+                # Pass the warmstart configuration as a kwargs dict
                 kwargs = {'x0': warmstart_config}
+
+                # Set flag to indicate that a warmstart took place
+                did_warmstart = True
 
             except:
                 print('Warmstarting skopt went wrong!')
                 kwargs = {}
 
+                # Set flag to indicate that NO warmstart took place
+                did_warmstart = False
+
+        # No warmstart requested
         else:
             kwargs = {}
+
+            # Set flag to indicate that NO warmstart took place
+            did_warmstart = False
 
         # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
@@ -122,7 +132,7 @@ class SkoptOptimizer(BaseOptimizer):
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
 
         return result
 

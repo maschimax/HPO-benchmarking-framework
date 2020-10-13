@@ -114,9 +114,15 @@ class BaseOptimizer(ABC):
         else:
             raise Exception('Unknown ML-algorithm!')
 
+        # Default HPs of the ML-algorithm
         default_params = default_model.get_params()
 
-        return default_params
+        # Compute the loss for the default HP-configuration
+        default_model.fit(self.x_train, self.y_train)
+        y_pred = default_model.predict(self.x_val)
+        default_loss = self.metric(self.y_val, y_pred)
+
+        return default_params, default_loss
 
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
         """

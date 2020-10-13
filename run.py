@@ -9,11 +9,6 @@ from hpo.hpo_metrics import root_mean_squared_error
 import preprocessing as pp
 from hpo.trial import Trial
 
-# Flag for debug mode (yes/no)
-# yes -> set parameters for this trial in source code (below)
-# no -> call script via terminal and pass arguments via argparse
-debug = False
-
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
 abs_folder_path = os.path.abspath(path='datasets')
@@ -28,19 +23,24 @@ test_raw = pp.load_data(data_folder, test_file)
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
 
+# Flag for debug mode (yes/no)
+# yes (True) -> set parameters for this trial in source code (below)
+# no (False) -> call script via terminal and pass arguments via argparse
+debug = True
+
 if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('skopt', 'GPBO')]
+    opt_schedule = [('skopt', 'SMAC'), ('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
     n_runs = 2
-    n_func_evals = 60
+    n_func_evals = 30
     n_workers = 1
     loss_metric = root_mean_squared_error
-    do_warmstart = 'No'
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
