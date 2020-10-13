@@ -11,9 +11,11 @@ from hpo import multiproc_target_funcs
 
 class OptunaOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                 random_seed, n_workers):
+                 random_seed, n_workers, do_warmstart):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
                          random_seed, n_workers)
+
+        self.do_warmstart = do_warmstart
 
     def optimize(self) -> TuningResult:
         """
@@ -43,18 +45,46 @@ class OptunaOptimizer(BaseOptimizer):
         study_name = 'hpo_study'
         study_storage = 'sqlite:///hpo.db'
 
+        # Optimize on the predefined n_func_evals and measure the wall clock times
+        # start_time = time.time()
+        self.times = []  # Initialize a list for saving the wall clock times
+
         # Delete old study objects ('fresh start') >> otherwise the old results will be included
         try:
             optuna.delete_study(study_name, study_storage)
         except:
             print('No old optuna study objects found!')
 
+        # Use a warmstart configuration?
+        if self.do_warmstart == 'Yes':
+
+            try:
+                # Create a new study
+                warmstart_study = optuna.create_study(direction='minimize', storage=study_storage,
+                                                      study_name=study_name,
+                                                      load_if_exists=False)
+
+                # Evaluate the warmstart HP-configuration (just a single trial / evaluation)
+                warmstart_study.optimize(func=self.warmstart_objective, n_trials=1)
+
+                # Set flag to indicate that a warmstart took place
+                did_warmstart = True
+
+            except:
+                print('Warmstarting optuna failed!')
+
+                # Set flag to indicate that NO warmstart took place
+                did_warmstart = False
+
+        # No warmstart requested
+        else:
+
+            # Set flag to indicate that NO warmstart took place
+            did_warmstart = False
+
+        # Create a new study or reload the warmstart study (if available and requested)
         study = optuna.create_study(sampler=this_optimizer, direction='minimize',
                                     study_name=study_name, storage=study_storage, load_if_exists=True)
-
-        # Optimize on the predefined n_func_evals and measure the wall clock times
-        # start_time = time.time()
-        self.times = []  # Initialize a list for saving the wall clock times
 
         # Start the optimization
         try:
@@ -154,7 +184,7 @@ class OptunaOptimizer(BaseOptimizer):
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
 
         return result
 
@@ -165,7 +195,7 @@ class OptunaOptimizer(BaseOptimizer):
         :param trial: optuna.trial._trial.Trial
             Optuna Trial object, that suggests the next HP-configuration according to the selected HPO-method.
         :return: eval_func(params=dict_params)
-            Validation loss for the HP-configuration
+            Validation loss for the HP-configuration.
         """
 
         # Convert the hyperparameters into a dictionary to pass them to the ML-model
@@ -178,8 +208,8 @@ class OptunaOptimizer(BaseOptimizer):
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
                 dict_params[self.hp_space[i].name] = trial.suggest_categorical(name=self.hp_space[i].name,
-                                                                               choices=list(
-                                                                                   self.hp_space[i].categories))
+                                                                               choices=
+                                                                               list(self.hp_space[i].categories))
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
                 dict_params[self.hp_space[i].name] = trial.suggest_float(name=self.hp_space[i].name,
@@ -203,3 +233,70 @@ class OptunaOptimizer(BaseOptimizer):
             raise Exception('Unknown ML-algorithm!')
 
         return eval_func(params=dict_params)
+
+    def warmstart_objective(self, trial):
+        """
+        Objective function for evaluating a given warmstart HP-configuration: This method converts the given
+        hyperparameters into a dictionary, passes them to the ML-model for training and returns the warmstart
+        validation loss.
+        :param trial: optuna.trial._trial.Trial
+            Optuna Trial object, that suggests the next HP-configuration according to the selected HPO-method.
+        :return:
+            Validation loss for the warmstart HP-configuration.
+        """
+
+        # Retrieve the default hyperparameters for the ML-algorithms
+        default_params = self.get_warmstart_configuration()
+
+        # Convert the hyperparameters into a dictionary to pass them to the ML-model
+        warmstart_params = {}
+        for i in range(len(self.hp_space)):
+
+            this_param = self.hp_space[i].name
+
+            # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
+            # different (e.g. int)
+            if default_params[this_param] is None:
+                # Try to impute these values by the mean value
+                warmstart_params[this_param] = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
+
+            # Integer HPs: Set the upper and lower bound to the default / warmstart value to leave no choice
+            elif type(self.hp_space[i]) == skopt.space.space.Integer:
+                warmstart_params[this_param] = trial.suggest_int(name=this_param,
+                                                                 low=default_params[this_param],
+                                                                 high=default_params[this_param])
+
+            # Categorical HPs (warmstarting doesn't work here (see below))
+            elif type(self.hp_space[i]) == skopt.space.space.Categorical:
+                # Optuna's CategoricalDistribution doesn't support dynamic value spaces. Therefore, for categorical HPs
+                # identical categorical HP value ranges are required for the warm start and the following optimization
+                warmstart_params[this_param] = trial.suggest_categorical(name=this_param,
+                                                                         choices=
+                                                                         list(self.hp_space[i].categories))
+
+            # Real HPs: Set the upper and lower bound to the default / warmstart value to leave no choice
+            elif type(self.hp_space[i]) == skopt.space.space.Real:
+                warmstart_params[this_param] = trial.suggest_float(name=this_param,
+                                                                   low=default_params[this_param],
+                                                                   high=default_params[this_param])
+            else:
+                raise Exception('The skopt HP-space could not be converted correctly!')
+
+        # Select the corresponding objective function of the ML-Algorithm
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
+            eval_func = self.train_evaluate_scikit_regressor
+
+        elif self.ml_algorithm == 'KerasRegressor':
+            eval_func = self.train_evaluate_keras_regressor
+
+        elif self.ml_algorithm == 'XGBoostRegressor':
+            eval_func = self.train_evaluate_xgboost_regressor
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
+
+        # Compute the validation loss for the warmstart HP-configuration
+        warmstart_loss = eval_func(params=warmstart_params)
+
+        return warmstart_loss

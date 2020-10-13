@@ -109,7 +109,7 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             default_model = DecisionTreeRegressor(random_state=self.random_seed)
 
-            # Add remaining ML-algorithms here
+            # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
 
         else:
             raise Exception('Unknown ML-algorithm!')
@@ -117,12 +117,54 @@ class BaseOptimizer(ABC):
         # Default HPs of the ML-algorithm
         default_params = default_model.get_params()
 
-        # Compute the loss for the default HP-configuration
-        default_model.fit(self.x_train, self.y_train)
-        y_pred = default_model.predict(self.x_val)
-        default_loss = self.metric(self.y_val, y_pred)
+        return default_params
 
-        return default_params, default_loss
+    def get_warmstart_loss(self, **kwargs):
+        """
+        Computes the loss of the selected ML-algorithm for the default hyperparameter configuration or any valid
+         configuration that has been passed via kwargs.
+        :param kwargs: dict
+            Possibility to pass any valid HP-configuration for the ML-algorithm. If a argument 'warmstart_dict' is
+             passed, this configuration is used to compute the loss.
+        :return: warmstart_loss: float
+            Validation loss for the default HP-configuration or the HP-configuration that has been passed via kwargs.
+        """
+
+        # Check, whether a warmstart configuration was passed
+        if 'warmstart_dict' in kwargs:
+            warmstart_config = kwargs['warmstart_dict']
+
+        # Otherwise use the default parameters of the ML-algorithm
+        else:
+            warmstart_config = self.get_warmstart_configuration()
+
+        # Use the warmstart HP-configuration to create a model for the ML-algorithm selected
+        if self.ml_algorithm == 'RandomForestRegressor':
+            model = RandomForestRegressor(**warmstart_config, random_state=self.random_seed)
+
+        elif self.ml_algorithm == 'SVR':
+            # SVR has no random_state parameter
+            model = SVR(**warmstart_config)
+
+        elif self.ml_algorithm == 'AdaBoostRegressor':
+            model = AdaBoostRegressor(**warmstart_config, random_state=self.random_seed)
+
+        elif self.ml_algorithm == 'DecisionTreeRegressor':
+            model = DecisionTreeRegressor(**warmstart_config, random_state=self.random_seed)
+
+            # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
+
+        # Train the model and make the prediction
+        model.fit(self.x_train, self.y_train)
+        y_pred = model.predict(self.x_val)
+
+        # Compute the warmstart (validation) loss according to the loss_metric selected
+        warmstart_loss = self.metric(self.y_val, y_pred)
+
+        return warmstart_loss
 
     def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
         """

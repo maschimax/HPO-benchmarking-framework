@@ -59,12 +59,13 @@ class RoboOptimizer(BaseOptimizer):
             warmstart_loss = np.zeros(shape=(1, 1))
 
             # Retrieve the default hyperparameters and the default loss for the ML-algorithm
-            default_params, default_loss = self.get_warmstart_configuration()
-
-            # Pass the default loss to the according numpy array
-            warmstart_loss[0, 0] = default_loss
+            default_params = self.get_warmstart_configuration()
 
             try:
+
+                # Dictionary for saving the warmstart HP-configuration (only contains the HPs, which are part of the
+                # 'tuned' HP-space
+                warmstart_dict = {}
 
                 # Iterate over all HPs of this ML-algorithm and append the default values to the numpy array
                 for i in range(len(self.hp_space)):
@@ -76,6 +77,7 @@ class RoboOptimizer(BaseOptimizer):
 
                         choices = self.hp_space[i].categories
                         this_warmstart_value_cat = default_params[this_param]
+                        dict_value = this_warmstart_value_cat
 
                         # Find the index of the default / warmstart HP in the list of possible choices
                         for j in range(len(choices)):
@@ -85,15 +87,21 @@ class RoboOptimizer(BaseOptimizer):
                     # For all non-categorical HPs
                     else:
                         this_warmstart_value = default_params[this_param]
+                        dict_value = this_warmstart_value
 
                         # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                         # different (e.g. int)
                         if this_warmstart_value is None:
                             # Try to impute these values by the mean value
                             this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
+                            dict_value = this_warmstart_value
 
                     # Pass the warmstart value to the according numpy array
                     warmstart_config[0, i] = this_warmstart_value
+                    warmstart_dict[this_param] = dict_value
+
+                # Pass the default loss to the according numpy array
+                warmstart_loss[0, 0] = self.get_warmstart_loss(warmstart_dict=warmstart_dict)
 
                 # Pass the warmstart configuration as a kwargs dict
                 kwargs = {'X_init': warmstart_config,
@@ -103,7 +111,7 @@ class RoboOptimizer(BaseOptimizer):
                 did_warmstart = True
 
             except:
-                print('Warmstarting RoBO went wrong!')
+                print('Warmstarting RoBO failed!')
                 kwargs = {}
 
                 # Set flag to indicate that NO warmstart took place

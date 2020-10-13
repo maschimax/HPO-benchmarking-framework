@@ -41,7 +41,7 @@ class SkoptOptimizer(BaseOptimizer):
                 warmstart_config = []
 
                 # Retrieve the default hyperparameters for the ML-algorithm
-                default_params, _ = self.get_warmstart_configuration()
+                default_params = self.get_warmstart_configuration()
 
                 # Iterate over all hyperparameters of this ML-algorithm and append the default values to the list
                 for i in range(len(self.hp_space)):
@@ -65,7 +65,7 @@ class SkoptOptimizer(BaseOptimizer):
                 did_warmstart = True
 
             except:
-                print('Warmstarting skopt went wrong!')
+                print('Warmstarting skopt failed!')
                 kwargs = {}
 
                 # Set flag to indicate that NO warmstart took place
