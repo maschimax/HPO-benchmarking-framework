@@ -36,8 +36,8 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 30
+    n_runs = 1
+    n_func_evals = 15
     n_workers = 1
     loss_metric = root_mean_squared_error
     do_warmstart = 'Yes'

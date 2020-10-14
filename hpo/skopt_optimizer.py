@@ -43,7 +43,8 @@ class SkoptOptimizer(BaseOptimizer):
                 # Retrieve the default hyperparameters for the ML-algorithm
                 default_params = self.get_warmstart_configuration()
 
-                # Iterate over all hyperparameters of this ML-algorithm and append the default values to the list
+                # Iterate over all hyperparameters of this ML-algorithm's tuned HP-space and append the default values
+                # to the list
                 for i in range(len(self.hp_space)):
 
                     this_param = self.hp_space[i].name
