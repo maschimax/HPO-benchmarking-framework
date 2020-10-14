@@ -67,7 +67,8 @@ class RoboOptimizer(BaseOptimizer):
                 # 'tuned' HP-space
                 warmstart_dict = {}
 
-                # Iterate over all HPs of this ML-algorithm and append the default values to the numpy array
+                # Iterate over all HPs of this ML-algorithm's tuned HP-space and append the default values to
+                # the numpy array
                 for i in range(len(self.hp_space)):
 
                     this_param = self.hp_space[i].name
