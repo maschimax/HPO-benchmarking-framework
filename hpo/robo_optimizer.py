@@ -183,10 +183,10 @@ class RoboOptimizer(BaseOptimizer):
 
                 for i in range(len(config)):
                     if type(self.hp_space[i]) == skopt.space.space.Integer:
-                        config_dict[self.hp_space[i].name] = int(config[i])
+                        config_dict[self.hp_space[i].name] = int(round(config[i]))
 
                     elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                        config_dict[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(config[i])]
+                        config_dict[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(config[i]))]
 
                     elif type(self.hp_space[i]) == skopt.space.space.Real:
                         config_dict[self.hp_space[i].name] = config[i]
@@ -226,13 +226,13 @@ class RoboOptimizer(BaseOptimizer):
         dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                dict_params[self.hp_space[i].name] = int(cont_hp_space[i,])
+                dict_params[self.hp_space[i].name] = int(round(cont_hp_space[i, ]))
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i,])]
+                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(cont_hp_space[i, ]))]
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                dict_params[self.hp_space[i].name] = cont_hp_space[i,]
+                dict_params[self.hp_space[i].name] = cont_hp_space[i, ]
 
             else:
                 raise Exception('The continuous HP-space could not be converted correctly!')
@@ -271,13 +271,13 @@ class RoboOptimizer(BaseOptimizer):
         dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                dict_params[self.hp_space[i].name] = int(cont_hp_space[i,])
+                dict_params[self.hp_space[i].name] = int(round(cont_hp_space[i, ]))
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i,])]
+                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(cont_hp_space[i, ]))]
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                dict_params[self.hp_space[i].name] = cont_hp_space[i,]
+                dict_params[self.hp_space[i].name] = cont_hp_space[i, ]
 
             else:
                 raise Exception('The continuous HP-space could not be converted correctly!')
