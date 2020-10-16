@@ -107,7 +107,8 @@ class OptunaOptimizer(BaseOptimizer):
         study = optuna.create_study(sampler=this_optimizer, direction='minimize',
                                     study_name=study_name, storage=study_storage, load_if_exists=True)
 
-        # If a warm start took place, reduce number of remaining function evaluations
+        # If a warm start took place, reduce the number of remaining function evaluations to ensure comparability
+        # (equal budgets)
         if did_warmstart:
             n_func_evals = self.n_func_evals - 1
         else:

@@ -73,3 +73,36 @@ class HPBandsterWorker(Worker):
         cs.add_hyperparameters(params_list)
 
         return cs
+
+    @staticmethod
+    def get_warmstart_config(hp_space: dict, warmstart_params: dict):
+
+        ws_cs = CS.ConfigurationSpace()
+
+        ws_params_list = []
+        # Create a hpbandster hyperparameter space with the warmstart hyperparameters
+        for i in range(len(hp_space)):
+            this_param = hp_space[i].name
+
+            if type(hp_space[i]) == skopt.space.space.Integer:
+                # ConfigSpace doesn't accept equal values for the lower and the upper bounds (integer HPs)
+                ws_params_list.append(CSH.UniformIntegerHyperparameter(this_param,
+                                                                       lower=warmstart_params[this_param],
+                                                                       upper=warmstart_params[this_param] + 1))
+
+            elif type(hp_space[i]) == skopt.space.space.Categorical:
+                ws_params_list.append(CSH.CategoricalHyperparameter(this_param,
+                                                                    choices=[warmstart_params[this_param]]))
+
+            elif type(hp_space[i]) == skopt.space.space.Real:
+                # ConfigSpace doesn't accept equal values fot the lower and the upper bounds (real HPs)
+                ws_params_list.append(CSH.UniformFloatHyperparameter(name=this_param,
+                                                                     lower=warmstart_params[this_param],
+                                                                     upper=warmstart_params[this_param] + 0.01))
+
+            else:
+                raise Exception("The warmstart configuration space couldn't be created correctly.")
+
+        ws_cs.add_hyperparameters(ws_params_list)
+
+        return ws_cs

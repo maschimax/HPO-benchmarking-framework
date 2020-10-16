@@ -84,7 +84,8 @@ class Trial:
                                                     ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                     x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
-                                                    random_seed=this_seed, n_workers=self.n_workers)
+                                                    random_seed=this_seed, n_workers=self.n_workers,
+                                                    do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
