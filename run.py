@@ -32,15 +32,15 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('hpbandster', 'BOHB')]
+    opt_schedule = [('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 3
-    n_func_evals = 30
-    n_workers = 1
+    n_runs = 5
+    n_func_evals = 80
+    n_workers = 4
     loss_metric = root_mean_squared_error
-    do_warmstart = 'Yes'
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
