@@ -1,16 +1,7 @@
-import json
 import os
-import sys
 import preprocessing as pp
 from pathlib import Path
-from hpo.outdated.keras_sequence_testing import MySequence
-
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-#
-# os.environ.pop('TF_CONFIG', None)
-#
-# if '.' not in sys.path:
-#     sys.path.insert(0, '.')
+import time
 
 import tensorflow as tf
 from tensorflow import keras
@@ -53,6 +44,15 @@ this_model = build_and_compile_keras_regressor(X_train)
 
 dataset = tf.data.Dataset.from_tensor_slices((X_train.values, y_train.values))
 
-this_model.fit(x=dataset, epochs=1000, batch_size=64, validation_data=(X_val, y_val), workers=4,
+train_dataset = dataset.shuffle(len(X_train)).batch(1)
+
+start_time = time.time()
+
+this_model.fit(train_dataset, epochs=100, batch_size=64, validation_data=(X_val, y_val), workers=4,
                use_multiprocessing=True)
-bla = 0
+
+# this_model.fit(train_dataset, epochs=100, batch_size=64, validation_data=(X_val, y_val))
+
+train_duration = time.time() - start_time
+
+print("Training time: ", train_duration)
