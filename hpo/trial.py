@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import ticker
+import seaborn as sns
 import uuid
 import math
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
@@ -57,7 +58,8 @@ class Trial:
 
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'eval_count', 'losses', 'timestamps', 'run_successful', 'warmstart'])
+                                               'eval_count', 'losses', 'timestamps', 'configurations',
+                                               'run_successful', 'warmstart'])
             best_configs = ()
             best_losses = []
 
@@ -119,6 +121,7 @@ class Trial:
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'losses': optimization_results.losses,
                              'timestamps': optimization_results.timestamps,
+                             'configurations': optimization_results.configurations,
                              'run_successful': optimization_results.successful,
                              'warmstart': optimization_results.did_warmstart}
 
@@ -259,6 +262,56 @@ class Trial:
         plt.title(label=title_label, fontdict=font, loc='center')
 
         return fig
+
+    @staticmethod
+    def plot_hp_space(trial_results_dict: dict):
+        """
+
+        :param trial_results_dict:
+        :return:
+        """
+
+        for opt_tuple in trial_results_dict.keys():
+
+            this_df = trial_results_dict[opt_tuple].trial_result_df
+
+            # Sort result df by losses
+            sorted_df = this_df.sort_values(by='losses', axis=0, ascending=True, inplace=False)
+            sorted_df.reset_index(drop=True, inplace=True)
+            n_best_configs = round(.05 * len(sorted_df['losses']))
+            idx_best_configs = sorted_df.index[:n_best_configs]
+            sorted_df['Score'] = 'Rest'
+            sorted_df.loc[idx_best_configs, 'Score'] = 'Best 5%'
+
+            # Sort by descending losses to ensure that the best configurations are plotted on top
+            sorted_df.sort_values(by='losses', axis=0, ascending=False, inplace=True)
+
+            hyper_params = list(sorted_df['configurations'].iloc[1].keys())
+
+            sns_dict = {}
+            for param in hyper_params:
+                sns_dict[param] = []
+
+            sns_dict['Score'] = list(sorted_df['Score'])
+
+            for _, row in sorted_df.iterrows():
+                this_config_dict = row['configurations']
+
+                for param in hyper_params:
+                    sns_dict[param].append(this_config_dict[param])
+
+            # Convert dictionary to pd.DataFrame -> then sns.pairplot
+            sns_df = pd.DataFrame.from_dict(data=sns_dict)
+
+            # Plot seaborn pairplot
+            ipt_colors = ['#5cbaa4', '#0062a5']
+            sns.set_palette(ipt_colors)
+
+            space_plot = sns.pairplot(data=sns_df, hue='Score', hue_order=['Rest', 'Best 5%'])
+
+            space_plot.savefig(fname='./test_sns.jpg')
+
+        return space_plot
 
     def get_best_trial_result(self, trial_results_dict: dict) -> dict:
         """
@@ -480,6 +533,11 @@ class Trial:
         """
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'SVR':
+            model = SVR()
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 

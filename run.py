@@ -32,13 +32,13 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'RandomSearch')]
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 5
+    n_runs = 1
     n_func_evals = 60
-    n_workers = 4
+    n_workers = 1
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
 
@@ -161,6 +161,8 @@ res_folder = Path(abs_results_path)
 
 curves = trial.plot_learning_curve(res)
 # curves.show()
+
+space_plot = trial.plot_hp_space(res)
 
 curves_str = 'learning_curves_' + ml_algo + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.jpg'
 curves_path = os.path.join(res_folder, curves_str)
