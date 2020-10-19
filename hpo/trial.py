@@ -6,6 +6,8 @@ import uuid
 import math
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
@@ -488,6 +490,16 @@ class Trial:
 
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             model = DecisionTreeRegressor(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'LinearRegression':
+            model = LinearRegression()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'KNNRegressor':
+            model = KNeighborsRegressor()
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 

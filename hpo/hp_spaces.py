@@ -41,3 +41,14 @@ space_ada = [skopt.space.Integer(1, 200, name='n_estimators'),
 space_dt = [skopt.space.Integer(2, 20, name='min_samples_split'),
             skopt.space.Integer(1, 80, name='max_depth'),
             skopt.space.Integer(1, 30, name='min_samples_leaf')]
+
+# Linear Regression
+space_linr = [skopt.space.Categorical([True, False], name='fit_intercept'),
+              skopt.space.Categorical([False, True], name='normalize')]
+
+# KNNRegressor (KNeighborsRegressor)
+space_knn_r = [skopt.space.Integer(1, 10, name='n_neighbors'),
+               skopt.space.Categorical(['uniform', 'distance'], name='weights'),
+               skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
+               skopt.space.Integer(1, 60, name='leaf_size'),
+               skopt.space.Integer(1, 2, name='p')]
