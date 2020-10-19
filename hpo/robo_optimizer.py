@@ -29,17 +29,17 @@ class RoboOptimizer(BaseOptimizer):
 
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                hp_space_lower[i,] = self.hp_space[i].low
-                hp_space_upper[i,] = self.hp_space[i].high
+                hp_space_lower[i, ] = self.hp_space[i].low
+                hp_space_upper[i, ] = self.hp_space[i].high
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
                 n_choices = len(list(self.hp_space[i].categories))
-                hp_space_lower[i,] = 0
-                hp_space_upper[i,] = n_choices - 1
+                hp_space_lower[i, ] = 0
+                hp_space_upper[i, ] = n_choices - 1
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                hp_space_lower[i,] = self.hp_space[i].low
-                hp_space_upper[i,] = self.hp_space[i].high
+                hp_space_lower[i, ] = self.hp_space[i].low
+                hp_space_upper[i, ] = self.hp_space[i].high
 
             else:
                 raise Exception('The skopt HP-space could not be converted correctly!')
@@ -239,7 +239,9 @@ class RoboOptimizer(BaseOptimizer):
 
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
@@ -284,7 +286,9 @@ class RoboOptimizer(BaseOptimizer):
 
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':

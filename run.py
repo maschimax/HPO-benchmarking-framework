@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt
+from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
 
 from hpo.hpo_metrics import root_mean_squared_error
 import preprocessing as pp
@@ -37,7 +37,7 @@ if debug:
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 5
-    n_func_evals = 80
+    n_func_evals = 60
     n_workers = 4
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
@@ -47,7 +47,7 @@ else:
 
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
                         choices=['RandomForestRegressor', 'KerasRegressor', 'XGBoostRegressor', 'SVR',
-                                 'AdaBoostRegressor', 'DecisionTreeRegressor'])
+                                 'AdaBoostRegressor', 'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
@@ -114,6 +114,12 @@ else:
 
     elif ml_algo == 'DecisionTreeRegrssor':
         hp_space = space_dt
+
+    elif ml_algo == 'LinearRegression':
+        hp_space = space_linr
+
+    elif ml_algo == 'KNNRegressor':
+        hp_space = space_knn_r
 
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')

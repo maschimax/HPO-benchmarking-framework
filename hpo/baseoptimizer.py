@@ -8,6 +8,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
@@ -109,6 +111,14 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             default_model = DecisionTreeRegressor(random_state=self.random_seed)
 
+        elif self.ml_algorithm == 'LinearRegression':
+            # LinearRegression has no random_state parameter
+            default_model = LinearRegression()
+
+        elif self.ml_algorithm == 'KNNRegressor':
+            # KNeighborsRegressor has no random_state parameter
+            default_model = KNeighborsRegressor()
+
             # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
 
         else:
@@ -152,6 +162,14 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             model = DecisionTreeRegressor(**warmstart_config, random_state=self.random_seed)
 
+        elif self.ml_algorithm == 'LinearRegression':
+            # LinearRegression has no random_state parameter
+            model = LinearRegression(**warmstart_config)
+
+        elif self.ml_algorithm == 'KNNRegressor':
+            # KNeighborsRegressor has no random_state parameter
+            model = KNeighborsRegressor(**warmstart_config)
+
             # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
 
         else:
@@ -193,6 +211,14 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             # DecisionTreeRegressor has no n_jobs parameter
             model = DecisionTreeRegressor(**params, random_state=self.random_seed)
+
+        elif self.ml_algorithm == 'LinearRegression':
+            # LinearRegression has no random_state parameter
+            model = LinearRegression(**params, n_jobs=self.n_workers)
+
+        elif self.ml_algorithm == 'KNNRegressor':
+            # KNeighborsRegressor has no random_state parameter
+            model = KNeighborsRegressor(**params, n_jobs=self.n_workers)
 
         else:
             raise Exception('Unknown ML-algorithm!')
