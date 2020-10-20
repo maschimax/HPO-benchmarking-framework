@@ -155,7 +155,7 @@ class Trial:
         """
         Plot the learning curves for the HPO-methods that have been evaluated in a trial.
         :param trial_results_dict: dict
-            Contains the optimization results of a trial
+            Contains the optimization results of a trial.
         :return: fig: matplotlib.figure.Figure
             Learning curves (loss over time)
         """
@@ -266,28 +266,48 @@ class Trial:
     @staticmethod
     def plot_hp_space(trial_results_dict: dict):
         """
-
-        :param trial_results_dict:
-        :return:
+        Plots a sns.pairplot that visualizes the explored hyperparameter space and highlights the best 5 % of the
+        hyperparameter configurations.
+        :param trial_results_dict: dict
+            Contains the optimization results of a trial.
+        :return: plots_dict: dict
+            Dictionary that contains a sns.pairplot for each optimization tuple (ML-algorithm, HPO-method).
         """
 
+        # Initialize a dictionary for saving the plots
+        plots_dict = {}
+
+        # Iterate over each optimization tuples (hpo-library, hpo-method)
         for opt_tuple in trial_results_dict.keys():
 
+            # Pandas DataFrame containing the optimization results
             this_df = trial_results_dict[opt_tuple].trial_result_df
 
-            # Sort result df by losses
+            # Strings used in the plot title
+            ml_algorithm = this_df.iloc[0]['ML-algorithm']
+            hpo_method = opt_tuple[1]
+            warmstart = str(this_df.iloc[0]['warmstart'])
+
+            # Sort DataFrame by loss values
             sorted_df = this_df.sort_values(by='losses', axis=0, ascending=True, inplace=False)
             sorted_df.reset_index(drop=True, inplace=True)
+
+            # Find the indices of the 5 % best hyperparameter configurations
             n_best_configs = round(.05 * len(sorted_df['losses']))
             idx_best_configs = sorted_df.index[:n_best_configs]
+
+            # New column to distinguish the 'best' and the remaining configurations
             sorted_df['Score'] = 'Rest'
             sorted_df.loc[idx_best_configs, 'Score'] = 'Best 5%'
 
             # Sort by descending losses to ensure that the best configurations are plotted on top
             sorted_df.sort_values(by='losses', axis=0, ascending=False, inplace=True)
 
+            # Tuned / Optimized hyperparameters
             hyper_params = list(sorted_df['configurations'].iloc[1].keys())
 
+            # Divide the single column with all hyperparameters (sorted_df) into individual columns for each
+            # hyperparameter and assign the evaluated parameter values
             sns_dict = {}
             for param in hyper_params:
                 sns_dict[param] = []
@@ -300,18 +320,24 @@ class Trial:
                 for param in hyper_params:
                     sns_dict[param].append(this_config_dict[param])
 
-            # Convert dictionary to pd.DataFrame -> then sns.pairplot
+            # Convert dictionary into a pd.DataFrame
             sns_df = pd.DataFrame.from_dict(data=sns_dict)
 
-            # Plot seaborn pairplot
+            # Set ipt colors
             ipt_colors = ['#5cbaa4', '#0062a5']
             sns.set_palette(ipt_colors)
 
+            # Plot seaborn pairplot
             space_plot = sns.pairplot(data=sns_df, hue='Score', hue_order=['Rest', 'Best 5%'])
 
-            space_plot.savefig(fname='./test_sns.jpg')
+            # Set plot title
+            title_str = ml_algorithm + ' - ' + hpo_method + ' - Warmstart: ' + warmstart
+            space_plot.fig.suptitle(title_str, y=1.05, fontweight='semibold')
 
-        return space_plot
+            # Assign the seaborn pairplot to the dictionary
+            plots_dict[opt_tuple] = space_plot
+
+        return plots_dict
 
     def get_best_trial_result(self, trial_results_dict: dict) -> dict:
         """
