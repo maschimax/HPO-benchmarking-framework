@@ -133,12 +133,19 @@ class RoboOptimizer(BaseOptimizer):
                 s_max = len(self.x_train)  # Maximum number of data points for the training data set
                 s_min = int(0.05 * s_max)  # Maximum number of data points for the training data set
                 n_init = int(self.n_func_evals / 3)  # Requirement of the fabolas implementation
+                # n_init = 0
 
                 result_dict = fabolas(objective_function=self.objective_fabolas, s_min=s_min, s_max=s_max,
                                       lower=hp_space_lower, upper=hp_space_upper,
                                       num_iterations=self.n_func_evals, rng=rand_num_generator, n_init=n_init)
                 run_successful = True
+
             elif self.hpo_method == 'Bohamiann':
+
+                if did_warmstart:
+                    # A single initial design point (warm start hyperparameter configuration)
+                    kwargs['n_init'] = 1
+
                 # Budget correct? // Set further parameters?
                 result_dict = bayesian_optimization(objective_function=self.objective_bohamiann,
                                                     lower=hp_space_lower, upper=hp_space_upper,
@@ -161,6 +168,10 @@ class RoboOptimizer(BaseOptimizer):
                 # Subtract the start time to receive the wall clock time of each function evaluation
                 self.times[i] = self.times[i] - start_time
             wall_clock_time = max(self.times)
+
+            # Insert timestamp of 0.0 for the warm start hyperparameter configuration
+            if did_warmstart:
+                self.times.insert(0, 0.0)
 
             # Timestamps
             timestamps = self.times
@@ -192,7 +203,22 @@ class RoboOptimizer(BaseOptimizer):
 
                 configurations = configurations + (config_dict,)
 
-            best_configuration = configurations[-1]
+            # Find the best hyperparameter configuration (incumbent)
+            best_configuration = {}
+            x_opt = result_dict['x_opt']
+
+            for i in range(len(x_opt)):
+                if type(self.hp_space[i]) == skopt.space.space.Integer:
+                    best_configuration[self.hp_space[i].name] = int(round(x_opt[i]))
+
+                elif type(self.hp_space[i]) == skopt.space.space.Categorical:
+                    best_configuration[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(x_opt[i]))]
+
+                elif type(self.hp_space[i]) == skopt.space.space.Real:
+                    best_configuration[self.hp_space[i].name] = x_opt[i]
+
+                else:
+                    raise Exception('The continuous HP-space could not be converted correctly!')
 
         # Run not successful (algorithm crashed)
         else:
