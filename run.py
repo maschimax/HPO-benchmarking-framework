@@ -3,16 +3,11 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt
+from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
 
 from hpo.hpo_metrics import root_mean_squared_error
 import preprocessing as pp
 from hpo.trial import Trial
-
-# Flag for debug mode (yes/no)
-# yes -> set parameters for this trial in source code (below)
-# no -> call script via terminal and pass arguments via argparse
-debug = True
 
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
@@ -28,35 +23,45 @@ test_raw = pp.load_data(data_folder, test_file)
 X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                     count_encoding=False)
 
+# Flag for debug mode (yes/no)
+# yes (True) -> set parameters for this trial in source code (below)
+# no (False) -> call script via terminal and pass arguments via argparse
+debug = True
+
 if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('hyperopt', 'TPE')]
+    opt_schedule = [('optuna', 'TPE'), ('skopt', 'GPBO')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
-    # ('robo', 'Bohamiann'), ('hyperopt', 'TPE')]
-    n_runs = 3
-    n_func_evals = 15
-    n_workers = 1
+    # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
+    n_runs = 2
+    n_func_evals = 20
+    n_workers = 4
     loss_metric = root_mean_squared_error
-
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
 
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
                         choices=['RandomForestRegressor', 'KerasRegressor', 'XGBoostRegressor', 'SVR',
-                                 'AdaBoostRegressor', 'DecisionTreeRegressor'])
+                                 'AdaBoostRegressor', 'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
     parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
-    parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).', default=5)
-    parser.add_argument('--n_workers', type=int, help='Number of workers to be used for the optimization (parallelization)',
+    parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).',
+                        default=5)
+    parser.add_argument('--n_workers', type=int,
+                        help='Number of workers to be used for the optimization (parallelization)',
                         default=1)
     parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
                         choices=['root_mean_squared_error'])
+    parser.add_argument('--warmstart', type=str,
+                        help="Use the algorithm's default HP-configuration for warmstart (yes/no).",
+                        default='No', choices=['Yes', 'No'])
 
     args = parser.parse_args()
 
@@ -67,6 +72,7 @@ else:
     # to ensure comparability)
     n_func_evals = args.n_func_evals
     n_workers = args.n_workers
+    do_warmstart = args.warmstart
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -75,11 +81,11 @@ else:
         if this_method == 'SMAC' or this_method == 'GPBO':
             opt_schedule.append(('skopt', this_method))
 
-        elif this_method == 'CMA-ES' or this_method == 'RandomSearch':
+        elif this_method == 'CMA-ES' or this_method == 'RandomSearch' or this_method == 'TPE':
             opt_schedule.append(('optuna', this_method))
 
-        elif this_method == 'TPE':
-            opt_schedule.append(('hyperopt', this_method))
+        # elif this_method == 'TPE':
+        #     opt_schedule.append(('hyperopt', this_method))
 
         elif this_method == 'BOHB' or this_method == 'Hyperband':
             opt_schedule.append(('hpbandster', this_method))
@@ -109,10 +115,16 @@ else:
     elif ml_algo == 'DecisionTreeRegrssor':
         hp_space = space_dt
 
+    elif ml_algo == 'LinearRegression':
+        hp_space = space_linr
+
+    elif ml_algo == 'KNNRegressor':
+        hp_space = space_knn_r
+
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
 
-    # Identify the correct loss loss_metric
+    # Identify the correct loss metric
     if args.loss_metric == 'root_mean_squared_error':
         loss_metric = root_mean_squared_error
 
@@ -126,7 +138,8 @@ print('With HPO-methods: ')
 for this_tuple in opt_schedule:
     print(this_tuple[1])
 print('------')
-print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, ' + str(n_workers) + ' worker(s).')
+print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, ' + str(n_workers) +
+      ' worker(s), warmstart: ' + do_warmstart + '.')
 print('------')
 print('Optimization schedule: ', opt_schedule)
 
@@ -134,28 +147,54 @@ print('Optimization schedule: ', opt_schedule)
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
-              x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val)
+              x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val, do_warmstart=do_warmstart)
 
 # Run the optimizations
 res = trial.run()
+
+abs_results_path = os.path.abspath(path='hpo/results')
+res_folder = Path(abs_results_path)
+abs_log_path = os.path.abspath(path='hpo/results/logs')
+log_folder = Path(abs_log_path)
+
+time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
 
 # Analyze the results
 print('Best configuration found:')
 print(trial.get_best_trial_result(res))
 
-abs_results_path = os.path.abspath(path='hpo/results')
-res_folder = Path(abs_results_path)
+# Optimization results
+for opt_tuple in res.keys():
+    res_df = res[opt_tuple].trial_result_df
 
+    res_str_csv = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
+    res_path_csv = os.path.join(log_folder, res_str_csv)
+
+    # res_str_json = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.json'
+    # res_path_json = os.path.join(log_folder, res_str_json)
+
+    res_df.reset_index(drop=True, inplace=True)
+    res_df.to_csv(res_path_csv)
+    # res_df.to_json(res_path_json)
+
+# Learning curves
 curves = trial.plot_learning_curve(res)
-# curves.show()
-
-curves_str = 'learning_curves_' + ml_algo + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.jpg'
+curves_str = 'learning_curves_' + ml_algo + '_' + time_str + '.jpg'
 curves_path = os.path.join(res_folder, curves_str)
 curves.savefig(fname=curves_path)
 
-metrics, metrics_df = trial.get_metrics(res)
+# Hyperparameter space
+space_plots = trial.plot_hp_space(res)
+for opt_tuple in space_plots.keys():
+    this_plot = space_plots[opt_tuple]
+    this_hpo_method = opt_tuple[1]
+    space_str = 'hp_space_' + ml_algo + '_' + this_hpo_method + '_' + time_str + '.jpg'
+    space_path = os.path.join(res_folder, space_str)
+    this_plot.savefig(fname=space_path)
 
-metrics_str = 'metrics_' + ml_algo + '_' + str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime())) + '.csv'
+# Metrics
+metrics, metrics_df = trial.get_metrics(res)
+metrics_str = 'metrics_' + ml_algo + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
 metrics_df.to_csv(metrics_path)
 

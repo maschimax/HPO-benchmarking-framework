@@ -9,9 +9,11 @@ from hpo.results import TuningResult
 
 class RoboOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                 random_seed):
+                 random_seed, n_workers, do_warmstart):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
-                         random_seed)
+                         random_seed, n_workers)
+
+        self.do_warmstart = do_warmstart
 
     def optimize(self) -> TuningResult:
         """
@@ -49,70 +51,158 @@ class RoboOptimizer(BaseOptimizer):
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
-        # Select the specified HPO-tuning method
-        if self.hpo_method == 'Fabolas':
+        # Use a warmstart configuration (only possible for BOHAMIANN, not FABOLAS)
+        if self.do_warmstart == 'Yes':
 
-            # Budget correct? // Set further parameters?
-            s_max = len(self.x_train)  # Maximum number of data points for the training data set
-            s_min = int(0.05 * s_max)  # Maximum number of data points for the training data set
-            n_init = int(self.n_func_evals / 3)  # Requirement of the fabolas implementation
+            # Initialize numpy arrays for saving the warmstart configuration and the warmstart loss
+            warmstart_config = np.zeros(shape=(1, len(self.hp_space)))
+            warmstart_loss = np.zeros(shape=(1, 1))
 
-            result_dict = fabolas(objective_function=self.objective_fabolas, s_min=s_min, s_max=s_max,
-                                  lower=hp_space_lower, upper=hp_space_upper,
-                                  num_iterations=self.n_func_evals, rng=rand_num_generator, n_init=n_init)
+            # Retrieve the default hyperparameters and the default loss for the ML-algorithm
+            default_params = self.get_warmstart_configuration()
 
-        elif self.hpo_method == 'Bohamiann':
-            # Budget correct? // Set further parameters?
-            result_dict = bayesian_optimization(objective_function=self.objective_bohamiann,
-                                                lower=hp_space_lower, upper=hp_space_upper,
-                                                model_type='bohamiann', num_iterations=self.n_func_evals,
-                                                rng=rand_num_generator)
+            try:
 
+                # Dictionary for saving the warmstart HP-configuration (only contains the HPs, which are part of the
+                # 'tuned' HP-space
+                warmstart_dict = {}
+
+                # Iterate over all HPs of this ML-algorithm's tuned HP-space and append the default values to
+                # the numpy array
+                for i in range(len(self.hp_space)):
+
+                    this_param = self.hp_space[i].name
+
+                    # Categorical HPs need to be encoded as integer values for RoBO
+                    if type(self.hp_space[i]) == skopt.space.space.Categorical:
+
+                        choices = self.hp_space[i].categories
+                        this_warmstart_value_cat = default_params[this_param]
+                        dict_value = this_warmstart_value_cat
+
+                        # Find the index of the default / warmstart HP in the list of possible choices
+                        for j in range(len(choices)):
+                            if this_warmstart_value_cat == choices[j]:
+                                this_warmstart_value = j
+
+                    # For all non-categorical HPs
+                    else:
+                        this_warmstart_value = default_params[this_param]
+                        dict_value = this_warmstart_value
+
+                        # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
+                        # different (e.g. int)
+                        if this_warmstart_value is None:
+                            # Try to impute these values by the mean value
+                            this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
+                            dict_value = this_warmstart_value
+
+                    # Pass the warmstart value to the according numpy array
+                    warmstart_config[0, i] = this_warmstart_value
+                    warmstart_dict[this_param] = dict_value
+
+                # Pass the default loss to the according numpy array
+                warmstart_loss[0, 0] = self.get_warmstart_loss(warmstart_dict=warmstart_dict)
+
+                # Pass the warmstart configuration as a kwargs dict
+                kwargs = {'X_init': warmstart_config,
+                          'Y_init': warmstart_loss}
+
+                # Set flag to indicate that a warmstart took place
+                did_warmstart = True
+
+            except:
+                print('Warmstarting RoBO failed!')
+                kwargs = {}
+
+                # Set flag to indicate that NO warmstart took place
+                did_warmstart = False
+
+        # No warmstart requested
         else:
-            raise Exception('Unknown HPO-method!')
+            kwargs = {}
 
-        for i in range(len(self.times)):
-            # Subtract the start time to receive the wall clock time of each function evaluation
-            self.times[i] = self.times[i] - start_time
-        wall_clock_time = max(self.times)
+            # Set flag to indicate that NO warmstart took place
+            did_warmstart = False
 
-        if self.hpo_method == 'Fabolas':
+        # Select the specified HPO-tuning method
+        try:
+            if self.hpo_method == 'Fabolas':
+
+                # Budget correct? // Set further parameters?
+                s_max = len(self.x_train)  # Maximum number of data points for the training data set
+                s_min = int(0.05 * s_max)  # Maximum number of data points for the training data set
+                n_init = int(self.n_func_evals / 3)  # Requirement of the fabolas implementation
+
+                result_dict = fabolas(objective_function=self.objective_fabolas, s_min=s_min, s_max=s_max,
+                                      lower=hp_space_lower, upper=hp_space_upper,
+                                      num_iterations=self.n_func_evals, rng=rand_num_generator, n_init=n_init)
+                run_successful = True
+            elif self.hpo_method == 'Bohamiann':
+                # Budget correct? // Set further parameters?
+                result_dict = bayesian_optimization(objective_function=self.objective_bohamiann,
+                                                    lower=hp_space_lower, upper=hp_space_upper,
+                                                    model_type='bohamiann', num_iterations=self.n_func_evals,
+                                                    rng=rand_num_generator, **kwargs)
+                run_successful = True
+
+            else:
+                raise Exception('Unknown HPO-method!')
+
+        # Algorithm crashed
+        except:
+            # Add a warning here
+            run_successful = False
+
+        # If the optimization run was successful, determine the optimization results
+        if run_successful:
+
+            for i in range(len(self.times)):
+                # Subtract the start time to receive the wall clock time of each function evaluation
+                self.times[i] = self.times[i] - start_time
+            wall_clock_time = max(self.times)
+
+            # Timestamps
+            timestamps = self.times
+
+            # Losses (not incumbent losses)
             losses = result_dict['y']
 
-        elif self.hpo_method == 'Bohamiann':
-            losses = result_dict['incumbent_values']
+            evaluation_ids = list(range(1, len(losses) + 1))
+            best_loss = min(losses)
 
+            configurations = ()
+            for config in result_dict['X']:
+                # Cut off the unused Fabolas budget value at the end
+                config = config[:len(self.hp_space)]
+                config_dict = {}
+
+                for i in range(len(config)):
+                    if type(self.hp_space[i]) == skopt.space.space.Integer:
+                        config_dict[self.hp_space[i].name] = int(round(config[i]))
+
+                    elif type(self.hp_space[i]) == skopt.space.space.Categorical:
+                        config_dict[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(config[i]))]
+
+                    elif type(self.hp_space[i]) == skopt.space.space.Real:
+                        config_dict[self.hp_space[i].name] = config[i]
+
+                    else:
+                        raise Exception('The continuous HP-space could not be converted correctly!')
+
+                configurations = configurations + (config_dict,)
+
+            best_configuration = configurations[-1]
+
+        # Run not successful (algorithm crashed)
         else:
-            raise Exception('Unknown HPO-method!')
-
-        evaluation_ids = list(range(1, len(losses) + 1))
-        best_loss = min(losses)
-
-        configurations = ()
-        for config in result_dict['incumbents']:
-            config_dict = {}
-
-            for i in range(len(config)):
-                if type(self.hp_space[i]) == skopt.space.space.Integer:
-                    config_dict[self.hp_space[i].name] = int(config[i])
-
-                elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                    config_dict[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(config[i])]
-
-                elif type(self.hp_space[i]) == skopt.space.space.Real:
-                    config_dict[self.hp_space[i].name] = config[i]
-
-                else:
-                    raise Exception('The continuous HP-space could not be converted correctly!')
-
-            configurations = configurations + (config_dict,)
-
-        best_configuration = configurations[-1]
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
+                self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-Object
-        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=self.times, losses=losses,
+        result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
 
         return result
 
@@ -132,10 +222,10 @@ class RoboOptimizer(BaseOptimizer):
         dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                dict_params[self.hp_space[i].name] = int(cont_hp_space[i, ])
+                dict_params[self.hp_space[i].name] = int(round(cont_hp_space[i, ]))
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i, ])]
+                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(cont_hp_space[i, ]))]
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
                 dict_params[self.hp_space[i].name] = cont_hp_space[i, ]
@@ -145,7 +235,9 @@ class RoboOptimizer(BaseOptimizer):
 
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':
@@ -177,10 +269,10 @@ class RoboOptimizer(BaseOptimizer):
         dict_params = {}
         for i in range(len(self.hp_space)):
             if type(self.hp_space[i]) == skopt.space.space.Integer:
-                dict_params[self.hp_space[i].name] = int(cont_hp_space[i, ])
+                dict_params[self.hp_space[i].name] = int(round(cont_hp_space[i, ]))
 
             elif type(self.hp_space[i]) == skopt.space.space.Categorical:
-                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(cont_hp_space[i, ])]
+                dict_params[self.hp_space[i].name] = list(self.hp_space[i].categories)[int(round(cont_hp_space[i, ]))]
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
                 dict_params[self.hp_space[i].name] = cont_hp_space[i, ]
@@ -190,7 +282,9 @@ class RoboOptimizer(BaseOptimizer):
 
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-            self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor':
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+
             eval_func = self.train_evaluate_scikit_regressor
 
         elif self.ml_algorithm == 'KerasRegressor':

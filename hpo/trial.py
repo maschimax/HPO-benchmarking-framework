@@ -1,9 +1,14 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import uuid
+import math
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
@@ -19,7 +24,8 @@ from hpo.hpo_metrics import area_under_curve
 class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
-                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series, baseline=0.0):
+                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series, baseline=0.0,
+                 do_warmstart='No'):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -32,6 +38,7 @@ class Trial:
         self.x_val = x_val
         self.y_val = y_val
         self.baseline = baseline
+        self.do_warmstart = do_warmstart
         # Attribute for CPU / GPU selection required
 
     def run(self):
@@ -51,7 +58,8 @@ class Trial:
 
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'num_of_evaluation', 'losses', 'timestamps'])
+                                               'eval_count', 'losses', 'timestamps', 'configurations',
+                                               'run_successful', 'warmstart', 'runs', 'evaluations', 'workers'])
             best_configs = ()
             best_losses = []
 
@@ -65,33 +73,38 @@ class Trial:
                     optimizer = SkoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                                y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                               n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                               n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                               n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                 ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                                 y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                                n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                                n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'hpbandster':
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                     ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                     x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
-                                                    random_seed=this_seed)
+                                                    random_seed=this_seed, n_workers=self.n_workers,
+                                                    do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
                                               y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                              n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                              n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                              n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'hyperopt':
                     optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                   ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                   x_val=self.x_val,
                                                   y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                                  n_func_evals=self.n_func_evals, random_seed=this_seed)
+                                                  n_func_evals=self.n_func_evals, random_seed=this_seed,
+                                                  n_workers=self.n_workers)
 
                 else:
                     raise Exception('Unknown HPO-library!')
@@ -105,9 +118,15 @@ class Trial:
                              'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
                              'run_id': [run_id] * len(optimization_results.losses),
                              'random_seed': [i] * len(optimization_results.losses),
-                             'num_of_evaluation': list(range(1, len(optimization_results.losses) + 1)),
+                             'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'losses': optimization_results.losses,
-                             'timestamps': optimization_results.timestamps}
+                             'timestamps': optimization_results.timestamps,
+                             'configurations': optimization_results.configurations,
+                             'run_successful': optimization_results.successful,
+                             'warmstart': optimization_results.did_warmstart,
+                             'runs': [self.n_runs] * len(optimization_results.losses),
+                             'evaluations': [self.n_func_evals] * len(optimization_results.losses),
+                             'workers': [self.n_workers] * len(optimization_results.losses)}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
@@ -128,7 +147,7 @@ class Trial:
             # Create a TrialResult-object to save the results of this trial
             trial_result_obj = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
                                            best_trial_loss=best_loss, hpo_library=this_hpo_library,
-                                           hpo_method=this_hpo_method)
+                                           hpo_method=this_hpo_method, did_warmstart=optimization_results.did_warmstart)
 
             # Append the TrialResult-object to the result dictionary
             trial_results_dict[opt_tuple] = trial_result_obj
@@ -139,7 +158,7 @@ class Trial:
         """
         Plot the learning curves for the HPO-methods that have been evaluated in a trial.
         :param trial_results_dict: dict
-            Contains the optimization results of a trial
+            Contains the optimization results of a trial.
         :return: fig: matplotlib.figure.Figure
             Learning curves (loss over time)
         """
@@ -160,18 +179,18 @@ class Trial:
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['num_of_evaluation'])
+                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
-            # n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
+            # n_rows = int(len(this_df['eval_count']) / n_cols)
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
-                this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+                this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
                 # Iterate over all function evaluations
                 for i in range(n_rows):
@@ -230,12 +249,98 @@ class Trial:
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
         plt.yscale('log')
+        # ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+
+        # Add a legend
         mean_lines.append(baseline)
-        labels = [this_tuple[1] for this_tuple in trial_results_dict.keys()]
-        labels.append('Default HPs')
-        plt.legend(mean_lines, labels, loc='upper right')
+        legend_labels = [this_tuple[1] for this_tuple in trial_results_dict.keys()]
+        legend_labels.append('Default HPs')
+        plt.legend(mean_lines, legend_labels, loc='upper right')
+
+        # Add a title
+        font = {'weight': 'semibold',
+                'size': 'large'}
+
+        title_label = self.ml_algorithm + " - " + str(self.n_workers) + " worker(s) - " + str(self.n_runs) + " runs"
+        plt.title(label=title_label, fontdict=font, loc='center')
 
         return fig
+
+    @staticmethod
+    def plot_hp_space(trial_results_dict: dict):
+        """
+        Plots a sns.pairplot that visualizes the explored hyperparameter space and highlights the best 5 % of the
+        hyperparameter configurations.
+        :param trial_results_dict: dict
+            Contains the optimization results of a trial.
+        :return: plots_dict: dict
+            Dictionary that contains a sns.pairplot for each optimization tuple (ML-algorithm, HPO-method).
+        """
+
+        # Initialize a dictionary for saving the plots
+        plots_dict = {}
+
+        # Iterate over each optimization tuples (hpo-library, hpo-method)
+        for opt_tuple in trial_results_dict.keys():
+
+            # Pandas DataFrame containing the optimization results
+            this_df = trial_results_dict[opt_tuple].trial_result_df
+
+            # Strings used in the plot title
+            ml_algorithm = this_df.iloc[0]['ML-algorithm']
+            hpo_method = opt_tuple[1]
+            warmstart = str(this_df.iloc[0]['warmstart'])
+
+            # Sort DataFrame by loss values
+            sorted_df = this_df.sort_values(by='losses', axis=0, ascending=True, inplace=False)
+            sorted_df.reset_index(drop=True, inplace=True)
+
+            # Find the indices of the 5 % best hyperparameter configurations
+            n_best_configs = round(.05 * len(sorted_df['losses']))
+            idx_best_configs = sorted_df.index[:n_best_configs]
+
+            # New column to distinguish the 'best' and the remaining configurations
+            sorted_df['Score'] = 'Rest'
+            sorted_df.loc[idx_best_configs, 'Score'] = 'Best 5%'
+
+            # Sort by descending losses to ensure that the best configurations are plotted on top
+            sorted_df.sort_values(by='losses', axis=0, ascending=False, inplace=True)
+
+            # Tuned / Optimized hyperparameters
+            hyper_params = list(sorted_df['configurations'].iloc[1].keys())
+
+            # Divide the single column with all hyperparameters (sorted_df) into individual columns for each
+            # hyperparameter and assign the evaluated parameter values
+            sns_dict = {}
+            for param in hyper_params:
+                sns_dict[param] = []
+
+            sns_dict['Score'] = list(sorted_df['Score'])
+
+            for _, row in sorted_df.iterrows():
+                this_config_dict = row['configurations']
+
+                for param in hyper_params:
+                    sns_dict[param].append(this_config_dict[param])
+
+            # Convert dictionary into a pd.DataFrame
+            sns_df = pd.DataFrame.from_dict(data=sns_dict)
+
+            # Set ipt colors
+            ipt_colors = ['#5cbaa4', '#0062a5']
+            sns.set_palette(ipt_colors)
+
+            # Plot seaborn pairplot
+            space_plot = sns.pairplot(data=sns_df, hue='Score', hue_order=['Rest', 'Best 5%'])
+
+            # Set plot title
+            title_str = ml_algorithm + ' - ' + hpo_method + ' - Warmstart: ' + warmstart
+            space_plot.fig.suptitle(title_str, y=1.05, fontweight='semibold')
+
+            # Assign the seaborn pairplot to the dictionary
+            plots_dict[opt_tuple] = space_plot
+
+        return plots_dict
 
     def get_best_trial_result(self, trial_results_dict: dict) -> dict:
         """
@@ -278,9 +383,10 @@ class Trial:
         """
 
         metrics = {}
-        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers',
-                'time_outperform_default', 'AUC', 'best_mean_loss', 'loss_ratio', 'std_dev_best_loss',
-                'time_best_config', 'evals_best_config']
+        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Warmstart',
+                'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean(best loss)',
+                'Loss ratio', 'Interquartile range(best_loss)', 't best configuration [s]',
+                'Evaluations for best configuration', 'Crashes']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -300,12 +406,15 @@ class Trial:
             this_df = trial_results_dict[opt_tuple].trial_result_df
             unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
 
+            # Flag indicates, whether a warmstart of the HPO-method was performed successfully
+            did_warmstart = trial_results_dict[opt_tuple].did_warmstart
+
             n_cols = len(unique_ids)
             n_rows = 0
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['num_of_evaluation'])
+                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
@@ -313,10 +422,17 @@ class Trial:
             best_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
 
+            # Count the number of algorithm crashes that occurred during optimization
+            number_of_crashes_this_algo = 0
+
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
-                this_subframe = this_subframe.sort_values(by=['num_of_evaluation'], ascending=True, inplace=False)
+                this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
+
+                # Check, whether this run was completed successfully
+                if not all(this_subframe['run_successful']):
+                    number_of_crashes_this_algo = number_of_crashes_this_algo + 1
 
                 # Iterate over all function evaluations
                 for i in range(n_rows):
@@ -344,6 +460,9 @@ class Trial:
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
 
+            # Wall clock time
+            wall_clock_time = max(mean_timestamps)
+
             # ANYTIME PERFORMANCE
             # 1. Wall clock time required to outperform the default configuration
             time_outperform_default = float('inf')
@@ -363,32 +482,43 @@ class Trial:
             loss_ratio = baseline_loss / best_mean_loss
 
             # ROBUSTNESS
-            # 5. Standard dev. of the loss of the best found configuration
-            std_dev_best_loss = np.nanstd(best_losses, axis=1)
-            std_dev_best_loss = std_dev_best_loss[-1]
+            # 5. Interquantile range of the loss of the best found configuration
+            quant75 = np.nanquantile(best_losses, q=.75, axis=1)
+            quant25 = np.nanquantile(best_losses, q=.25, axis=1)
+            interq_range = (quant75 - quant25)[-1]
 
-            # 6. Total number of crashes during the optimization
-            # tbd
+            # 6. Total number of crashes during the optimization (for each HPO-method)
+            # number_of_crashes_this_algo
 
             # USABILITY
-            # 7. Wall clock time to find the best configuration
-            for eval_num in range(len(mean_trace_desc)):
-                if mean_trace_desc[eval_num] <= best_mean_loss:
-                    best_idx = eval_num
-                    break
-            time_best_config = mean_timestamps[best_idx]
+            if math.isnan(best_mean_loss):
+                # Only crashed runs for this HPO-method
+                best_idx = float('nan')
+                time_best_config = float('nan')
+                evals_for_best_config = float('nan')
 
-            # 8. Number of function evaluations to find the best configuration
-            evals_for_best_config = best_idx + 1
+            else:
+                for eval_num in range(len(mean_trace_desc)):
+                    if mean_trace_desc[eval_num] <= best_mean_loss:
+                        best_idx = eval_num  # index of the first evaluation, that reaches the best loss
+                        break
+
+                # 7. Wall clock time to find the best configuration
+                time_best_config = mean_timestamps[best_idx]
+
+                # 8. Number of function evaluations to find the best configuration
+                evals_for_best_config = best_idx + 1
 
             # Pass the computed metrics to a MetricsResult-object
-            metrics_object = MetricsResult(time_outperform_default=time_outperform_default,
+            metrics_object = MetricsResult(wall_clock_time=wall_clock_time,
+                                           time_outperform_default=time_outperform_default,
                                            area_under_curve=auc,
                                            best_mean_loss=best_mean_loss,
                                            loss_ratio=loss_ratio,
-                                           std_dev_best_loss=std_dev_best_loss,
+                                           interquantile_range=interq_range,
                                            time_best_config=time_best_config,
-                                           evals_for_best_config=evals_for_best_config)
+                                           evals_for_best_config=evals_for_best_config,
+                                           number_of_crashes=number_of_crashes_this_algo)
 
             # Assign the MetricsResult-object to a dictionary
             metrics[opt_tuple] = metrics_object
@@ -401,13 +531,16 @@ class Trial:
                             'Runs': self.n_runs,
                             'Evaluations': self.n_func_evals,
                             'Workers': self.n_workers,
-                            'time_outperform_default': time_outperform_default,
-                            'AUC': auc,
-                            'best_mean_loss': best_mean_loss,
-                            'loss_ratio': loss_ratio,
-                            'std_dev_best_loss': std_dev_best_loss,
-                            'time_best_config': time_best_config,
-                            'evals_best_config': evals_for_best_config}
+                            'Warmstart': did_warmstart,
+                            'Wall clock time [s]': wall_clock_time,
+                            't outperform default [s]': time_outperform_default,
+                            'Area under curve (AUC)': auc,
+                            'Mean(best loss)': best_mean_loss,
+                            'Loss ratio': loss_ratio,
+                            'Interquartile range(best_loss)': interq_range,
+                            't best configuration [s]': time_best_config,
+                            'Evaluations for best configuration': evals_for_best_config,
+                            'Crashes': number_of_crashes_this_algo}
 
             # Create pandas DataFrame from dictionary
             this_metrics_df = pd.DataFrame.from_dict(data=metrics_dict)
@@ -432,6 +565,11 @@ class Trial:
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
+        elif self.ml_algorithm == 'SVR':
+            model = SVR()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'AdaBoostRegressor':
             model = AdaBoostRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
@@ -439,6 +577,16 @@ class Trial:
 
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             model = DecisionTreeRegressor(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'LinearRegression':
+            model = LinearRegression()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'KNNRegressor':
+            model = KNeighborsRegressor()
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
@@ -471,3 +619,8 @@ class Trial:
         baseline_loss = self.metric(self.y_val, y_pred)
 
         return baseline_loss
+
+    @staticmethod
+    def train_best_model(trial_results_dict: dict):
+        # TBD
+        raise NotImplementedError

@@ -1,3 +1,0 @@
-,HPO-library,HPO-method,ML-algorithm,time_outperform_default,AUC,best_mean_loss,loss_ratio,std_dev_best_loss,time_best_config,evals_best_config
-1,optuna,RandomSearch,RandomForestRegressor,inf,37210.07251478854,36105.98516733433,0.9418919158563196,415.8910098187329,14.166846434275309,13
-2,hyperopt,TPE,RandomForestRegressor,inf,35603.24593422768,34868.672545901114,0.9753148904183935,445.3003211062515,8.447645505269369,7
