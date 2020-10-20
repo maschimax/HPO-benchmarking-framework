@@ -59,7 +59,7 @@ class Trial:
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
                                                'eval_count', 'losses', 'timestamps', 'configurations',
-                                               'run_successful', 'warmstart'])
+                                               'run_successful', 'warmstart', 'runs', 'evaluations', 'workers'])
             best_configs = ()
             best_losses = []
 
@@ -123,7 +123,10 @@ class Trial:
                              'timestamps': optimization_results.timestamps,
                              'configurations': optimization_results.configurations,
                              'run_successful': optimization_results.successful,
-                             'warmstart': optimization_results.did_warmstart}
+                             'warmstart': optimization_results.did_warmstart,
+                             'runs': [self.n_runs] * len(optimization_results.losses),
+                             'evaluations': [self.n_func_evals] * len(optimization_results.losses),
+                             'workers': [self.n_workers] * len(optimization_results.losses)}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
