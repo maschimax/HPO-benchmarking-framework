@@ -107,7 +107,9 @@ class SkoptOptimizer(BaseOptimizer):
             timestamps = self.times
 
             best_loss = trial_result.fun
-            losses = list(trial_result.func_vals)  # Loss of each iteration
+
+            # Losses (not incumbent losses)
+            losses = list(trial_result.func_vals)
 
             # Determine the best HP-configuration of this run
             best_configuration = {}
