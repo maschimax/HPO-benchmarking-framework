@@ -32,13 +32,13 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'TPE')]
+    opt_schedule = [('optuna', 'TPE'), ('skopt', 'GPBO')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 2
-    n_func_evals = 15
-    n_workers = 1
+    n_func_evals = 60
+    n_workers = 4
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
 
@@ -152,14 +152,23 @@ trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt
 # Run the optimizations
 res = trial.run()
 
+abs_results_path = os.path.abspath(path='hpo/results')
+res_folder = Path(abs_results_path)
+abs_log_path = os.path.abspath(path='hpo/results/logs')
+log_folder = Path(abs_log_path)
+
+time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
+
 # Analyze the results
 print('Best configuration found:')
 print(trial.get_best_trial_result(res))
 
-abs_results_path = os.path.abspath(path='hpo/results')
-res_folder = Path(abs_results_path)
-
-time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
+for opt_tuple in res.keys():
+    res_df = res[opt_tuple].trial_result_df
+    res_str = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
+    res_path = os.path.join(log_folder, res_str)
+    res_df.to_csv(res_path)
+    res_df.to_json(res_path)
 
 # Learning curves
 curves = trial.plot_learning_curve(res)
