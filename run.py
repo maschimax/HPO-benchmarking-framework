@@ -37,7 +37,7 @@ if debug:
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 2
-    n_func_evals = 60
+    n_func_evals = 20
     n_workers = 4
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
@@ -163,12 +163,19 @@ time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
 print('Best configuration found:')
 print(trial.get_best_trial_result(res))
 
+# Optimization results
 for opt_tuple in res.keys():
     res_df = res[opt_tuple].trial_result_df
-    res_str = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
-    res_path = os.path.join(log_folder, res_str)
-    res_df.to_csv(res_path)
-    res_df.to_json(res_path)
+
+    res_str_csv = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
+    res_path_csv = os.path.join(log_folder, res_str_csv)
+
+    # res_str_json = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.json'
+    # res_path_json = os.path.join(log_folder, res_str_json)
+
+    res_df.reset_index(drop=True, inplace=True)
+    res_df.to_csv(res_path_csv)
+    # res_df.to_json(res_path_json)
 
 # Learning curves
 curves = trial.plot_learning_curve(res)
