@@ -165,20 +165,16 @@ class RoboOptimizer(BaseOptimizer):
             # Timestamps
             timestamps = self.times
 
-            if self.hpo_method == 'Fabolas':
-                losses = result_dict['y']
-
-            elif self.hpo_method == 'Bohamiann':
-                losses = result_dict['incumbent_values']
-
-            else:
-                raise Exception('Unknown HPO-method!')
+            # Losses (not incumbent losses)
+            losses = result_dict['y']
 
             evaluation_ids = list(range(1, len(losses) + 1))
             best_loss = min(losses)
 
             configurations = ()
-            for config in result_dict['incumbents']:
+            for config in result_dict['X']:
+                # Cut off the unused Fabolas budget value at the end
+                config = config[:len(self.hp_space)]
                 config_dict = {}
 
                 for i in range(len(config)):

@@ -199,6 +199,8 @@ class OptunaOptimizer(BaseOptimizer):
 
             unsorted_df = pd.DataFrame.from_dict(data=temp_dict)
             unsorted_df.set_index('ids', inplace=True)
+
+            # Sort DataFrame according to timestamps (necessary for multiprocessing)
             sorted_df = unsorted_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=False)
 
             timestamps = list(sorted_df['timestamps [finished]'])

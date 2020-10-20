@@ -32,12 +32,12 @@ if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'TPE'), ('skopt', 'GPBO')]
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
-    n_func_evals = 30
+    n_runs = 2
+    n_func_evals = 15
     n_workers = 1
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
@@ -161,6 +161,12 @@ res_folder = Path(abs_results_path)
 
 time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
 
+# Learning curves
+curves = trial.plot_learning_curve(res)
+curves_str = 'learning_curves_' + ml_algo + '_' + time_str + '.jpg'
+curves_path = os.path.join(res_folder, curves_str)
+curves.savefig(fname=curves_path)
+
 # Hyperparameter space
 space_plots = trial.plot_hp_space(res)
 for opt_tuple in space_plots.keys():
@@ -169,12 +175,6 @@ for opt_tuple in space_plots.keys():
     space_str = 'hp_space_' + ml_algo + '_' + this_hpo_method + '_' + time_str + '.jpg'
     space_path = os.path.join(res_folder, space_str)
     this_plot.savefig(fname=space_path)
-
-# Learning curves
-curves = trial.plot_learning_curve(res)
-curves_str = 'learning_curves_' + ml_algo + '_' + time_str + '.jpg'
-curves_path = os.path.join(res_folder, curves_str)
-curves.savefig(fname=curves_path)
 
 # Metrics
 metrics, metrics_df = trial.get_metrics(res)

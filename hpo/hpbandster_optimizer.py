@@ -158,13 +158,6 @@ class HpbandsterOptimizer(BaseOptimizer):
         # Start the optimization
         try:
 
-            # If a warm start took place, reduce the number of remaining function evaluations to ensure comparability
-            # (equal budgets)
-            # if did_warmstart:
-            #     n_func_evals = self.n_func_evals - 1
-            # else:
-            #     n_func_evals = self.n_func_evals
-
             n_func_evals = self.n_func_evals
 
             res = optimizer.run(n_iterations=int(n_func_evals / eta), min_n_workers=self.n_workers)
