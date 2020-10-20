@@ -77,6 +77,26 @@ class RandomForestWorker(Worker):
 
         return cs
 
+    @staticmethod
+    def get_warmstart_configspace():
+        ws_cs = CS.ConfigurationSpace()
+
+        # HYPERPARAMETERS
+
+        n_estimators = CSH.Constant('n_estimators', value=100)
+
+        max_depth = CSH.Constant('max_depth', value=40)
+
+        min_samples_leaf = CSH.Constant('min_samples_leaf', value=30)
+
+        min_samples_split = CSH.Constant('min_samples_split', value=20)
+
+        max_features = CSH.Constant('max_features', value='auto')
+
+        ws_cs.add_hyperparameters([n_estimators, max_depth, min_samples_leaf,
+                                   min_samples_split, max_features])
+        return ws_cs
+
 
 # SVM Classifier
 class SVMWorker(Worker):
