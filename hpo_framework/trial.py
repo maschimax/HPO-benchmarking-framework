@@ -12,13 +12,13 @@ from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
-from hpo.optuna_optimizer import OptunaOptimizer
-from hpo.skopt_optimizer import SkoptOptimizer
-from hpo.hpbandster_optimizer import HpbandsterOptimizer
-from hpo.robo_optimizer import RoboOptimizer
-from hpo.hyperopt_optimizer import HyperoptOptimizer
-from hpo.results import TrialResult, MetricsResult
-from hpo.hpo_metrics import area_under_curve
+from hpo_framework.optuna_optimizer import OptunaOptimizer
+from hpo_framework.skopt_optimizer import SkoptOptimizer
+from hpo_framework.hpbandster_optimizer import HpbandsterOptimizer
+from hpo_framework.robo_optimizer import RoboOptimizer
+from hpo_framework.hyperopt_optimizer import HyperoptOptimizer
+from hpo_framework.results import TrialResult, MetricsResult
+from hpo_framework.hpo_metrics import area_under_curve
 
 
 class Trial:

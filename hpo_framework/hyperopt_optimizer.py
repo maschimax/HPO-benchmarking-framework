@@ -5,9 +5,9 @@ import numpy as np
 import time
 from multiprocessing import Process
 
-from hpo.baseoptimizer import BaseOptimizer
-from hpo.results import TuningResult
-from hpo import multiproc_target_funcs
+from hpo_framework.baseoptimizer import BaseOptimizer
+from hpo_framework.results import TuningResult
+from hpo_framework import multiproc_target_funcs
 
 
 class HyperoptOptimizer(BaseOptimizer):

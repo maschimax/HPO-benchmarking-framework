@@ -3,15 +3,15 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
+from hpo_framework.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
 
-from hpo.hpo_metrics import root_mean_squared_error
-import preprocessing as pp
-from hpo.trial import Trial
+from hpo_framework.hpo_metrics import root_mean_squared_error
+import datasets.dummy.preprocessing as pp
+from hpo_framework.trial import Trial
 
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
-abs_folder_path = os.path.abspath(path='datasets')
+abs_folder_path = os.path.abspath(path='datasets/dummy')
 data_folder = Path(abs_folder_path)
 train_file = "train.csv"
 test_file = "test.csv"
