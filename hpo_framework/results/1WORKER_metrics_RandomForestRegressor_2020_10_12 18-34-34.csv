@@ -1,0 +1,5 @@
+,HPO-library,HPO-method,ML-algorithm,Runs,Evaluations,Workers,t outperform default [s],Area under curve (AUC),Mean(best loss),Loss ratio,Interquartile range(best_loss),t best configuration [s],Evaluations for best configuration,Crashes
+1,optuna,CMA-ES,RandomForestRegressor,5,120,1,inf,35846.61922656782,34378.998192981715,0.9580966693848307,1095.6800852783927,117.1405628,113,0
+2,skopt,SMAC,RandomForestRegressor,5,120,1,56.73873672485352,33558.08462484749,32836.43866837422,1.0031052392172748,758.8796671704913,56.73873672485352,61,0
+3,optuna,RandomSearch,RandomForestRegressor,5,120,1,inf,34998.32329110344,33781.489487618805,0.9750429648034049,534.1024762137386,83.675241,113,0
+4,hpbandster,BOHB,RandomForestRegressor,5,120,1,inf,35036.69036025485,33624.19959581438,0.9796040964967132,552.7973752342878,148.19014058113098,257,0
