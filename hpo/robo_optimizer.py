@@ -133,7 +133,6 @@ class RoboOptimizer(BaseOptimizer):
                 s_max = len(self.x_train)  # Maximum number of data points for the training data set
                 s_min = int(0.05 * s_max)  # Maximum number of data points for the training data set
                 n_init = int(self.n_func_evals / 3)  # Requirement of the fabolas implementation
-                # n_init = 0
 
                 result_dict = fabolas(objective_function=self.objective_fabolas, s_min=s_min, s_max=s_max,
                                       lower=hp_space_lower, upper=hp_space_upper,

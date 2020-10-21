@@ -26,19 +26,19 @@ X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standar
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = True
+debug = False
 
 if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'TPE'), ('skopt', 'GPBO')]
+    opt_schedule = [('robo', 'Fabolas')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 20
-    n_workers = 4
+    n_runs = 1
+    n_func_evals = 10
+    n_workers = 1
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
 
