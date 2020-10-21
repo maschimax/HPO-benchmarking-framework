@@ -3,15 +3,15 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
+from hpo_framework.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
 
-from hpo.hpo_metrics import root_mean_squared_error
-import preprocessing as pp
-from hpo.trial import Trial
+from hpo_framework.hpo_metrics import root_mean_squared_error
+import datasets.dummy.preprocessing as pp
+from hpo_framework.trial import Trial
 
 # Loading data and preprocessing
 # >>> Linux OS and Windows require different path representations -> use pathlib <<<
-abs_folder_path = os.path.abspath(path='datasets')
+abs_folder_path = os.path.abspath(path='datasets/dummy')
 data_folder = Path(abs_folder_path)
 train_file = "train.csv"
 test_file = "test.csv"
@@ -26,19 +26,19 @@ X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standar
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = True
+debug = False
 
 if debug:
     # Set parameters manually
     hp_space = space_rf
     ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('optuna', 'TPE'), ('skopt', 'GPBO')]
+    opt_schedule = [('robo', 'Fabolas')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 20
-    n_workers = 4
+    n_runs = 1
+    n_func_evals = 10
+    n_workers = 1
     loss_metric = root_mean_squared_error
     do_warmstart = 'No'
 
@@ -152,9 +152,9 @@ trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt
 # Run the optimizations
 res = trial.run()
 
-abs_results_path = os.path.abspath(path='hpo/results')
+abs_results_path = os.path.abspath(path='hpo_framework/results')
 res_folder = Path(abs_results_path)
-abs_log_path = os.path.abspath(path='hpo/results/logs')
+abs_log_path = os.path.abspath(path='hpo_framework/results/logs')
 log_folder = Path(abs_log_path)
 
 time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
