@@ -6,10 +6,10 @@ import hpbandster.core.result as hpres
 import pandas as pd
 from multiprocessing import Process
 
-from hpo.baseoptimizer import BaseOptimizer
-from hpo.results import TuningResult
-from hpo.hpbandster_worker import HPBandsterWorker
-from hpo import multiproc_target_funcs
+from hpo_framework.baseoptimizer import BaseOptimizer
+from hpo_framework.results import TuningResult
+from hpo_framework.hpbandster_worker import HPBandsterWorker
+from hpo_framework import multiproc_target_funcs
 
 
 class HpbandsterOptimizer(BaseOptimizer):

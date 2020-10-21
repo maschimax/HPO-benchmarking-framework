@@ -3,8 +3,8 @@ import skopt
 import time
 from robo.fmin import bayesian_optimization, fabolas
 
-from hpo.baseoptimizer import BaseOptimizer
-from hpo.results import TuningResult
+from hpo_framework.baseoptimizer import BaseOptimizer
+from hpo_framework.results import TuningResult
 
 
 class RoboOptimizer(BaseOptimizer):

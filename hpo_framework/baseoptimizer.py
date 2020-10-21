@@ -13,8 +13,8 @@ from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
 
-from hpo.results import TuningResult
-from hpo.lr_schedules import fix, exponential, cosine
+from hpo_framework.results import TuningResult
+from hpo_framework.lr_schedules import fix, exponential, cosine
 
 
 class BaseOptimizer(ABC):

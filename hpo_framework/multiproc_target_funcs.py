@@ -1,5 +1,5 @@
 import optuna
-from hpo.hpbandster_worker import HPBandsterWorker
+from hpo_framework.hpbandster_worker import HPBandsterWorker
 import os
 from hyperopt import fmin
 

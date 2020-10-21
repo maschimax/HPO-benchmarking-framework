@@ -1,8 +1,8 @@
 from skopt.optimizer import forest_minimize, gp_minimize
 import time
 
-from hpo.baseoptimizer import BaseOptimizer
-from hpo.results import TuningResult
+from hpo_framework.baseoptimizer import BaseOptimizer
+from hpo_framework.results import TuningResult
 
 
 class SkoptOptimizer(BaseOptimizer):
