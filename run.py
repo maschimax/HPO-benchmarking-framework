@@ -152,9 +152,9 @@ trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt
 # Run the optimizations
 res = trial.run()
 
-abs_results_path = os.path.abspath(path='hpo/results')
+abs_results_path = os.path.abspath(path='hpo_framework/results')
 res_folder = Path(abs_results_path)
-abs_log_path = os.path.abspath(path='hpo/results/logs')
+abs_log_path = os.path.abspath(path='hpo_framework/results/logs')
 log_folder = Path(abs_log_path)
 
 time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
