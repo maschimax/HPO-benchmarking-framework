@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import time
 import functools
 
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
@@ -184,7 +184,7 @@ class BaseOptimizer(ABC):
 
         return warmstart_loss
 
-    def train_evaluate_scikit_regressor(self, params: dict, **kwargs):
+    def train_evaluate_scikit_model(self, params: dict, **kwargs):
         """
         This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss
@@ -199,6 +199,9 @@ class BaseOptimizer(ABC):
         # Create ML-model for the HP-configuration selected by the HPO-method
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+
+        elif self.ml_algorithm == 'RandomForestClassifier':
+            model = RandomForestClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state and no n_jobs parameters
