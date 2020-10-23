@@ -5,7 +5,7 @@ import time
 import functools
 
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.svm import SVR
+from sklearn.svm import SVR, SVC
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
@@ -101,9 +101,15 @@ class BaseOptimizer(ABC):
         if self.ml_algorithm == 'RandomForestRegressor':
             default_model = RandomForestRegressor(random_state=self.random_seed)
 
+        elif self.ml_algorithm == 'RandomForestClassifier':
+            default_model = RandomForestClassifier(random_state=self.random_seed)
+
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state parameter
             default_model = SVR()
+
+        elif self.ml_algorithm == 'SVC':
+            default_model = SVC(random_state=self.random_seed)
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
             default_model = AdaBoostRegressor(random_state=self.random_seed)
@@ -152,9 +158,15 @@ class BaseOptimizer(ABC):
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(**warmstart_config, random_state=self.random_seed)
 
+        elif self.ml_algorithm == 'RandomForestClassifier':
+            model = RandomForestClassifier(**warmstart_config, random_state=self.random_seed)
+
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state parameter
             model = SVR(**warmstart_config)
+
+        elif self.ml_algorithm == 'SVC':
+            model = SVC(**warmstart_config, random_state=self.random_seed)
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
             model = AdaBoostRegressor(**warmstart_config, random_state=self.random_seed)
@@ -206,6 +218,10 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state and no n_jobs parameters
             model = SVR(**params)
+
+        elif self.ml_algorithm == 'SVC':
+            # SVC has no n_jobs parameter
+            model = SVC(**params, random_state=self.random_seed)
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
             # AdaBoostRegrssor has no n_jobs parameter

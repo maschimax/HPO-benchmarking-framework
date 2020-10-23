@@ -92,7 +92,7 @@ class RoboOptimizer(BaseOptimizer):
 
                         # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                         # different (e.g. int)
-                        if this_warmstart_value is None:
+                        if this_warmstart_value is None and type(self.hp_space[i]) == skopt.space.space.Integer:
                             # Try to impute these values by the mean value
                             this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
                             dict_value = this_warmstart_value
@@ -261,7 +261,8 @@ class RoboOptimizer(BaseOptimizer):
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or\
+                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC':
 
             eval_func = self.train_evaluate_scikit_model
 
@@ -308,7 +309,8 @@ class RoboOptimizer(BaseOptimizer):
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC':
 
             eval_func = self.train_evaluate_scikit_model
 

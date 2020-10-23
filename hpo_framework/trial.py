@@ -5,7 +5,7 @@ import seaborn as sns
 import uuid
 import math
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor
-from sklearn.svm import SVR
+from sklearn.svm import SVR, SVC
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
@@ -572,6 +572,11 @@ class Trial:
 
         elif self.ml_algorithm == 'SVR':
             model = SVR()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'SVC':
+            model = SVC(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
