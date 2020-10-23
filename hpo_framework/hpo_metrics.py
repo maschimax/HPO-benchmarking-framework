@@ -1,9 +1,14 @@
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, f1_score
 from math import sqrt
 
 
 def root_mean_squared_error(y_true, y_pred):
     return sqrt(mean_squared_error(y_true=y_true, y_pred=y_pred))
+
+
+def f1_loss(y_true, y_pred):
+    loss = 1 - f1_score(y_true=y_true, y_pred=y_pred)
+    return loss
 
 
 def area_under_curve(mean_trace_desc: list, lower_bound=0.0):

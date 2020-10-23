@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import uuid
 import math
-from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
@@ -562,6 +562,11 @@ class Trial:
         """
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'RandomForestClassifier':
+            model = RandomForestClassifier(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 

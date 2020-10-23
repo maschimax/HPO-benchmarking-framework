@@ -23,7 +23,7 @@ class HPBandsterWorker(Worker):
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
                 self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
 
-            eval_func = self.optimizer_object.train_evaluate_scikit_regressor
+            eval_func = self.optimizer_object.train_evaluate_scikit_model
 
         elif self.ml_algorithm == 'KerasRegressor':
             eval_func = self.optimizer_object.train_evaluate_keras_regressor

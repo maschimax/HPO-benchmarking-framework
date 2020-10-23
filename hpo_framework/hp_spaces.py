@@ -2,11 +2,19 @@ import skopt
 
 # Hyperparameter spaces according to skopt
 # Random Forest Regressor
-space_rf = [skopt.space.Integer(1, 200, name='n_estimators'),
-            skopt.space.Integer(1, 80, name='max_depth'),
-            skopt.space.Integer(1, 30, name='min_samples_leaf'),
-            skopt.space.Integer(2, 20, name='min_samples_split'),
-            skopt.space.Categorical(['auto', 'sqrt'], name='max_features')]
+space_rf_reg = [skopt.space.Integer(1, 200, name='n_estimators'),
+                skopt.space.Integer(1, 80, name='max_depth'),
+                skopt.space.Integer(1, 30, name='min_samples_leaf'),
+                skopt.space.Integer(2, 20, name='min_samples_split'),
+                skopt.space.Categorical(['auto', 'sqrt'], name='max_features')]
+
+# Random Forest Classifier
+space_rf_clf = [skopt.space.Integer(1, 80, name='max_depth'),
+                skopt.space.Integer(1, 30, name='min_samples_leaf'),
+                skopt.space.Integer(2, 20, name='min_samples_split'),
+                skopt.space.Categorical(['auto', 'sqrt'], name='max_features'),
+                skopt.space.Integer(10, 200, name='n_estimators'),
+                skopt.space.Categorical(['balanced', None], name='class_weight')]
 
 # SupportVectorMachine-Regressor
 space_svr = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
