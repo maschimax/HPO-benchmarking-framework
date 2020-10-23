@@ -61,8 +61,18 @@ space_linr = [skopt.space.Categorical([True, False], name='fit_intercept'),
               skopt.space.Categorical([False, True], name='normalize')]
 
 # KNNRegressor (KNeighborsRegressor)
-space_knn_r = [skopt.space.Integer(1, 10, name='n_neighbors'),
-               skopt.space.Categorical(['uniform', 'distance'], name='weights'),
-               skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
-               skopt.space.Integer(1, 60, name='leaf_size'),
-               skopt.space.Integer(1, 2, name='p')]
+space_knn_reg = [skopt.space.Integer(1, 10, name='n_neighbors'),
+                 skopt.space.Categorical(['uniform', 'distance'], name='weights'),
+                 skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
+                 skopt.space.Integer(1, 60, name='leaf_size'),
+                 skopt.space.Integer(1, 2, name='p')]
+
+# LightGBM Classifier
+# Important HPs: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
+# Example of HP tuning with Optuna:
+# https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
+space_lgb_clf = [skopt.space.Integer(2, 256, name='num_leaves'),
+                 skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
+                 skopt.space.Integer(1, 100, name='max_depth'),
+                 skopt.space.Real(low=1e-8, high=10.0, name='lambda_l1'),
+                 skopt.space.Real(low=1e-8, high=10.0, name='lambda_l2')]
