@@ -12,6 +12,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor
+import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
@@ -405,5 +406,57 @@ class BaseOptimizer(ABC):
 
         # Measure the finish time of the iteration
         self.times.append(time.time())
+
+        return val_loss
+
+    def train_evaluate_lightgbm_classifier(self, params, **kwargs):
+        """
+
+        :param params:
+        :param kwargs:
+        :return:
+        """
+
+        if 'hb_budget' in kwargs:
+            # For BOHB and Hyperband select the training data according to the budget of this iteration
+            hb_budget = kwargs['hb_budget']
+            n_train = len(self.x_train)
+            n_budget = int(0.1 * hb_budget * n_train)
+            idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        elif 'fabolas_budget' in kwargs:
+            # For Fabolas select the training data according to the budget of this iteration
+            fabolas_budget = kwargs['fabolas_budget']
+            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+            x_train = self.x_train.iloc[idx_train]
+            y_train = self.y_train.iloc[idx_train]
+
+        else:
+            x_train = self.x_train
+            y_train = self.y_train
+
+        # Create lgb datasets
+        train_data = lgb.Dataset(x_train, label=y_train)
+        valid_data = lgb.Dataset(self.x_val, label=self.y_val)
+
+        # Specify the Ml task (binary classification)
+        params['objective'] = 'binary'
+        params['num_threads'] = self.n_workers
+        params['seed'] = self.random_seed
+
+        # Initialize and train the model
+        # >> SPECIFY LOSS METRIC HERE??
+        lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+
+        # Make the prediction and round to nearest integer (binary classification)
+        y_pred = lgb_clf.predict(data=self.x_val)
+        y_pred = np.rint(y_pred)
+
+        # Compute the validation loss according to the loss_metric selected
+        val_loss = self.metric(self.y_val, y_pred)
+
+        # Measure the finish time of the iteration
 
         return val_loss

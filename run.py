@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb, space_ada, \
-    space_dt, space_linr, space_knn_r
+from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
+    space_ada, space_dt, space_linr, space_knn_reg, space_lgb_clf
 
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss
 from hpo_framework.trial import Trial
@@ -43,15 +43,15 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_svc
-    ml_algo = 'SVC'
-    opt_schedule = [('skopt', 'SMAC')]
+    hp_space = space_lgb_clf
+    ml_algo = 'LGBMClassifier'
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
     n_func_evals = 60
-    n_workers = 4
+    n_workers = 1
     loss_metric = f1_loss
     do_warmstart = 'No'
 
@@ -61,7 +61,7 @@ else:
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
                         choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
                                  'XGBoostRegressor', 'SVR', 'SVC', 'AdaBoostRegressor', 'DecisionTreeRegressor',
-                                 'LinearRegression', 'KNNRegressor'])
+                                 'LinearRegression', 'KNNRegressor', 'LGBMClassifier'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
@@ -139,7 +139,10 @@ else:
         hp_space = space_linr
 
     elif ml_algo == 'KNNRegressor':
-        hp_space = space_knn_r
+        hp_space = space_knn_reg
+
+    elif ml_algo == 'LGBClassifier':
+        hp_space = space_lgb_clf
 
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
