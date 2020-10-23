@@ -3,7 +3,8 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
+from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb, space_ada, \
+    space_dt, space_linr, space_knn_r
 
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss
 from hpo_framework.trial import Trial
@@ -26,7 +27,7 @@ if use_case == 'dummy':
     test_raw = pp.load_data(data_folder, test_file)
 
     X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
-                                                    count_encoding=False)
+                                                        count_encoding=False)
 
 elif use_case == 'scania':
 
@@ -42,15 +43,15 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_rf_clf
-    ml_algo = 'RandomForestClassifier'
+    hp_space = space_svc
+    ml_algo = 'SVC'
     opt_schedule = [('skopt', 'SMAC')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 15
-    n_workers = 1
+    n_func_evals = 60
+    n_workers = 4
     loss_metric = f1_loss
     do_warmstart = 'No'
 
@@ -59,7 +60,7 @@ else:
 
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
                         choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
-                                 'XGBoostRegressor', 'SVR', 'AdaBoostRegressor', 'DecisionTreeRegressor',
+                                 'XGBoostRegressor', 'SVR', 'SVC', 'AdaBoostRegressor', 'DecisionTreeRegressor',
                                  'LinearRegression', 'KNNRegressor'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
@@ -125,6 +126,9 @@ else:
     elif ml_algo == 'SVR':
         hp_space = space_svr
 
+    elif ml_algo == 'SVC':
+        hp_space = space_svc
+
     elif ml_algo == 'AdaBoostRegressor':
         hp_space = space_ada
 
@@ -150,7 +154,6 @@ else:
     else:
         raise Exception('This loss metric has not yet been implemented.')
 
-
 # Display a summary of the trial settings
 print('Optimize: ' + ml_algo)
 print('With HPO-methods: ')
@@ -161,7 +164,6 @@ print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, '
       ' worker(s), warmstart: ' + do_warmstart + '.')
 print('------')
 print('Optimization schedule: ', opt_schedule)
-
 
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,

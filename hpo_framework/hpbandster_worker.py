@@ -21,7 +21,8 @@ class HPBandsterWorker(Worker):
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC':
 
             eval_func = self.optimizer_object.train_evaluate_scikit_model
 

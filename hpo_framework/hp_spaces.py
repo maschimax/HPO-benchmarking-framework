@@ -16,10 +16,16 @@ space_rf_clf = [skopt.space.Integer(1, 80, name='max_depth'),
                 skopt.space.Integer(10, 200, name='n_estimators'),
                 skopt.space.Categorical(['balanced', None], name='class_weight')]
 
-# SupportVectorMachine-Regressor
+# SVM-Regressor
 space_svr = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
              skopt.space.Categorical(['scale', 'auto'], name='gamma'),
              skopt.space.Real(low=1e-3, high=1e+0, name='epsilon')]
+
+# SVM-Classifier
+space_svc = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
+             skopt.space.Real(low=1e-3, high=1e+3, name='gamma'),
+             skopt.space.Categorical(['sigmoid', 'rbf', 'poly'], name='kernel'),
+             skopt.space.Categorical(['balanced', None], name='class_weight')]
 
 # KerasRegressor
 space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
