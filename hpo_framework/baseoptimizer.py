@@ -411,10 +411,14 @@ class BaseOptimizer(ABC):
 
     def train_evaluate_lightgbm_classifier(self, params, **kwargs):
         """
-
-        :param params:
-        :param kwargs:
-        :return:
+        This method trains a LightGBM model according to the selected HP-configuration and returns the
+        validation loss.
+        :param params: dict
+            Dictionary of hyperparameters
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
+        :return: val_loss: float
+            Validation loss of this run
         """
 
         if 'hb_budget' in kwargs:

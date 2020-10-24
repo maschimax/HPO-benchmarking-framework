@@ -5,8 +5,7 @@ import argparse
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
     space_ada, space_dt, space_linr, space_knn_reg, space_lgb_clf
-
-from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss
+from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
@@ -50,9 +49,9 @@ if debug:
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 60
-    n_workers = 1
-    loss_metric = f1_loss
+    n_func_evals = 20
+    n_workers = 4
+    loss_metric = accuracy_loss
     do_warmstart = 'No'
 
 else:
