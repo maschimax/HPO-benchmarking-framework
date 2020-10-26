@@ -39,9 +39,20 @@ space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_
                skopt.space.Categorical([.0, .3, .6], name='dropout2')]
 
 # XGBoostRegressor
-space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
-             skopt.space.Integer(1, 200, name='n_estimators'),
-             skopt.space.Integer(1, 80, name='max_depth')]
+space_xgb_reg = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
+                 skopt.space.Integer(1, 200, name='n_estimators'),
+                 skopt.space.Integer(1, 80, name='max_depth')]
+
+# XGBoostClassifier
+# HP space used by Hanno
+space_xgb_clf = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
+                 skopt.space.Integer(1, 200, name='n_estimators'),
+                 skopt.space.Real(0.0, 1, name='eta'),
+                 skopt.space.Integer(1, 30, name='max_depth'),
+                 skopt.space.Categorical(['uniform', 'weighted'], name='sample_type'),
+                 skopt.space.Categorical(['tree', 'forest'], name='normalize_type'),
+                 skopt.space.Real(0.0, 1.0, name='rate_drop'),
+                 skopt.space.Categorical(['shotgun', 'coord_descent'], name='updater')]
 
 # AdaBoostRegressor
 # First try >>> iterative testing to find meaningful ranges for each HP // or refer the AdaBoost literature
@@ -73,6 +84,14 @@ space_knn_reg = [skopt.space.Integer(1, 10, name='n_neighbors'),
 # https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
 space_lgb_clf = [skopt.space.Integer(2, 256, name='num_leaves'),
                  skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
-                 skopt.space.Integer(1, 100, name='max_depth'),
-                 skopt.space.Real(low=1e-8, high=10.0, name='lambda_l1'),
-                 skopt.space.Real(low=1e-8, high=10.0, name='lambda_l2')]
+                 skopt.space.Integer(-1, 100, name='max_depth'),
+                 skopt.space.Real(low=0.0, high=10.0, name='lambda_l1'),
+                 skopt.space.Real(low=0.0, high=10.0, name='lambda_l2')]
+
+# HP values for warm starting a LightGBM-Classifier // HP values need to be inside the bounds of the predefined HP-space
+# for a LightGBM-Classifier (see above)
+warmstart_lgb_clf = {'num_leaves': 31,
+                     'min_data_in_leaf': 20,
+                     'max_depth': -1,
+                     'lambda_l1': 0.0,
+                     'lambda_l2': 0.0}

@@ -10,7 +10,8 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor, XGBClassifier
+import lightgbm as lgb
 
 from hpo_framework.optuna_optimizer import OptunaOptimizer
 from hpo_framework.skopt_optimizer import SkoptOptimizer
@@ -620,6 +621,26 @@ class Trial:
             model = XGBRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'XGBoostClassifier':
+            model = XGBClassifier(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'LGBMClassifier':
+            # Create lgb datasets
+            train_data = lgb.Dataset(self.x_train, label=self.y_train)
+            valid_data = lgb.Dataset(self.x_val, label=self.y_val)
+
+            # Specify the ML taskt and the random seed
+            params = {'objective': 'binary',
+                      'seed': 0}
+
+            lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+
+            # Make the prediction and round to nearest integer (binary classification)
+            y_pred = lgb_clf.predict(data=self.x_val)
+            y_pred = np.rint(y_pred)
 
         else:
             raise Exception('Unknown ML-algorithm!')
