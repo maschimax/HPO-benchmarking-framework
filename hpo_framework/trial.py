@@ -627,20 +627,30 @@ class Trial:
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
-        elif self.ml_algorithm == 'LGBMClassifier':
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
             # Create lgb datasets
             train_data = lgb.Dataset(self.x_train, label=self.y_train)
             valid_data = lgb.Dataset(self.x_val, label=self.y_val)
 
-            # Specify the ML taskt and the random seed
-            params = {'objective': 'binary',
-                      'seed': 0}
+            # Specify the ML task and the random seed
+            if self.ml_algorithm == 'LGBMRegressor':
+                # Regression task
+                params = {'objective': 'regression',
+                          'seed': 0}
+
+            elif self.ml_algorithm == 'LGBMClassifier':
+                # Binary classification task
+                params = {'objective': 'binary',
+                          'seed': 0}
 
             lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
-            # Make the prediction and round to nearest integer (binary classification)
+            # Make the prediction
             y_pred = lgb_clf.predict(data=self.x_val)
-            y_pred = np.rint(y_pred)
+
+            # In case of binary classification round to the nearest integer
+            if self.ml_algorithm == 'LGBMClassifier':
+                y_pred = np.rint(y_pred)
 
         else:
             raise Exception('Unknown ML-algorithm!')
