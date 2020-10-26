@@ -207,8 +207,8 @@ class HyperoptOptimizer(BaseOptimizer):
 
             eval_func = self.train_evaluate_scikit_model
 
-        elif self.ml_algorithm == 'KerasRegressor':
-            eval_func = self.train_evaluate_keras_regressor
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+            eval_func = self.train_evaluate_keras_model
 
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
             eval_func = self.train_evaluate_xgboost_model

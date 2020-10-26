@@ -11,7 +11,7 @@ import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'dummy'
+use_case = 'scania'
 
 if use_case == 'dummy':
     # Loading data and preprocessing
@@ -42,16 +42,16 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_lgb
-    ml_algo = 'LGBMRegressor'
-    opt_schedule = [('robo', 'Bohamiann')]
+    hp_space = space_keras
+    ml_algo = 'KerasClassifier'
+    opt_schedule = [('robo', 'Fabolas')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 10
+    n_func_evals = 15
     n_workers = 1
-    loss_metric = root_mean_squared_error
+    loss_metric = accuracy_loss
     do_warmstart = 'Yes'
 
 else:
@@ -117,7 +117,7 @@ else:
     elif ml_algo == 'RandomForestClassifier':
         hp_space = space_rf_clf
 
-    elif ml_algo == 'KerasRegressor':
+    elif ml_algo == 'KerasRegressor' or ml_algo == 'KerasClassifier':
         hp_space = space_keras
 
     elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':

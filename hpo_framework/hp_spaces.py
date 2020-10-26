@@ -28,6 +28,7 @@ space_svc = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
              skopt.space.Categorical(['balanced', None], name='class_weight')]
 
 # KerasRegressor
+# HP space for fully connected neural network from: https://arxiv.org/pdf/1905.04970.pdf
 space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
                skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
                skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
@@ -37,6 +38,18 @@ space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_
                skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer2_size'),
                skopt.space.Categorical([.0, .3, .6], name='dropout1'),
                skopt.space.Categorical([.0, .3, .6], name='dropout2')]
+
+# HP values for warm starting a Keras model //
+# https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
+warmstart_keras = {'init_lr': 0.001,
+                   'batch_size': 200,
+                   'lr_schedule': 'constant',
+                   'layer1_activation': 'relu',
+                   'layer2_activation': 'relu',
+                   'layer1_size': 100,
+                   'layer2_size': 100,
+                   'dropout1': 0.0,
+                   'dropout2': 0.0}
 
 # XGBoostModel
 # HP space used by Hanno

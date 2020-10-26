@@ -52,7 +52,7 @@ class RoboOptimizer(BaseOptimizer):
         self.times = []  # Initialize a list for saving the wall clock times
 
         # Use a warmstart configuration (only possible for BOHAMIANN, not FABOLAS)
-        if self.do_warmstart == 'Yes':
+        if self.do_warmstart == 'Yes' and self.hpo_method != 'Fabolas':
 
             # Initialize numpy arrays for saving the warmstart configuration and the warmstart loss
             warmstart_config = np.zeros(shape=(1, len(self.hp_space)))
@@ -266,8 +266,8 @@ class RoboOptimizer(BaseOptimizer):
 
             eval_func = self.train_evaluate_scikit_model
 
-        elif self.ml_algorithm == 'KerasRegressor':
-            eval_func = self.train_evaluate_keras_regressor
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+            eval_func = self.train_evaluate_keras_model
 
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
             eval_func = self.train_evaluate_xgboost_model
@@ -317,8 +317,8 @@ class RoboOptimizer(BaseOptimizer):
 
             eval_func = self.train_evaluate_scikit_model
 
-        elif self.ml_algorithm == 'KerasRegressor':
-            eval_func = self.train_evaluate_keras_regressor
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+            eval_func = self.train_evaluate_keras_model
 
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
             eval_func = self.train_evaluate_xgboost_model

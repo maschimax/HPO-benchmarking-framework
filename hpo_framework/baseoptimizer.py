@@ -16,7 +16,7 @@ import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
-from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb
+from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras
 
 
 class BaseOptimizer(ABC):
@@ -135,6 +135,9 @@ class BaseOptimizer(ABC):
             default_model = KNeighborsRegressor()
             default_params = default_model.get_params()
 
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+            default_params = warmstart_keras
+
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
             default_params = warmstart_xgb
 
@@ -146,7 +149,7 @@ class BaseOptimizer(ABC):
             # default_params = default_model.params
             default_params = warmstart_lgb
 
-            # Add remaining ML-algorithms here (e.g. Keras)
+            # Add remaining ML-algorithms here
 
         else:
             raise Exception('Unknown ML-algorithm!')
@@ -233,6 +236,69 @@ class BaseOptimizer(ABC):
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+
+            epochs = 100
+
+            # Initialize the neural network
+            model = keras.Sequential()
+
+            # Add input layer
+            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+
+            # Add first hidden layer
+            model.add(keras.layers.Dense(warmstart_config['layer1_size'], activation=warmstart_config['layer1_activation']))
+            model.add(keras.layers.Dropout(warmstart_config['dropout1']))
+
+            # Add second hidden layer
+            model.add(keras.layers.Dense(warmstart_config['layer2_size'], activation=warmstart_config['layer2_activation']))
+            model.add(keras.layers.Dropout(warmstart_config['dropout2']))
+
+            # Add output layer
+            if self.ml_algorithm == 'KerasRegressor':
+
+                model.add(keras.layers.Dense(1, activation='linear'))
+
+                # Select optimizer and compile the model
+                adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
+                model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+
+            elif self.ml_algorithm == 'KerasClassifier':
+                # Binary classification
+                model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+                adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
+                model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+            # Learning rate schedule
+            if warmstart_config["lr_schedule"] == "cosine":
+                schedule = functools.partial(cosine, initial_lr=warmstart_config["init_lr"], T_max=epochs)
+
+            elif warmstart_config["lr_schedule"] == "exponential":
+                schedule = functools.partial(exponential, initial_lr=warmstart_config["init_lr"], T_max=epochs)
+
+            elif warmstart_config["lr_schedule"] == "constant":
+                schedule = functools.partial(fix, initial_lr=warmstart_config["init_lr"])
+
+            else:
+                raise Exception('Unknown learning rate schedule!')
+
+            # Determine the learning rate for this iteration and pass it as callback
+            lr = keras.callbacks.LearningRateScheduler(schedule)
+            callbacks_list = [lr]
+
+            # Train the model
+            model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=warmstart_config['batch_size'],
+                      validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
+                      verbose=1)
+
+            # Make the prediction
+            y_pred = model.predict(self.x_val)
+
+            # In case of binary classification round to the neares integer
+            if self.ml_algorithm == 'KerasClassifier':
+                y_pred = np.rint(y_pred)
+
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
 
             # Consideration of conditional hyperparameters
@@ -286,7 +352,7 @@ class BaseOptimizer(ABC):
             if self.ml_algorithm == 'LGBMClassifier':
                 y_pred = np.rint(y_pred)
 
-            # Add remaining ML-algorithms here (e.g. Keras)
+            # Add remaining ML-algorithms here
 
         else:
             raise Exception('Unknown ML-algorithm!')
@@ -374,7 +440,7 @@ class BaseOptimizer(ABC):
 
         return val_loss
 
-    def train_evaluate_keras_regressor(self, params: dict, **kwargs):
+    def train_evaluate_keras_model(self, params: dict, **kwargs):
         """
         This method trains a keras model according to the selected HP-configuration and returns the
         validation loss
@@ -422,11 +488,20 @@ class BaseOptimizer(ABC):
         model.add(keras.layers.Dropout(params['dropout2']))
 
         # Add output layer
-        model.add(keras.layers.Dense(1, activation='linear'))
+        if self.ml_algorithm == 'KerasRegressor':
 
-        # Select optimizer and compile the model
-        adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
-        model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+            model.add(keras.layers.Dense(1, activation='linear'))
+
+            # Select optimizer and compile the model
+            adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+            model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+
+        elif self.ml_algorithm == 'KerasClassifier':
+            # Binary classification
+            model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+            adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+            model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
 
         # Learning rate schedule
         if params["lr_schedule"] == "cosine":
@@ -452,6 +527,10 @@ class BaseOptimizer(ABC):
 
         # Make the prediction
         y_pred = model.predict(self.x_val)
+
+        # In case of binary classification round to the neares integer
+        if self.ml_algorithm == 'KerasClassifier':
+            y_pred = np.rint(y_pred)
 
         # Compute the validation loss according to the loss_metric selected
         val_loss = self.metric(self.y_val, y_pred)
