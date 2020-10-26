@@ -32,8 +32,8 @@ class HPBandsterWorker(Worker):
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
             eval_func = self.optimizer_object.train_evaluate_xgboost_model
 
-        elif self.ml_algorithm == 'LGBMClassifier':
-            eval_func = self.optimizer_object.train_evaluate_lightgbm_classifier
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+            eval_func = self.optimizer_object.train_evaluate_lightgbm_model
 
         else:
             raise Exception('Unknown ML-algorithm!')

@@ -83,20 +83,20 @@ space_knn_reg = [skopt.space.Integer(1, 10, name='n_neighbors'),
                  skopt.space.Integer(1, 60, name='leaf_size'),
                  skopt.space.Integer(1, 2, name='p')]
 
-# LightGBM Classifier
+# LightGBM model
 # Important HPs: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
 # Example of HP tuning with Optuna:
 # https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
-space_lgb_clf = [skopt.space.Integer(2, 256, name='num_leaves'),
-                 skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
-                 skopt.space.Integer(-1, 100, name='max_depth'),
-                 skopt.space.Real(low=0.0, high=10.0, name='lambda_l1'),
-                 skopt.space.Real(low=0.0, high=10.0, name='lambda_l2')]
+space_lgb = [skopt.space.Integer(2, 256, name='num_leaves'),
+             skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
+             skopt.space.Integer(-1, 100, name='max_depth'),
+             skopt.space.Real(low=0.0, high=10.0, name='lambda_l1'),
+             skopt.space.Real(low=0.0, high=10.0, name='lambda_l2')]
 
-# HP values for warm starting a LightGBM-Classifier // HP values need to be inside the bounds of the predefined HP-space
-# for a LightGBM-Classifier (see above)
-warmstart_lgb_clf = {'num_leaves': 31,
-                     'min_data_in_leaf': 20,
-                     'max_depth': -1,
-                     'lambda_l1': 0.0,
-                     'lambda_l2': 0.0}
+# HP values for warm starting a LightGBM model // HP values need to be inside the bounds of the predefined HP-space
+# for a LightGBM model (see above)
+warmstart_lgb = {'num_leaves': 31,
+                 'min_data_in_leaf': 20,
+                 'max_depth': -1,
+                 'lambda_l1': 0.0,
+                 'lambda_l2': 0.0}

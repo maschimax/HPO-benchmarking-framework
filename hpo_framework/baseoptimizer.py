@@ -16,7 +16,7 @@ import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
-from hpo_framework.hp_spaces import warmstart_lgb_clf, warmstart_xgb
+from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb
 
 
 class BaseOptimizer(ABC):
@@ -138,15 +138,15 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
             default_params = warmstart_xgb
 
-        elif self.ml_algorithm == 'LGBMClassifier':
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
             # train_data = lgb.Dataset(self.x_train, self.y_train)
             # params = {'objective': 'binary',
             #           'seed': self.random_seed}
             # default_model = lgb.train(params=params, train_set=train_data)
             # default_params = default_model.params
-            default_params = warmstart_lgb_clf
+            default_params = warmstart_lgb
 
-            # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
+            # Add remaining ML-algorithms here (e.g. Keras)
 
         else:
             raise Exception('Unknown ML-algorithm!')
@@ -260,21 +260,33 @@ class BaseOptimizer(ABC):
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
-        elif self.ml_algorithm == 'LGBMClassifier':
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
             train_data = lgb.Dataset(self.x_train, self.y_train)
             valid_data = lgb.Dataset(self.x_val, self.y_val)
 
             if 'objective' not in warmstart_config.keys():
-                warmstart_config['objective'] = 'binary'
+                # Specify the ML task
+                if self.ml_algorithm == 'LGBMRegressor':
+                    # Regression task
+                    warmstart_config['objective'] = 'regression'
+
+                elif self.ml_algorithm == 'LGBMClassifier':
+                    # Binary classification task
+                    warmstart_config['objective'] = 'binary'
+
             if 'seed' not in warmstart_config.keys():
+                # Specify the random seed
                 warmstart_config['seed'] = self.random_seed
 
             # Train the model and make the prediction
             model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
             y_pred = model.predict(self.x_val)
-            y_pred = np.rint(y_pred)
 
-            # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
+            # In case of binary classification, round to the neares integer
+            if self.ml_algorithm == 'LGBMClassifier':
+                y_pred = np.rint(y_pred)
+
+            # Add remaining ML-algorithms here (e.g. Keras)
 
         else:
             raise Exception('Unknown ML-algorithm!')
@@ -515,7 +527,7 @@ class BaseOptimizer(ABC):
 
         return val_loss
 
-    def train_evaluate_lightgbm_classifier(self, params, **kwargs):
+    def train_evaluate_lightgbm_model(self, params, **kwargs):
         """
         This method trains a LightGBM model according to the selected HP-configuration and returns the
         validation loss.
@@ -551,18 +563,28 @@ class BaseOptimizer(ABC):
         train_data = lgb.Dataset(x_train, label=y_train)
         valid_data = lgb.Dataset(self.x_val, label=self.y_val)
 
-        # Specify the Ml task (binary classification)
-        params['objective'] = 'binary'
+        # Specify the Ml task
+        if self.ml_algorithm == 'LGBMRegressor':
+            # Regression task
+            params['objective'] = 'regression'
+
+        elif self.ml_algorithm == 'LGBMClassifier':
+            # Binary classification task
+            params['objective'] = 'binary'
+
+        # Specify the number of threads (parallelization) and the random seed
         params['num_threads'] = self.n_workers
         params['seed'] = self.random_seed
 
         # Initialize and train the model
-        # >> SPECIFY LOSS METRIC HERE??
-        lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+        lgb_model = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
-        # Make the prediction and round to nearest integer (binary classification)
-        y_pred = lgb_clf.predict(data=self.x_val)
-        y_pred = np.rint(y_pred)
+        # Make the prediction
+        y_pred = lgb_model.predict(data=self.x_val)
+
+        # In case of binary classification round to the nearest integer
+        if self.ml_algorithm == 'LGBMClassifier':
+            y_pred = np.rint(y_pred)
 
         # Compute the validation loss according to the loss_metric selected
         val_loss = self.metric(self.y_val, y_pred)
