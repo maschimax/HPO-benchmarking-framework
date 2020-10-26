@@ -3,15 +3,15 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb_reg,\
-    space_ada, space_dt, space_linr, space_knn_reg, space_lgb_clf, space_xgb_clf
+from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
+    space_ada, space_dt, space_linr, space_knn_reg, space_lgb_clf
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'scania'
+use_case = 'dummy'
 
 if use_case == 'dummy':
     # Loading data and preprocessing
@@ -42,17 +42,17 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_xgb_clf
+    hp_space = space_xgb
     ml_algo = 'XGBoostClassifier'
-    opt_schedule = [('skopt', 'SMAC')]
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 15
+    n_func_evals = 10
     n_workers = 1
-    loss_metric = accuracy_loss
-    do_warmstart = 'No'
+    loss_metric = f1_loss
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
@@ -119,11 +119,8 @@ else:
     elif ml_algo == 'KerasRegressor':
         hp_space = space_keras
 
-    elif ml_algo == 'XGBoostRegressor':
-        hp_space = space_xgb_reg
-
-    elif ml_algo == 'XGBoostClassifier':
-        hp_space = space_xgb_clf
+    elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
+        hp_space = space_xgb
 
     elif ml_algo == 'SVR':
         hp_space = space_svr

@@ -38,21 +38,26 @@ space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_
                skopt.space.Categorical([.0, .3, .6], name='dropout1'),
                skopt.space.Categorical([.0, .3, .6], name='dropout2')]
 
-# XGBoostRegressor
-space_xgb_reg = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
-                 skopt.space.Integer(1, 200, name='n_estimators'),
-                 skopt.space.Integer(1, 80, name='max_depth')]
-
-# XGBoostClassifier
+# XGBoostModel
 # HP space used by Hanno
-space_xgb_clf = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
-                 skopt.space.Integer(1, 200, name='n_estimators'),
-                 skopt.space.Real(0.0, 1, name='eta'),
-                 skopt.space.Integer(1, 30, name='max_depth'),
-                 skopt.space.Categorical(['uniform', 'weighted'], name='sample_type'),
-                 skopt.space.Categorical(['tree', 'forest'], name='normalize_type'),
-                 skopt.space.Real(0.0, 1.0, name='rate_drop'),
-                 skopt.space.Categorical(['shotgun', 'coord_descent'], name='updater')]
+space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
+             skopt.space.Integer(1, 200, name='n_estimators'),
+             skopt.space.Real(0.0, 1, name='eta'),
+             skopt.space.Integer(1, 80, name='max_depth'),
+             skopt.space.Categorical(['uniform', 'weighted'], name='sample_type'),
+             skopt.space.Categorical(['tree', 'forest'], name='normalize_type'),
+             skopt.space.Real(0.0, 1.0, name='rate_drop'),
+             skopt.space.Categorical(['shotgun', 'coord_descent'], name='updater')]
+
+# Default / warm start parameters for an XGBoostModel: https://github.com/dmlc/xgboost/blob/master/doc/parameter.rst
+warmstart_xgb = {'booster': 'gbtree',
+                 'n_estimators': 100,
+                 'eta': 0.3,
+                 'max_depth': 6,
+                 'sample_type': 'uniform',
+                 'normalize_type': 'tree',
+                 'rate_drop': 0.0,
+                 'updater': 'shotgun'}
 
 # AdaBoostRegressor
 # First try >>> iterative testing to find meaningful ranges for each HP // or refer the AdaBoost literature

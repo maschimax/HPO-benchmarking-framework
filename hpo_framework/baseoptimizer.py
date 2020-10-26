@@ -16,7 +16,7 @@ import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
-from hpo_framework.hp_spaces import warmstart_lgb_clf
+from hpo_framework.hp_spaces import warmstart_lgb_clf, warmstart_xgb
 
 
 class BaseOptimizer(ABC):
@@ -135,6 +135,9 @@ class BaseOptimizer(ABC):
             default_model = KNeighborsRegressor()
             default_params = default_model.get_params()
 
+        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+            default_params = warmstart_xgb
+
         elif self.ml_algorithm == 'LGBMClassifier':
             # train_data = lgb.Dataset(self.x_train, self.y_train)
             # params = {'objective': 'binary',
@@ -225,6 +228,33 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'KNNRegressor':
             # KNeighborsRegressor has no random_state parameter
             model = KNeighborsRegressor(**warmstart_config)
+
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+
+            # Consideration of conditional hyperparameters
+            if warmstart_config['booster'] not in ['gbtree', 'dart']:
+                del warmstart_config['eta']
+                del warmstart_config['max_depth']
+
+            if warmstart_config['booster'] != 'dart':
+                del warmstart_config['sample_type']
+                del warmstart_config['normalize_type']
+                del warmstart_config['rate_drop']
+
+            if warmstart_config['booster'] != 'gblinear':
+                del warmstart_config['updater']
+
+            if self.ml_algorithm == 'XGBoostRegressor':
+
+                model = XGBRegressor(**warmstart_config, random_state=self.random_seed)
+
+            elif self.ml_algorithm == 'XGBoostClassifier':
+
+                model = XGBClassifier(**warmstart_config, random_state=self.random_seed)
 
             # Train the model and make the prediction
             model.fit(self.x_train, self.y_train)
@@ -451,24 +481,25 @@ class BaseOptimizer(ABC):
             x_train = self.x_train
             y_train = self.y_train
 
+        # Consideration of conditional hyperparameters // Delete invalid HPs according to the conditions
+        if params['booster'] not in ['gbtree', 'dart']:
+            del params['eta']
+            del params['max_depth']
+
+        if params['booster'] != 'dart':
+            del params['sample_type']
+            del params['normalize_type']
+            del params['rate_drop']
+
+        if params['booster'] != 'gblinear':
+            del params['updater']
+
         # Initialize the model
         if self.ml_algorithm == 'XGBoostRegressor':
+
             model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
         elif self.ml_algorithm == 'XGBoostClassifier':
-
-            # Consideration of conditional hyperparameters
-            if params['booster'] not in ['gbtree', 'dart']:
-                del params['eta']
-                del params['max_depth']
-
-            if params['booster'] != 'dart':
-                del params['sample_type']
-                del params['normalize_type']
-                del params['rate_drop']
-
-            if params['booster'] != 'gblinear':
-                del params['updater']
 
             model = XGBClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
