@@ -11,11 +11,12 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
+from hpo_framework.hp_spaces import warmstart_lgb_clf
 
 
 class BaseOptimizer(ABC):
@@ -101,39 +102,53 @@ class BaseOptimizer(ABC):
         """
         if self.ml_algorithm == 'RandomForestRegressor':
             default_model = RandomForestRegressor(random_state=self.random_seed)
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'RandomForestClassifier':
             default_model = RandomForestClassifier(random_state=self.random_seed)
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state parameter
             default_model = SVR()
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'SVC':
             default_model = SVC(random_state=self.random_seed)
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
             default_model = AdaBoostRegressor(random_state=self.random_seed)
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             default_model = DecisionTreeRegressor(random_state=self.random_seed)
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'LinearRegression':
             # LinearRegression has no random_state parameter
             default_model = LinearRegression()
+            default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'KNNRegressor':
             # KNeighborsRegressor has no random_state parameter
             default_model = KNeighborsRegressor()
+            default_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'LGBMClassifier':
+            # train_data = lgb.Dataset(self.x_train, self.y_train)
+            # params = {'objective': 'binary',
+            #           'seed': self.random_seed}
+            # default_model = lgb.train(params=params, train_set=train_data)
+            # default_params = default_model.params
+            default_params = warmstart_lgb_clf
 
             # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
 
         else:
             raise Exception('Unknown ML-algorithm!')
 
-        # Default HPs of the ML-algorithm
-        default_params = default_model.get_params()
-
+        # Return the default HPs of the ML-algorithm
         return default_params
 
     def get_warmstart_loss(self, **kwargs):
@@ -159,38 +174,80 @@ class BaseOptimizer(ABC):
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(**warmstart_config, random_state=self.random_seed)
 
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'RandomForestClassifier':
             model = RandomForestClassifier(**warmstart_config, random_state=self.random_seed)
+
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
 
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state parameter
             model = SVR(**warmstart_config)
 
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'SVC':
             model = SVC(**warmstart_config, random_state=self.random_seed)
+
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
             model = AdaBoostRegressor(**warmstart_config, random_state=self.random_seed)
 
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             model = DecisionTreeRegressor(**warmstart_config, random_state=self.random_seed)
+
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
 
         elif self.ml_algorithm == 'LinearRegression':
             # LinearRegression has no random_state parameter
             model = LinearRegression(**warmstart_config)
 
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'KNNRegressor':
             # KNeighborsRegressor has no random_state parameter
             model = KNeighborsRegressor(**warmstart_config)
+
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'LGBMClassifier':
+            train_data = lgb.Dataset(self.x_train, self.y_train)
+            valid_data = lgb.Dataset(self.x_val, self.y_val)
+
+            if 'objective' not in warmstart_config.keys():
+                warmstart_config['objective'] = 'binary'
+            if 'seed' not in warmstart_config.keys():
+                warmstart_config['seed'] = self.random_seed
+
+            # Train the model and make the prediction
+            model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
+            y_pred = model.predict(self.x_val)
+            y_pred = np.rint(y_pred)
 
             # Add remaining ML-algorithms here (e.g. XGBoost, Keras)
 
         else:
             raise Exception('Unknown ML-algorithm!')
-
-        # Train the model and make the prediction
-        model.fit(self.x_train, self.y_train)
-        y_pred = model.predict(self.x_val)
 
         # Compute the warmstart (validation) loss according to the loss_metric selected
         warmstart_loss = self.metric(self.y_val, y_pred)
@@ -362,7 +419,7 @@ class BaseOptimizer(ABC):
 
         return val_loss
 
-    def train_evaluate_xgboost_regressor(self, params: dict, **kwargs):
+    def train_evaluate_xgboost_model(self, params: dict, **kwargs):
         """
         This method trains a XGBoost model according to the selected HP-configuration and returns the
         validation loss
@@ -395,7 +452,25 @@ class BaseOptimizer(ABC):
             y_train = self.y_train
 
         # Initialize the model
-        model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+        if self.ml_algorithm == 'XGBoostRegressor':
+            model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+
+        elif self.ml_algorithm == 'XGBoostClassifier':
+
+            # Consideration of conditional hyperparameters
+            if params['booster'] not in ['gbtree', 'dart']:
+                del params['eta']
+                del params['max_depth']
+
+            if params['booster'] != 'dart':
+                del params['sample_type']
+                del params['normalize_type']
+                del params['rate_drop']
+
+            if params['booster'] != 'gblinear':
+                del params['updater']
+
+            model = XGBClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
         # Train the model and make the prediction
         model.fit(x_train, y_train)
@@ -462,5 +537,6 @@ class BaseOptimizer(ABC):
         val_loss = self.metric(self.y_val, y_pred)
 
         # Measure the finish time of the iteration
+        self.times.append(time.time())
 
         return val_loss
