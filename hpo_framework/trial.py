@@ -9,6 +9,7 @@ from sklearn.svm import SVR, SVC
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.naive_bayes import GaussianNB
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -609,6 +610,11 @@ class Trial:
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
+        elif self.ml_algorithm == 'NaiveBayes':
+            model = GaussianNB()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
 
             # Use the warmstart configuration to create a baseline for Keras models
@@ -722,5 +728,5 @@ class Trial:
 
     @staticmethod
     def train_best_model(trial_results_dict: dict):
-        # TBD
+        # Method to train the ML model with the best found HP configuration on the whole dataset
         raise NotImplementedError

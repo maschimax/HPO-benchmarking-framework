@@ -4,7 +4,7 @@ from pathlib import Path
 import argparse
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
-    space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr
+    space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr, space_nb
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
@@ -42,17 +42,17 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_rf_clf
-    ml_algo = 'RandomForestClassifier'
+    hp_space = space_nb
+    ml_algo = 'NaiveBayes'
     opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 3
-    n_func_evals = 20
+    n_func_evals = 30
     n_workers = 1
     loss_metric = f1_loss
-    do_warmstart = 'No'
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
@@ -61,7 +61,7 @@ else:
                         choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
                                  'XGBoostRegressor', 'XGBoostClassifier', 'SVR', 'SVC', 'AdaBoostRegressor',
                                  'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor', 'LGBMRegressor',
-                                 'LGBMClassifier', 'LogisticRegression'])
+                                 'LGBMClassifier', 'LogisticRegression', 'NaiveBayes'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
@@ -72,7 +72,7 @@ else:
                         help='Number of workers to be used for the optimization (parallelization)',
                         default=1)
     parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
-                        choices=['root_mean_squared_error', 'F1-loss'])
+                        choices=['root_mean_squared_error', 'F1-loss', 'Accuracy-loss'])
     parser.add_argument('--warmstart', type=str,
                         help="Use the algorithm's default HP-configuration for warmstart (yes/no).",
                         default='No', choices=['Yes', 'No'])
@@ -147,6 +147,9 @@ else:
     elif ml_algo == 'LogisticRegression':
         hp_space = space_logr
 
+    elif ml_algo == 'NaiveBayes':
+        hp_space = space_nb
+
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
 
@@ -156,6 +159,9 @@ else:
 
     elif args.loss_metric == 'F1-loss':
         loss_metric = f1_loss
+
+    elif args.loss_metric == 'Accuracy-loss':
+        loss_metric = accuracy_loss
 
     else:
         raise Exception('This loss metric has not yet been implemented.')

@@ -263,7 +263,7 @@ class RoboOptimizer(BaseOptimizer):
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
                 self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
                 self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                self.ml_algorithm == 'LogisticRegression':
+                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
 
             eval_func = self.train_evaluate_scikit_model
 
@@ -315,7 +315,7 @@ class RoboOptimizer(BaseOptimizer):
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
                 self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
                 self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                self.ml_algorithm == 'LogisticRegression':
+                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
 
             eval_func = self.train_evaluate_scikit_model
 
