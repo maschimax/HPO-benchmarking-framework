@@ -5,4 +5,5 @@
 - Integrated ML algorithms: Random Forests, Neural Networks, SVM, XGBoost, AdaBoost, Linear Regression, K-Nearest Neighbors
 
 - Use Cases:
+  - Air pressure system failures in Scania trucks: https://www.kaggle.com/uciml/aps-failure-at-scania-trucks-data-set  
   - Kaggle-Challenge: Predict sales prices and practice feature engineering, RFs, and gradient boosting (https://www.kaggle.com/c/house-prices-advanced-regression-techniques)
