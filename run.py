@@ -38,7 +38,7 @@ else:
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = True
+debug = False
 
 if debug:
     # Set parameters manually
@@ -55,7 +55,7 @@ if debug:
     do_warmstart = 'Yes'
 
 else:
-    parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
+    parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
 
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
                         choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
