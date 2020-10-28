@@ -125,3 +125,6 @@ space_logr = [skopt.space.Real(low=1e-6, high=1e-2, name='tol'),
               skopt.space.Integer(low=50, high=150, name='max_iter')]
 
 # skopt.space.Categorical(['l1', 'l2', 'elasticnet', 'none'], name='penalty'),
+
+# Gaussian Naive Bayes
+space_nb = [skopt.space.Real(low=1e-12, high=1e-2, name='var_smoothing')]
