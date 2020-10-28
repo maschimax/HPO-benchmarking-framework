@@ -1,5 +1,0 @@
-,HPO-library,HPO-method,ML-algorithm,Runs,Evaluations,Workers,Warmstart,Wall clock time [s],t outperform default [s],Area under curve (AUC),Mean(best loss),Loss ratio,Interquartile range(best_loss),t best configuration [s],Evaluations for best configuration,Crashes
-1,optuna,CMA-ES,RandomForestRegressor,5,120,1,False,106.37872460000001,inf,35694.77589907085,34424.52683685218,0.9771199960519978,1125.58701256341,102.614295,115,0
-2,skopt,SMAC,RandomForestRegressor,5,120,1,False,160.98506655693055,48.23568058013916,33655.538104679836,32781.38591010658,1.0260973596161032,1023.0582094445999,132.3768853664398,94,0
-3,optuna,RandomSearch,RandomForestRegressor,5,120,1,False,90.0434238,inf,34865.54649776777,33844.56600530653,0.9938639343652073,474.4032587916663,84.6684602,113,0
-4,hpbandster,BOHB,RandomForestRegressor,5,120,1,False,152.69619326591493,inf,35475.914740850865,34102.63347973796,0.9863429915728419,1577.6827020056226,130.6021406173706,238,0
