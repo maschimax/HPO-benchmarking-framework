@@ -73,7 +73,7 @@ warmstart_xgb = {'booster': 'gbtree',
                  'updater': 'shotgun'}
 
 # AdaBoostRegressor
-# First try >>> iterative testing to find meaningful ranges for each HP // or refer the AdaBoost literature
+# First try >>> iterative testing to find meaningful ranges for each HP // or refer to the AdaBoost literature
 space_ada = [skopt.space.Integer(1, 200, name='n_estimators'),
              skopt.space.Real(.1, 5, name='learning_rate'),
              skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss')]
@@ -113,3 +113,15 @@ warmstart_lgb = {'num_leaves': 31,
                  'max_depth': -1,
                  'lambda_l1': 0.0,
                  'lambda_l2': 0.0}
+
+# Logistic Regression
+# https://machinelearningmastery.com/hyperparameters-for-classification-machine-learning-algorithms/
+# penalty, tol, C, fit_intercept, intercept_scaling, solver, max_iter
+space_logr = [skopt.space.Real(low=1e-6, high=1e-2, name='tol'),
+              skopt.space.Real(low=0.5, high=2.0, name='C'),
+              skopt.space.Categorical([True, False], name='fit_intercept'),
+              skopt.space.Real(low=0.5, high=2.0, name='intercept_scaling'),
+              skopt.space.Categorical(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'], name='solver'),
+              skopt.space.Integer(low=50, high=150, name='max_iter')]
+
+# skopt.space.Categorical(['l1', 'l2', 'elasticnet', 'none'], name='penalty'),

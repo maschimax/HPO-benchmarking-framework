@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
@@ -135,6 +135,10 @@ class BaseOptimizer(ABC):
             default_model = KNeighborsRegressor()
             default_params = default_model.get_params()
 
+        elif self.ml_algorithm == 'LogisticRegression':
+            default_model = LogisticRegression(random_state=self.random_seed)
+            default_params = default_model.get_params()
+
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
             default_params = warmstart_keras
 
@@ -231,6 +235,13 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'KNNRegressor':
             # KNeighborsRegressor has no random_state parameter
             model = KNeighborsRegressor(**warmstart_config)
+
+            # Train the model and make the prediction
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'LogisticRegression':
+            model = LogisticRegression(**warmstart_config, random_state=self.random_seed)
 
             # Train the model and make the prediction
             model.fit(self.x_train, self.y_train)
@@ -405,6 +416,26 @@ class BaseOptimizer(ABC):
             # KNeighborsRegressor has no random_state parameter
             model = KNeighborsRegressor(**params, n_jobs=self.n_workers)
 
+        elif self.ml_algorithm == 'LogisticRegression':
+
+            # Consideration of conditional hyperparameters // Remove invalid HPs according to the conditions
+
+
+            ####
+            # if params['booster'] not in ['gbtree', 'dart']:
+            #     del params['eta']
+            #     del params['max_depth']
+            #
+            # if params['booster'] != 'dart':
+            #     del params['sample_type']
+            #     del params['normalize_type']
+            #     del params['rate_drop']
+            #
+            # if params['booster'] != 'gblinear':
+            #     del params['updater']
+            ###
+            model = LogisticRegression(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+
         else:
             raise Exception('Unknown ML-algorithm!')
 
@@ -572,7 +603,7 @@ class BaseOptimizer(ABC):
             x_train = self.x_train
             y_train = self.y_train
 
-        # Consideration of conditional hyperparameters // Delete invalid HPs according to the conditions
+        # Consideration of conditional hyperparameters // Remove invalid HPs according to the conditions
         if params['booster'] not in ['gbtree', 'dart']:
             del params['eta']
             del params['max_depth']

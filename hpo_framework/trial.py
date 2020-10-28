@@ -7,7 +7,7 @@ import math
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor
 from sklearn.svm import SVR, SVC
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
@@ -604,7 +604,15 @@ class Trial:
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
+        elif self.ml_algorithm == 'LogisticRegression':
+            model = LogisticRegression()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+
+            # Use the warmstart configuration to create a baseline for Keras models
+
             epochs = 100
 
             # Initialize the neural network
