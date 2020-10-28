@@ -4,7 +4,7 @@ from pathlib import Path
 import argparse
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
-    space_ada, space_dt, space_linr, space_knn_reg, space_lgb
+    space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
@@ -42,17 +42,17 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_keras
-    ml_algo = 'KerasClassifier'
-    opt_schedule = [('robo', 'Fabolas')]
+    hp_space = space_rf_clf
+    ml_algo = 'RandomForestClassifier'
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
-    n_func_evals = 15
+    n_runs = 3
+    n_func_evals = 20
     n_workers = 1
-    loss_metric = accuracy_loss
-    do_warmstart = 'Yes'
+    loss_metric = f1_loss
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
@@ -61,7 +61,7 @@ else:
                         choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
                                  'XGBoostRegressor', 'XGBoostClassifier', 'SVR', 'SVC', 'AdaBoostRegressor',
                                  'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor', 'LGBMRegressor',
-                                 'LGBMClassifier'])
+                                 'LGBMClassifier', 'LogisticRegression'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
@@ -144,6 +144,9 @@ else:
     elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBClassifier':
         hp_space = space_lgb
 
+    elif ml_algo == 'LogisticRegression':
+        hp_space = space_logr
+
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
 
@@ -197,8 +200,9 @@ for opt_tuple in res.keys():
     # res_str_json = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.json'
     # res_path_json = os.path.join(log_folder, res_str_json)
 
-    res_df.reset_index(drop=True, inplace=True)
-    res_df.to_csv(res_path_csv)
+    # Don't reset index inplace!
+    this_res_df = res_df.reset_index(drop=True, inplace=False)
+    this_res_df.to_csv(res_path_csv)
     # res_df.to_json(res_path_json)
 
 # Learning curves
