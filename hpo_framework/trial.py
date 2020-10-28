@@ -4,13 +4,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import uuid
 import math
-from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
-from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor
+from sklearn.svm import SVR, SVC
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.naive_bayes import GaussianNB
 from tensorflow import keras
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor, XGBClassifier
+import lightgbm as lgb
+import functools
 
 from hpo_framework.optuna_optimizer import OptunaOptimizer
 from hpo_framework.skopt_optimizer import SkoptOptimizer
@@ -19,6 +22,8 @@ from hpo_framework.robo_optimizer import RoboOptimizer
 from hpo_framework.hyperopt_optimizer import HyperoptOptimizer
 from hpo_framework.results import TrialResult, MetricsResult
 from hpo_framework.hpo_metrics import area_under_curve
+from hpo_framework.hp_spaces import warmstart_keras
+from hpo_framework.lr_schedules import fix, exponential, cosine
 
 
 class Trial:
@@ -565,8 +570,18 @@ class Trial:
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
+        elif self.ml_algorithm == 'RandomForestClassifier':
+            model = RandomForestClassifier(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
         elif self.ml_algorithm == 'SVR':
             model = SVR()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'SVC':
+            model = SVC(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
@@ -590,26 +605,117 @@ class Trial:
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
 
-        elif self.ml_algorithm == 'KerasRegressor':
-            # >>> What are default parameters for a keras model?
-            # Baseline regression model from: https://www.tensorflow.org/tutorials/keras/regression#full_model
-
-            model = keras.Sequential()
-            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
-            model.add(keras.layers.Dense(64, activation='relu'))
-            model.add(keras.layers.Dense(64, activation='relu'))
-            model.add(keras.layers.Dense(1))
-
-            model.compile(loss='mse', optimizer=keras.optimizers.Adam(0.001))
-
-            model.fit(self.x_train, self.y_train, epochs=100, validation_data=(self.x_val, self.y_val), verbose=0)
-
+        elif self.ml_algorithm == 'LogisticRegression':
+            model = LogisticRegression()
+            model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'NaiveBayes':
+            model = GaussianNB()
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+
+            # Use the warmstart configuration to create a baseline for Keras models
+
+            epochs = 100
+
+            # Initialize the neural network
+            model = keras.Sequential()
+
+            # Add input layer
+            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+
+            # Add first hidden layer
+            model.add(
+                keras.layers.Dense(warmstart_keras['layer1_size'], activation=warmstart_keras['layer1_activation']))
+            model.add(keras.layers.Dropout(warmstart_keras['dropout1']))
+
+            # Add second hidden layer
+            model.add(
+                keras.layers.Dense(warmstart_keras['layer2_size'], activation=warmstart_keras['layer2_activation']))
+            model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
+
+            # Add output layer
+            if self.ml_algorithm == 'KerasRegressor':
+
+                model.add(keras.layers.Dense(1, activation='linear'))
+
+                # Select optimizer and compile the model
+                adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+
+            elif self.ml_algorithm == 'KerasClassifier':
+                # Binary classification
+                model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+                adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+            # Learning rate schedule
+            if warmstart_keras["lr_schedule"] == "cosine":
+                schedule = functools.partial(cosine, initial_lr=warmstart_keras["init_lr"], T_max=epochs)
+
+            elif warmstart_keras["lr_schedule"] == "exponential":
+                schedule = functools.partial(exponential, initial_lr=warmstart_keras["init_lr"], T_max=epochs)
+
+            elif warmstart_keras["lr_schedule"] == "constant":
+                schedule = functools.partial(fix, initial_lr=warmstart_keras["init_lr"])
+
+            else:
+                raise Exception('Unknown learning rate schedule!')
+
+            # Determine the learning rate for this iteration and pass it as callback
+            lr = keras.callbacks.LearningRateScheduler(schedule)
+            callbacks_list = [lr]
+
+            # Train the model
+            model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=warmstart_keras['batch_size'],
+                      validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
+                      verbose=1)
+
+            # Make the prediction
+            y_pred = model.predict(self.x_val)
+
+            # In case of binary classification round to the neares integer
+            if self.ml_algorithm == 'KerasClassifier':
+                y_pred = np.rint(y_pred)
 
         elif self.ml_algorithm == 'XGBoostRegressor':
             model = XGBRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
             y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'XGBoostClassifier':
+            model = XGBClassifier(random_state=0)
+            model.fit(self.x_train, self.y_train)
+            y_pred = model.predict(self.x_val)
+
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+            # Create lgb datasets
+            train_data = lgb.Dataset(self.x_train, label=self.y_train)
+            valid_data = lgb.Dataset(self.x_val, label=self.y_val)
+
+            # Specify the ML task and the random seed
+            if self.ml_algorithm == 'LGBMRegressor':
+                # Regression task
+                params = {'objective': 'regression',
+                          'seed': 0}
+
+            elif self.ml_algorithm == 'LGBMClassifier':
+                # Binary classification task
+                params = {'objective': 'binary',
+                          'seed': 0}
+
+            lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+
+            # Make the prediction
+            y_pred = lgb_clf.predict(data=self.x_val)
+
+            # In case of binary classification round to the nearest integer
+            if self.ml_algorithm == 'LGBMClassifier':
+                y_pred = np.rint(y_pred)
 
         else:
             raise Exception('Unknown ML-algorithm!')
@@ -622,5 +728,5 @@ class Trial:
 
     @staticmethod
     def train_best_model(trial_results_dict: dict):
-        # TBD
+        # Method to train the ML model with the best found HP configuration on the whole dataset
         raise NotImplementedError

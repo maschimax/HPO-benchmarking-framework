@@ -21,15 +21,20 @@ class HPBandsterWorker(Worker):
         # Select the corresponding objective function of the ML-Algorithm
         if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor':
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
+                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
 
-            eval_func = self.optimizer_object.train_evaluate_scikit_regressor
+            eval_func = self.optimizer_object.train_evaluate_scikit_model
 
-        elif self.ml_algorithm == 'KerasRegressor':
-            eval_func = self.optimizer_object.train_evaluate_keras_regressor
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+            eval_func = self.optimizer_object.train_evaluate_keras_model
 
-        elif self.ml_algorithm == 'XGBoostRegressor':
-            eval_func = self.optimizer_object.train_evaluate_xgboost_regressor
+        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+            eval_func = self.optimizer_object.train_evaluate_xgboost_model
+
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+            eval_func = self.optimizer_object.train_evaluate_lightgbm_model
 
         else:
             raise Exception('Unknown ML-algorithm!')

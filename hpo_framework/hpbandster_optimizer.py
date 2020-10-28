@@ -5,6 +5,7 @@ from hpbandster.optimizers import HyperBand
 import hpbandster.core.result as hpres
 import pandas as pd
 from multiprocessing import Process
+import skopt
 
 from hpo_framework.baseoptimizer import BaseOptimizer
 from hpo_framework.results import TuningResult
@@ -57,7 +58,7 @@ class HpbandsterOptimizer(BaseOptimizer):
 
                     # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                     # different (e.g. int)
-                    if this_warmstart_value is None:
+                    if this_warmstart_value is None and type(self.hp_space[i]) == skopt.space.space.Integer:
                         # Try to impute these values by the mean value
                         this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
 

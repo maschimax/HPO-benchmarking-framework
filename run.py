@@ -3,25 +3,37 @@ import os
 from pathlib import Path
 import argparse
 
-from hpo_framework.hp_spaces import space_keras, space_rf, space_svr, space_xgb, space_ada, space_dt, space_linr, space_knn_r
-
-from hpo_framework.hpo_metrics import root_mean_squared_error
-import datasets.dummy.preprocessing as pp
+from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
+    space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr, space_nb
+from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
+import datasets.dummy.preprocessing as pp
+from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 
-# Loading data and preprocessing
-# >>> Linux OS and Windows require different path representations -> use pathlib <<<
-abs_folder_path = os.path.abspath(path='datasets/dummy')
-data_folder = Path(abs_folder_path)
-train_file = "train.csv"
-test_file = "test.csv"
-submission_file = "sample_submission.csv"
+# Flag for the ML use case / dataset to be used
+use_case = 'scania'
 
-train_raw = pp.load_data(data_folder, train_file)
-test_raw = pp.load_data(data_folder, test_file)
+if use_case == 'dummy':
+    # Loading data and preprocessing
+    # >>> Linux OS and Windows require different path representations -> use pathlib <<<
+    abs_folder_path = os.path.abspath(path='datasets/dummy')
+    data_folder = Path(abs_folder_path)
+    train_file = "train.csv"
+    test_file = "test.csv"
+    submission_file = "sample_submission.csv"
 
-X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
-                                                    count_encoding=False)
+    train_raw = pp.load_data(data_folder, train_file)
+    test_raw = pp.load_data(data_folder, test_file)
+
+    X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
+                                                        count_encoding=False)
+
+elif use_case == 'scania':
+
+    X_train, X_val, y_train, y_val = scania_loading_and_preprocessing()
+
+else:
+    raise Exception('Unknown dataset / use-case.')
 
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
@@ -30,24 +42,26 @@ debug = False
 
 if debug:
     # Set parameters manually
-    hp_space = space_rf
-    ml_algo = 'RandomForestRegressor'
-    opt_schedule = [('robo', 'Fabolas')]
+    hp_space = space_nb
+    ml_algo = 'NaiveBayes'
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
-    n_func_evals = 10
+    n_runs = 3
+    n_func_evals = 30
     n_workers = 1
-    loss_metric = root_mean_squared_error
-    do_warmstart = 'No'
+    loss_metric = f1_loss
+    do_warmstart = 'Yes'
 
 else:
-    parser = argparse.ArgumentParser(description="Hyperparameter Optimization")
+    parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
 
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
-                        choices=['RandomForestRegressor', 'KerasRegressor', 'XGBoostRegressor', 'SVR',
-                                 'AdaBoostRegressor', 'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor'])
+                        choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
+                                 'XGBoostRegressor', 'XGBoostClassifier', 'SVR', 'SVC', 'AdaBoostRegressor',
+                                 'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor', 'LGBMRegressor',
+                                 'LGBMClassifier', 'LogisticRegression', 'NaiveBayes'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
@@ -58,7 +72,7 @@ else:
                         help='Number of workers to be used for the optimization (parallelization)',
                         default=1)
     parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
-                        choices=['root_mean_squared_error'])
+                        choices=['root_mean_squared_error', 'F1-loss', 'Accuracy-loss'])
     parser.add_argument('--warmstart', type=str,
                         help="Use the algorithm's default HP-configuration for warmstart (yes/no).",
                         default='No', choices=['Yes', 'No'])
@@ -98,16 +112,22 @@ else:
 
     # Select the hyperparameter space according to the ML-algorithm
     if ml_algo == 'RandomForestRegressor':
-        hp_space = space_rf
+        hp_space = space_rf_reg
 
-    elif ml_algo == 'KerasRegressor':
+    elif ml_algo == 'RandomForestClassifier':
+        hp_space = space_rf_clf
+
+    elif ml_algo == 'KerasRegressor' or ml_algo == 'KerasClassifier':
         hp_space = space_keras
 
-    elif ml_algo == 'XGBoostRegressor':
+    elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
         hp_space = space_xgb
 
     elif ml_algo == 'SVR':
         hp_space = space_svr
+
+    elif ml_algo == 'SVC':
+        hp_space = space_svc
 
     elif ml_algo == 'AdaBoostRegressor':
         hp_space = space_ada
@@ -119,7 +139,16 @@ else:
         hp_space = space_linr
 
     elif ml_algo == 'KNNRegressor':
-        hp_space = space_knn_r
+        hp_space = space_knn_reg
+
+    elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBClassifier':
+        hp_space = space_lgb
+
+    elif ml_algo == 'LogisticRegression':
+        hp_space = space_logr
+
+    elif ml_algo == 'NaiveBayes':
+        hp_space = space_nb
 
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
@@ -128,9 +157,14 @@ else:
     if args.loss_metric == 'root_mean_squared_error':
         loss_metric = root_mean_squared_error
 
+    elif args.loss_metric == 'F1-loss':
+        loss_metric = f1_loss
+
+    elif args.loss_metric == 'Accuracy-loss':
+        loss_metric = accuracy_loss
+
     else:
         raise Exception('This loss metric has not yet been implemented.')
-
 
 # Display a summary of the trial settings
 print('Optimize: ' + ml_algo)
@@ -142,7 +176,6 @@ print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, '
       ' worker(s), warmstart: ' + do_warmstart + '.')
 print('------')
 print('Optimization schedule: ', opt_schedule)
-
 
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
@@ -173,8 +206,9 @@ for opt_tuple in res.keys():
     # res_str_json = ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.json'
     # res_path_json = os.path.join(log_folder, res_str_json)
 
-    res_df.reset_index(drop=True, inplace=True)
-    res_df.to_csv(res_path_csv)
+    # Don't reset index inplace!
+    this_res_df = res_df.reset_index(drop=True, inplace=False)
+    this_res_df.to_csv(res_path_csv)
     # res_df.to_json(res_path_json)
 
 # Learning curves
