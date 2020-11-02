@@ -4,7 +4,7 @@ from pathlib import Path
 import argparse
 import skopt
 
-from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb,\
+from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb, \
     space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr, space_nb
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
@@ -26,11 +26,11 @@ if use_case == 'dummy':
     train_raw = pp.load_data(data_folder, train_file)
     test_raw = pp.load_data(data_folder, test_file)
 
-    X_train, y_train, X_val, y_val, X_test = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
-                                                        count_encoding=False)
+    X_train, y_train, X_test, y_test, _ = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
+                                                     count_encoding=False)
 
 elif use_case == 'scania':
-    X_train, X_val, y_train, y_val = scania_loading_and_preprocessing()
+    X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
 
 else:
     raise Exception('Unknown dataset / use-case.')
@@ -42,17 +42,17 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_xgb
-    ml_algo = 'XGBoostClassifier'
-    opt_schedule = [('robo', 'Bohamiann')]
+    hp_space = space_rf_clf
+    ml_algo = 'RandomForestClassifier'
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
+    n_runs = 2
     n_func_evals = 10
-    n_workers = 1
+    n_workers = 4
     loss_metric = f1_loss
-    do_warmstart = 'Yes'
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -180,7 +180,7 @@ print('Optimization schedule: ', opt_schedule)
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
-              x_train=X_train, y_train=y_train, x_val=X_val, y_val=y_val, do_warmstart=do_warmstart)
+              x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test, do_warmstart=do_warmstart)
 
 # Run the optimization
 res = trial.run()
@@ -261,4 +261,3 @@ metrics_df['# cat. HPs'] = num_params['categorical']
 metrics_str = 'metrics_' + use_case + '_' + ml_algo + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
 metrics_df.to_csv(metrics_path)
-
