@@ -92,7 +92,8 @@ class BaseOptimizer(ABC):
         best_loss = [float('nan')]
         best_configuration = {'params': None}
         wall_clock_time = float('nan')
-        return evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time
+        budget = float('nan')
+        return evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, budget
 
     def get_warmstart_configuration(self):
         """
