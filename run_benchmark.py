@@ -42,23 +42,23 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_rf_clf
-    ml_algo = 'RandomForestClassifier'
-    opt_schedule = [('robo', 'Fabolas')]
+    hp_space = space_xgb
+    ml_algo = 'XGBoostClassifier'
+    opt_schedule = [('robo', 'Bohamiann')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 30
+    n_func_evals = 10
     n_workers = 1
     loss_metric = f1_loss
-    do_warmstart = 'No'
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
 
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
-                        choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor',
+                        choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor', 'KerasClassifier',
                                  'XGBoostRegressor', 'XGBoostClassifier', 'SVR', 'SVC', 'AdaBoostRegressor',
                                  'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor', 'LGBMRegressor',
                                  'LGBMClassifier', 'LogisticRegression', 'NaiveBayes'])

@@ -11,6 +11,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import KFold, train_test_split
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -67,13 +68,13 @@ class BaseOptimizer(ABC):
         return result.best_configuration
 
     @staticmethod
-    def get_best_score(result: TuningResult):
+    def get_best_val_score(result: TuningResult):
         """
-        Method returns the best best loss value of this optimization run.
+        Method returns the best best validation loss  of this optimization run.
         :param result: TuningResult
             TuningResult-object that contains the results of an optimization run.
         :return: result.best_loss: dict
-            Best achieved loss of this optimization run.
+            Best achieved validation loss of this optimization run.
         """
         # Returns the validation score of the best configuration of this optimization run
         raise result.best_loss
@@ -170,7 +171,7 @@ class BaseOptimizer(ABC):
 
     def get_warmstart_loss(self, **kwargs):
         """
-        Computes the loss of the selected ML-algorithm for the default hyperparameter configuration or any valid
+        Computes the validation loss of the selected ML-algorithm for the default hyperparameter configuration or any valid
          configuration that has been passed via kwargs.
         :param kwargs: dict
             Possibility to pass any valid HP-configuration for the ML-algorithm. If a argument 'warmstart_dict' is
@@ -178,215 +179,236 @@ class BaseOptimizer(ABC):
         :return: warmstart_loss: float
             Validation loss for the default HP-configuration or the HP-configuration that has been passed via kwargs.
         """
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
 
-        # Check, whether a warmstart configuration was passed
-        if 'warmstart_dict' in kwargs:
-            warmstart_config = kwargs['warmstart_dict']
+        # Iterate over the cross validation splits
+        for train_index, val_index in kf.split(X=self.x_train):
+            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
-        # Otherwise use the default parameters of the ML-algorithm
-        else:
-            warmstart_config = self.get_warmstart_configuration()
+            # Check, whether a warmstart configuration was passed
+            if 'warmstart_dict' in kwargs:
+                warmstart_config = kwargs['warmstart_dict']
 
-        # Use the warmstart HP-configuration to create a model for the ML-algorithm selected
-        if self.ml_algorithm == 'RandomForestRegressor':
-            model = RandomForestRegressor(**warmstart_config, random_state=self.random_seed)
+            # Otherwise use the default parameters of the ML-algorithm
+            else:
+                warmstart_config = self.get_warmstart_configuration()
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            # Use the warmstart HP-configuration to create a model for the ML-algorithm selected
+            if self.ml_algorithm == 'RandomForestRegressor':
+                model = RandomForestRegressor(**warmstart_config, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'RandomForestClassifier':
-            model = RandomForestClassifier(**warmstart_config, random_state=self.random_seed)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'RandomForestClassifier':
+                model = RandomForestClassifier(**warmstart_config, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'SVR':
-            # SVR has no random_state parameter
-            model = SVR(**warmstart_config)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'SVR':
+                # SVR has no random_state parameter
+                model = SVR(**warmstart_config)
 
-        elif self.ml_algorithm == 'SVC':
-            model = SVC(**warmstart_config, random_state=self.random_seed)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'SVC':
+                model = SVC(**warmstart_config, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'AdaBoostRegressor':
-            model = AdaBoostRegressor(**warmstart_config, random_state=self.random_seed)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'AdaBoostRegressor':
+                model = AdaBoostRegressor(**warmstart_config, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'DecisionTreeRegressor':
-            model = DecisionTreeRegressor(**warmstart_config, random_state=self.random_seed)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'DecisionTreeRegressor':
+                model = DecisionTreeRegressor(**warmstart_config, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'LinearRegression':
-            # LinearRegression has no random_state parameter
-            model = LinearRegression(**warmstart_config)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'LinearRegression':
+                # LinearRegression has no random_state parameter
+                model = LinearRegression(**warmstart_config)
 
-        elif self.ml_algorithm == 'KNNRegressor':
-            # KNeighborsRegressor has no random_state parameter
-            model = KNeighborsRegressor(**warmstart_config)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'KNNRegressor':
+                # KNeighborsRegressor has no random_state parameter
+                model = KNeighborsRegressor(**warmstart_config)
 
-        elif self.ml_algorithm == 'LogisticRegression':
-            model = LogisticRegression(**warmstart_config, random_state=self.random_seed)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'LogisticRegression':
+                model = LogisticRegression(**warmstart_config, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'NaiveBayes':
-            # GaussianNB has no random_state parameter
-            model = GaussianNB(**warmstart_config)
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            elif self.ml_algorithm == 'NaiveBayes':
+                # GaussianNB has no random_state parameter
+                model = GaussianNB(**warmstart_config)
 
-        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            epochs = 100
+            elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
 
-            # Initialize the neural network
-            model = keras.Sequential()
+                epochs = 100
 
-            # Add input layer
-            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+                # Initialize the neural network
+                model = keras.Sequential()
 
-            # Add first hidden layer
-            model.add(keras.layers.Dense(warmstart_config['layer1_size'], activation=warmstart_config['layer1_activation']))
-            model.add(keras.layers.Dropout(warmstart_config['dropout1']))
+                # Add input layer
+                model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
-            # Add second hidden layer
-            model.add(keras.layers.Dense(warmstart_config['layer2_size'], activation=warmstart_config['layer2_activation']))
-            model.add(keras.layers.Dropout(warmstart_config['dropout2']))
+                # Add first hidden layer
+                model.add(
+                    keras.layers.Dense(warmstart_config['layer1_size'], activation=warmstart_config['layer1_activation']))
+                model.add(keras.layers.Dropout(warmstart_config['dropout1']))
 
-            # Add output layer
-            if self.ml_algorithm == 'KerasRegressor':
+                # Add second hidden layer
+                model.add(
+                    keras.layers.Dense(warmstart_config['layer2_size'], activation=warmstart_config['layer2_activation']))
+                model.add(keras.layers.Dropout(warmstart_config['dropout2']))
 
-                model.add(keras.layers.Dense(1, activation='linear'))
+                # Add output layer
+                if self.ml_algorithm == 'KerasRegressor':
 
-                # Select optimizer and compile the model
-                adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
-                model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+                    model.add(keras.layers.Dense(1, activation='linear'))
 
-            elif self.ml_algorithm == 'KerasClassifier':
-                # Binary classification
-                model.add(keras.layers.Dense(1, activation='sigmoid'))
+                    # Select optimizer and compile the model
+                    adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
+                    model.compile(optimizer=adam, loss='mse', metrics=['mse'])
 
-                adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
-                model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+                elif self.ml_algorithm == 'KerasClassifier':
+                    # Binary classification
+                    model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-            # Learning rate schedule
-            if warmstart_config["lr_schedule"] == "cosine":
-                schedule = functools.partial(cosine, initial_lr=warmstart_config["init_lr"], T_max=epochs)
+                    adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
+                    model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
 
-            elif warmstart_config["lr_schedule"] == "exponential":
-                schedule = functools.partial(exponential, initial_lr=warmstart_config["init_lr"], T_max=epochs)
+                # Learning rate schedule
+                if warmstart_config["lr_schedule"] == "cosine":
+                    schedule = functools.partial(cosine, initial_lr=warmstart_config["init_lr"], T_max=epochs)
 
-            elif warmstart_config["lr_schedule"] == "constant":
-                schedule = functools.partial(fix, initial_lr=warmstart_config["init_lr"])
+                elif warmstart_config["lr_schedule"] == "exponential":
+                    schedule = functools.partial(exponential, initial_lr=warmstart_config["init_lr"], T_max=epochs)
+
+                elif warmstart_config["lr_schedule"] == "constant":
+                    schedule = functools.partial(fix, initial_lr=warmstart_config["init_lr"])
+
+                else:
+                    raise Exception('Unknown learning rate schedule!')
+
+                # Determine the learning rate for this iteration and pass it as callback
+                lr = keras.callbacks.LearningRateScheduler(schedule)
+                callbacks_list = [lr]
+
+                # Train the model
+                model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=warmstart_config['batch_size'],
+                          validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
+                          verbose=1)
+
+                # Make the prediction
+                y_pred = model.predict(x_val_cv)
+
+                # In case of binary classification round to the neares integer
+                if self.ml_algorithm == 'KerasClassifier':
+                    y_pred = np.rint(y_pred)
+
+            elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+
+                # Consideration of conditional hyperparameters
+                if warmstart_config['booster'] not in ['gbtree', 'dart']:
+                    if 'eta' in warmstart_config.keys():
+                        del warmstart_config['eta']
+                    if 'max_depth' in warmstart_config.keys():
+                        del warmstart_config['max_depth']
+
+                if warmstart_config['booster'] != 'dart':
+                    if 'sample_type' in warmstart_config.keys():
+                        del warmstart_config['sample_type']
+                    if 'normalize_type' in warmstart_config.keys():
+                        del warmstart_config['normalize_type']
+                    if 'rate_drop' in warmstart_config.keys():
+                        del warmstart_config['rate_drop']
+
+                if warmstart_config['booster'] != 'gblinear':
+                    if 'updater' in warmstart_config.keys():
+                        del warmstart_config['updater']
+
+                if self.ml_algorithm == 'XGBoostRegressor':
+
+                    model = XGBRegressor(**warmstart_config, random_state=self.random_seed)
+
+                elif self.ml_algorithm == 'XGBoostClassifier':
+
+                    model = XGBClassifier(**warmstart_config, random_state=self.random_seed)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+                train_data = lgb.Dataset(x_train_cv, y_train_cv)
+                valid_data = lgb.Dataset(x_val_cv, y_val_cv)
+
+                if 'objective' not in warmstart_config.keys():
+                    # Specify the ML task
+                    if self.ml_algorithm == 'LGBMRegressor':
+                        # Regression task
+                        warmstart_config['objective'] = 'regression'
+
+                    elif self.ml_algorithm == 'LGBMClassifier':
+                        # Binary classification task
+                        warmstart_config['objective'] = 'binary'
+
+                if 'seed' not in warmstart_config.keys():
+                    # Specify the random seed
+                    warmstart_config['seed'] = self.random_seed
+
+                # Train the model and make the prediction
+                model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
+                y_pred = model.predict(x_val_cv)
+
+                # In case of binary classification, round to the neares integer
+                if self.ml_algorithm == 'LGBMClassifier':
+                    y_pred = np.rint(y_pred)
+
+                # Add remaining ML-algorithms here
 
             else:
-                raise Exception('Unknown learning rate schedule!')
+                raise Exception('Unknown ML-algorithm!')
 
-            # Determine the learning rate for this iteration and pass it as callback
-            lr = keras.callbacks.LearningRateScheduler(schedule)
-            callbacks_list = [lr]
+            # Compute the warmstart (validation) loss according to the loss_metric selected
+            warmstart_loss = self.metric(y_val_cv, y_pred)
 
-            # Train the model
-            model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=warmstart_config['batch_size'],
-                      validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
-                      verbose=1)
+            cross_val_losses.append(warmstart_loss)
 
-            # Make the prediction
-            y_pred = model.predict(self.x_val)
+        # Compute the average cross validation loss for the warmstart configuration
+        warmstart_loss_cv = np.mean(cross_val_losses)
 
-            # In case of binary classification round to the neares integer
-            if self.ml_algorithm == 'KerasClassifier':
-                y_pred = np.rint(y_pred)
-
-        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-
-            # Consideration of conditional hyperparameters
-            if warmstart_config['booster'] not in ['gbtree', 'dart']:
-                del warmstart_config['eta']
-                del warmstart_config['max_depth']
-
-            if warmstart_config['booster'] != 'dart':
-                del warmstart_config['sample_type']
-                del warmstart_config['normalize_type']
-                del warmstart_config['rate_drop']
-
-            if warmstart_config['booster'] != 'gblinear':
-                del warmstart_config['updater']
-
-            if self.ml_algorithm == 'XGBoostRegressor':
-
-                model = XGBRegressor(**warmstart_config, random_state=self.random_seed)
-
-            elif self.ml_algorithm == 'XGBoostClassifier':
-
-                model = XGBClassifier(**warmstart_config, random_state=self.random_seed)
-
-            # Train the model and make the prediction
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
-
-        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            train_data = lgb.Dataset(self.x_train, self.y_train)
-            valid_data = lgb.Dataset(self.x_val, self.y_val)
-
-            if 'objective' not in warmstart_config.keys():
-                # Specify the ML task
-                if self.ml_algorithm == 'LGBMRegressor':
-                    # Regression task
-                    warmstart_config['objective'] = 'regression'
-
-                elif self.ml_algorithm == 'LGBMClassifier':
-                    # Binary classification task
-                    warmstart_config['objective'] = 'binary'
-
-            if 'seed' not in warmstart_config.keys():
-                # Specify the random seed
-                warmstart_config['seed'] = self.random_seed
-
-            # Train the model and make the prediction
-            model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
-            y_pred = model.predict(self.x_val)
-
-            # In case of binary classification, round to the neares integer
-            if self.ml_algorithm == 'LGBMClassifier':
-                y_pred = np.rint(y_pred)
-
-            # Add remaining ML-algorithms here
-
-        else:
-            raise Exception('Unknown ML-algorithm!')
-
-        # Compute the warmstart (validation) loss according to the loss_metric selected
-        warmstart_loss = self.metric(self.y_val, y_pred)
-
-        return warmstart_loss
+        return warmstart_loss_cv
 
     def train_evaluate_scikit_model(self, params: dict, **kwargs):
         """
@@ -400,78 +422,88 @@ class BaseOptimizer(ABC):
             Validation loss of this run
         """
 
-        # Create ML-model for the HP-configuration selected by the HPO-method
-        if self.ml_algorithm == 'RandomForestRegressor':
-            model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
 
-        elif self.ml_algorithm == 'RandomForestClassifier':
-            model = RandomForestClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+        # Iterate over the cross validation splits
+        for train_index, val_index in kf.split(X=self.x_train):
+            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
-        elif self.ml_algorithm == 'SVR':
-            # SVR has no random_state and n_jobs parameter
-            model = SVR(**params)
+            # Create ML-model for the HP-configuration selected by the HPO-method
+            if self.ml_algorithm == 'RandomForestRegressor':
+                model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
-        elif self.ml_algorithm == 'SVC':
-            # SVC has no n_jobs parameter
-            model = SVC(**params, random_state=self.random_seed)
+            elif self.ml_algorithm == 'RandomForestClassifier':
+                model = RandomForestClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
-        elif self.ml_algorithm == 'AdaBoostRegressor':
-            # AdaBoostRegrssor has no n_jobs parameter
-            model = AdaBoostRegressor(**params, random_state=self.random_seed)
+            elif self.ml_algorithm == 'SVR':
+                # SVR has no random_state and n_jobs parameter
+                model = SVR(**params)
 
-        elif self.ml_algorithm == 'DecisionTreeRegressor':
-            # DecisionTreeRegressor has no n_jobs parameter
-            model = DecisionTreeRegressor(**params, random_state=self.random_seed)
+            elif self.ml_algorithm == 'SVC':
+                # SVC has no n_jobs parameter
+                model = SVC(**params, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'LinearRegression':
-            # LinearRegression has no random_state parameter
-            model = LinearRegression(**params, n_jobs=self.n_workers)
+            elif self.ml_algorithm == 'AdaBoostRegressor':
+                # AdaBoostRegrssor has no n_jobs parameter
+                model = AdaBoostRegressor(**params, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'KNNRegressor':
-            # KNeighborsRegressor has no random_state parameter
-            model = KNeighborsRegressor(**params, n_jobs=self.n_workers)
+            elif self.ml_algorithm == 'DecisionTreeRegressor':
+                # DecisionTreeRegressor has no n_jobs parameter
+                model = DecisionTreeRegressor(**params, random_state=self.random_seed)
 
-        elif self.ml_algorithm == 'LogisticRegression':
-            model = LogisticRegression(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+            elif self.ml_algorithm == 'LinearRegression':
+                # LinearRegression has no random_state parameter
+                model = LinearRegression(**params, n_jobs=self.n_workers)
 
-        elif self.ml_algorithm == 'NaiveBayes':
-            # FaussianNB has no random_state and n_jobs parameter
-            model = GaussianNB(**params)
+            elif self.ml_algorithm == 'KNNRegressor':
+                # KNeighborsRegressor has no random_state parameter
+                model = KNeighborsRegressor(**params, n_jobs=self.n_workers)
 
-        else:
-            raise Exception('Unknown ML-algorithm!')
+            elif self.ml_algorithm == 'LogisticRegression':
+                model = LogisticRegression(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
-        if 'hb_budget' in kwargs:
-            # For BOHB and Hyperband select the training data according to the budget of this iteration
-            hb_budget = kwargs['hb_budget']
-            n_train = len(self.x_train)
-            n_budget = int(0.1 * hb_budget * n_train)
-            idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
+            elif self.ml_algorithm == 'NaiveBayes':
+                # FaussianNB has no random_state and n_jobs parameter
+                model = GaussianNB(**params)
 
-        elif 'fabolas_budget' in kwargs:
-            # For Fabolas select the training data according to the budget of this iteration
-            fabolas_budget = kwargs['fabolas_budget']
-            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
+            else:
+                raise Exception('Unknown ML-algorithm!')
 
-        else:
-            x_train = self.x_train
-            y_train = self.y_train
+            if 'hb_budget' in kwargs:
+                # For BOHB and Hyperband select the training data according to the budget of this iteration
+                hb_budget = kwargs['hb_budget']
+                n_train = len(x_train_cv)
+                n_budget = int(0.1 * hb_budget * n_train)
+                idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
 
-        # Train the model and make the prediction
-        model.fit(x_train, y_train)
-        y_pred = model.predict(self.x_val)
+            elif 'fabolas_budget' in kwargs:
+                # For Fabolas select the training data according to the budget of this iteration
+                fabolas_budget = kwargs['fabolas_budget']
+                idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
 
-        # Compute the validation loss according to the loss_metric selected
-        val_loss = self.metric(self.y_val, y_pred)
+            # Train the model and make the prediction
+            model.fit(x_train_cv, y_train_cv)
+            y_pred = model.predict(x_val_cv)
+
+            # Compute the validation loss according to the loss_metric selected
+            val_loss = self.metric(y_val_cv, y_pred)
+
+            cross_val_losses.append(val_loss)
+
+        # Compute the average cross validation loss
+        cv_loss = np.mean(cross_val_losses)
 
         # Measure the finish time of the iteration
         self.times.append(time.time())
 
-        return val_loss
+        return cv_loss
 
     def train_evaluate_keras_model(self, params: dict, **kwargs):
         """
@@ -486,92 +518,102 @@ class BaseOptimizer(ABC):
         """
         full_budget_epochs = 100  # see https://arxiv.org/abs/1905.04970
 
-        if 'hb_budget' in kwargs:
-            # For BOHB and Hyperband select the number of epochs according to the budget of this iteration
-            hb_budget = kwargs['hb_budget']
-            epochs = int(0.1 * hb_budget * full_budget_epochs)
-            x_train = self.x_train
-            y_train = self.y_train
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
 
-        elif 'fabolas_budget' in kwargs:
-            # For Fabolas select the training data according to the budget of this iteration
-            fabolas_budget = kwargs['fabolas_budget']
-            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
-            epochs = full_budget_epochs
+        # Iterate over the cross validation splits
+        for train_index, val_index in kf.split(X=self.x_train):
+            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
-        else:
-            x_train = self.x_train
-            y_train = self.y_train
-            epochs = full_budget_epochs  # train on the full budget
+            if 'hb_budget' in kwargs:
+                # For BOHB and Hyperband select the number of epochs according to the budget of this iteration
+                hb_budget = kwargs['hb_budget']
+                epochs = int(0.1 * hb_budget * full_budget_epochs)
 
-        # Initialize the neural network
-        model = keras.Sequential()
+            elif 'fabolas_budget' in kwargs:
+                # For Fabolas select the training data according to the budget of this iteration
+                fabolas_budget = kwargs['fabolas_budget']
+                idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
+                epochs = full_budget_epochs
 
-        # Add input layer
-        model.add(keras.layers.InputLayer(input_shape=len(x_train.keys())))
+            else:
+                epochs = full_budget_epochs  # train on the full budget
 
-        # Add first hidden layer
-        model.add(keras.layers.Dense(params['layer1_size'], activation=params['layer1_activation']))
-        model.add(keras.layers.Dropout(params['dropout1']))
+            # Initialize the neural network
+            model = keras.Sequential()
 
-        # Add second hidden layer
-        model.add(keras.layers.Dense(params['layer2_size'], activation=params['layer2_activation']))
-        model.add(keras.layers.Dropout(params['dropout2']))
+            # Add input layer
+            model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
-        # Add output layer
-        if self.ml_algorithm == 'KerasRegressor':
+            # Add first hidden layer
+            model.add(keras.layers.Dense(params['layer1_size'], activation=params['layer1_activation']))
+            model.add(keras.layers.Dropout(params['dropout1']))
 
-            model.add(keras.layers.Dense(1, activation='linear'))
+            # Add second hidden layer
+            model.add(keras.layers.Dense(params['layer2_size'], activation=params['layer2_activation']))
+            model.add(keras.layers.Dropout(params['dropout2']))
 
-            # Select optimizer and compile the model
-            adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
-            model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+            # Add output layer
+            if self.ml_algorithm == 'KerasRegressor':
 
-        elif self.ml_algorithm == 'KerasClassifier':
-            # Binary classification
-            model.add(keras.layers.Dense(1, activation='sigmoid'))
+                model.add(keras.layers.Dense(1, activation='linear'))
 
-            adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
-            model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+                # Select optimizer and compile the model
+                adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+                model.compile(optimizer=adam, loss='mse', metrics=['mse'])
 
-        # Learning rate schedule
-        if params["lr_schedule"] == "cosine":
-            schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=epochs)
+            elif self.ml_algorithm == 'KerasClassifier':
+                # Binary classification
+                model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-        elif params["lr_schedule"] == "exponential":
-            schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=epochs)
+                adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+                model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
 
-        elif params["lr_schedule"] == "constant":
-            schedule = functools.partial(fix, initial_lr=params["init_lr"])
+            # Learning rate schedule
+            if params["lr_schedule"] == "cosine":
+                schedule = functools.partial(cosine, initial_lr=params["init_lr"], T_max=epochs)
 
-        else:
-            raise Exception('Unknown learning rate schedule!')
+            elif params["lr_schedule"] == "exponential":
+                schedule = functools.partial(exponential, initial_lr=params["init_lr"], T_max=epochs)
 
-        # Determine the learning rate for this iteration and pass it as callback
-        lr = keras.callbacks.LearningRateScheduler(schedule)
-        callbacks_list = [lr]
+            elif params["lr_schedule"] == "constant":
+                schedule = functools.partial(fix, initial_lr=params["init_lr"])
 
-        # Train the model
-        model.fit(x_train, y_train, epochs=epochs, batch_size=params['batch_size'],
-                  validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
-                  verbose=1)
+            else:
+                raise Exception('Unknown learning rate schedule!')
 
-        # Make the prediction
-        y_pred = model.predict(self.x_val)
+            # Determine the learning rate for this iteration and pass it as callback
+            lr = keras.callbacks.LearningRateScheduler(schedule)
+            callbacks_list = [lr]
 
-        # In case of binary classification round to the neares integer
-        if self.ml_algorithm == 'KerasClassifier':
-            y_pred = np.rint(y_pred)
+            # Train the model and make the prediction
+            model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=params['batch_size'],
+                      validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
+                      verbose=1)
 
-        # Compute the validation loss according to the loss_metric selected
-        val_loss = self.metric(self.y_val, y_pred)
+            # Make the prediction
+            y_pred = model.predict(x_val_cv)
+
+            # In case of binary classification round to the nearest integer
+            if self.ml_algorithm == 'KerasClassifier':
+                y_pred = np.rint(y_pred)
+
+            # Compute the validation loss according to the loss_metric selected
+            val_loss = self.metric(y_val_cv, y_pred)
+
+            cross_val_losses.append(val_loss)
+
+        # Compute the average cross validation loss
+        cv_loss = np.mean(cross_val_losses)
 
         # Measure the finish time of the iteration
         self.times.append(time.time())
 
-        return val_loss
+        return cv_loss
 
     def train_evaluate_xgboost_model(self, params: dict, **kwargs):
         """
@@ -584,26 +626,6 @@ class BaseOptimizer(ABC):
         :return: val_loss: float
             Validation loss of this run
         """
-
-        if 'hb_budget' in kwargs:
-            # For BOHB and Hyperband select the training data according to the budget of this iteration
-            hb_budget = kwargs['hb_budget']
-            n_train = len(self.x_train)
-            n_budget = int(0.1 * hb_budget * n_train)
-            idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
-
-        elif 'fabolas_budget' in kwargs:
-            # For Fabolas select the training data according to the budget of this iteration
-            fabolas_budget = kwargs['fabolas_budget']
-            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
-
-        else:
-            x_train = self.x_train
-            y_train = self.y_train
 
         # Consideration of conditional hyperparameters // Remove invalid HPs according to the conditions
         if params['booster'] not in ['gbtree', 'dart']:
@@ -618,26 +640,56 @@ class BaseOptimizer(ABC):
         if params['booster'] != 'gblinear':
             del params['updater']
 
-        # Initialize the model
-        if self.ml_algorithm == 'XGBoostRegressor':
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
 
-            model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+        # Iterate over the cross validation splits
+        for train_index, val_index in kf.split(X=self.x_train):
+            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
-        elif self.ml_algorithm == 'XGBoostClassifier':
+            if 'hb_budget' in kwargs:
+                # For BOHB and Hyperband select the training data according to the budget of this iteration
+                hb_budget = kwargs['hb_budget']
+                n_train = len(x_train_cv)
+                n_budget = int(0.1 * hb_budget * n_train)
+                idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                x_train_cv = x_train_cv.iloc[idx_train]
 
-            model = XGBClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+            elif 'fabolas_budget' in kwargs:
+                # For Fabolas select the training data according to the budget of this iteration
+                fabolas_budget = kwargs['fabolas_budget']
+                idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
 
-        # Train the model and make the prediction
-        model.fit(x_train, y_train)
-        y_pred = model.predict(self.x_val)
+            # Initialize the model
+            if self.ml_algorithm == 'XGBoostRegressor':
 
-        # Compute the validation loss according to the loss_metric selected
-        val_loss = self.metric(self.y_val, y_pred)
+                model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+
+            elif self.ml_algorithm == 'XGBoostClassifier':
+
+                model = XGBClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+
+            # Train the model and make the prediction
+            model.fit(x_train_cv, y_train_cv)
+            y_pred = model.predict(x_val_cv)
+
+            # Compute the validation loss according to the loss_metric selected
+            val_loss = self.metric(y_val_cv, y_pred)
+
+            cross_val_losses.append(val_loss)
+
+        # Compute the average cross validation loss
+        cv_loss = np.mean(cross_val_losses)
 
         # Measure the finish time of the iteration
         self.times.append(time.time())
 
-        return val_loss
+        return cv_loss
 
     def train_evaluate_lightgbm_model(self, params, **kwargs):
         """
@@ -651,57 +703,67 @@ class BaseOptimizer(ABC):
             Validation loss of this run
         """
 
-        if 'hb_budget' in kwargs:
-            # For BOHB and Hyperband select the training data according to the budget of this iteration
-            hb_budget = kwargs['hb_budget']
-            n_train = len(self.x_train)
-            n_budget = int(0.1 * hb_budget * n_train)
-            idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
 
-        elif 'fabolas_budget' in kwargs:
-            # For Fabolas select the training data according to the budget of this iteration
-            fabolas_budget = kwargs['fabolas_budget']
-            idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
-            x_train = self.x_train.iloc[idx_train]
-            y_train = self.y_train.iloc[idx_train]
+        # Iterate over the cross validation splits
+        for train_index, val_index in kf.split(X=self.x_train):
+            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
-        else:
-            x_train = self.x_train
-            y_train = self.y_train
+            if 'hb_budget' in kwargs:
+                # For BOHB and Hyperband select the training data according to the budget of this iteration
+                hb_budget = kwargs['hb_budget']
+                n_train = len(x_train_cv)
+                n_budget = int(0.1 * hb_budget * n_train)
+                idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
 
-        # Create lgb datasets
-        train_data = lgb.Dataset(x_train, label=y_train)
-        valid_data = lgb.Dataset(self.x_val, label=self.y_val)
+            elif 'fabolas_budget' in kwargs:
+                # For Fabolas select the training data according to the budget of this iteration
+                fabolas_budget = kwargs['fabolas_budget']
+                idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
 
-        # Specify the Ml task
-        if self.ml_algorithm == 'LGBMRegressor':
-            # Regression task
-            params['objective'] = 'regression'
+            # Specify the Ml task
+            if self.ml_algorithm == 'LGBMRegressor':
+                # Regression task
+                params['objective'] = 'regression'
 
-        elif self.ml_algorithm == 'LGBMClassifier':
-            # Binary classification task
-            params['objective'] = 'binary'
+            elif self.ml_algorithm == 'LGBMClassifier':
+                # Binary classification task
+                params['objective'] = 'binary'
 
-        # Specify the number of threads (parallelization) and the random seed
-        params['num_threads'] = self.n_workers
-        params['seed'] = self.random_seed
+            # Specify the number of threads (parallelization) and the random seed
+            params['num_threads'] = self.n_workers
+            params['seed'] = self.random_seed
 
-        # Initialize and train the model
-        lgb_model = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+            # Create lgb datasets
+            train_data = lgb.Dataset(x_train_cv, label=y_train_cv)
+            valid_data = lgb.Dataset(x_val_cv, label=y_val_cv)
 
-        # Make the prediction
-        y_pred = lgb_model.predict(data=self.x_val)
+            # Initialize and train the model
+            lgb_model = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
-        # In case of binary classification round to the nearest integer
-        if self.ml_algorithm == 'LGBMClassifier':
-            y_pred = np.rint(y_pred)
+            # Make the prediction
+            y_pred = lgb_model.predict(data=x_val_cv)
 
-        # Compute the validation loss according to the loss_metric selected
-        val_loss = self.metric(self.y_val, y_pred)
+            # In case of binary classification round to the nearest integer
+            if self.ml_algorithm == 'LGBMClassifier':
+                y_pred = np.rint(y_pred)
+
+            # Compute the validation loss according to the loss_metric selected
+            val_loss = self.metric(y_val_cv, y_pred)
+
+            cross_val_losses.append(val_loss)
+
+        # Compute the average cross validation loss
+        cv_loss = np.mean(cross_val_losses)
 
         # Measure the finish time of the iteration
         self.times.append(time.time())
 
-        return val_loss
+        return cv_loss
