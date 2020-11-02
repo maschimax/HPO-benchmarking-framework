@@ -64,7 +64,8 @@ class Trial:
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
                                                'eval_count', 'losses', 'timestamps', 'configurations',
-                                               'run_successful', 'warmstart', 'runs', 'evaluations', 'workers'])
+                                               'run_successful', 'warmstart', 'runs', 'evaluations', 'workers',
+                                               'budget [%]'])
             best_configs = ()
             best_losses = []
 
@@ -131,7 +132,8 @@ class Trial:
                              'warmstart': optimization_results.did_warmstart,
                              'runs': [self.n_runs] * len(optimization_results.losses),
                              'evaluations': [self.n_func_evals] * len(optimization_results.losses),
-                             'workers': [self.n_workers] * len(optimization_results.losses)}
+                             'workers': [self.n_workers] * len(optimization_results.losses),
+                             'budget [%]': optimization_results.budget}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
@@ -253,7 +255,10 @@ class Trial:
         # Formatting of the plot
         plt.xlabel('Wall clock time [s]')
         plt.ylabel('Loss')
+        # plt.ylim([0.02, 1.0])
+        # plt.xlim([0.05, 1000])
         plt.yscale('log')
+        plt.xscale('log')
         # ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
 
         # Add a legend

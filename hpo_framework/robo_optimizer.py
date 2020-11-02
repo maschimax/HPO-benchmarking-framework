@@ -134,6 +134,9 @@ class RoboOptimizer(BaseOptimizer):
                 s_min = int(0.05 * s_max)  # Maximum number of data points for the training data set
                 n_init = int(self.n_func_evals / 3)  # Requirement of the fabolas implementation
 
+                # Initialize a list to store the optimization budget used by Fabolas in each iteration
+                self.fabolas_budget = []
+
                 result_dict = fabolas(objective_function=self.objective_fabolas, s_min=s_min, s_max=s_max,
                                       lower=hp_space_lower, upper=hp_space_upper,
                                       num_iterations=self.n_func_evals, rng=rand_num_generator, n_init=n_init)
@@ -206,6 +209,11 @@ class RoboOptimizer(BaseOptimizer):
             best_configuration = {}
             x_opt = result_dict['x_opt']
 
+            if self.hpo_method == 'Fabolas':
+                budget = self.fabolas_budget
+            else:
+                budget = [100.0 * len(losses)]
+
             for i in range(len(x_opt)):
                 if type(self.hp_space[i]) == skopt.space.space.Integer:
                     best_configuration[self.hp_space[i].name] = int(round(x_opt[i]))
@@ -221,13 +229,14 @@ class RoboOptimizer(BaseOptimizer):
 
         # Run not successful (algorithm crashed)
         else:
-            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
-                self.impute_results_for_crash()
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
+                budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-Object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart,
+                              budget=budget)
 
         return result
 
@@ -282,6 +291,7 @@ class RoboOptimizer(BaseOptimizer):
         t_start_eval = time.time()
         val_loss = eval_func(params=dict_params, fabolas_budget=s)
         cost = time.time() - t_start_eval
+        self.fabolas_budget.append(round(s/len(self.x_train) * 100, 2))
 
         return val_loss, cost
 

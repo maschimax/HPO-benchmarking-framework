@@ -3,7 +3,7 @@ import pandas as pd
 
 class TuningResult:
     def __init__(self, evaluation_ids: list, timestamps: list, losses: list, configurations: tuple, best_loss: float,
-                 best_configuration: dict, wall_clock_time, successful=True, did_warmstart=False):
+                 best_configuration: dict, wall_clock_time, successful=True, did_warmstart=False, budget=100.0):
         self.evaluation_ids = evaluation_ids  # list
         self.timestamps = timestamps  # list
         self.losses = losses  # list
@@ -13,6 +13,7 @@ class TuningResult:
         self.wall_clock_time = wall_clock_time
         self.successful = successful  # Flag that indicates, whether the run was finished successfully or not
         self.did_warmstart = did_warmstart  # Flag that indicates, whether a warmstart took place
+        self.budget = budget  # Used optimization budget [%] (e.g. BOHB varies the budget in each iteration)
 
 
 class TrialResult:
