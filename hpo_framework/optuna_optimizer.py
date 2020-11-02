@@ -207,15 +207,19 @@ class OptunaOptimizer(BaseOptimizer):
             losses = list(sorted_df['losses'])
             configurations = tuple(sorted_df['configurations'])
 
+            # Optuna uses full budgets for its HPO methods
+            budget = [100.0 * len(losses)]
+
             # Run not successful (algorithm crashed)
         else:
-            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
-                self.impute_results_for_crash()
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
+                budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart,
+                              budget=budget)
 
         return result
 
