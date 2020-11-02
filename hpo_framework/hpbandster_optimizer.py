@@ -213,7 +213,7 @@ class HpbandsterOptimizer(BaseOptimizer):
             best_configuration = id2config[incumbent]['config']
 
             runs_df = pd.DataFrame(columns=['config_id#0', 'config_id#1', 'config_id#2', 'iteration', 'budget',
-                                            'loss', 'timestamps [finished]'])
+                                            'loss', 'timestamps [finished]', 'budget [%]'])
             all_runs = res.get_all_runs()
 
             # Iterate over all runs
@@ -226,7 +226,8 @@ class HpbandsterOptimizer(BaseOptimizer):
                              'iteration': this_run.config_id[0],
                              'budget': this_run.budget,
                              'loss': this_run.loss,
-                             'timestamps [finished]': this_run.time_stamps['finished']}
+                             'timestamps [finished]': this_run.time_stamps['finished'],
+                             'budget [%]': round(this_run.budget * 10, 2)}
                 # alternatively: 'timestamps [finished]': this_run.time_stamps['finished']
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
                 this_df.set_index('run_id', inplace=True)
@@ -240,6 +241,7 @@ class HpbandsterOptimizer(BaseOptimizer):
             evaluation_ids = list(range(1, len(losses) + 1))
             timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
             wall_clock_time = max(timestamps)
+            budget = list(runs_df['budget [%]'])
 
             configurations = ()
             for i in range(len(losses)):
@@ -251,12 +253,13 @@ class HpbandsterOptimizer(BaseOptimizer):
 
         # Run not successful (algorithm crashed)
         else:
-            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time = \
-                self.impute_results_for_crash()
+            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
+                budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
                               configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart)
+                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart,
+                              budget=budget)
 
         return result
