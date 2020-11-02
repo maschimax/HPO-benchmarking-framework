@@ -189,11 +189,11 @@ abs_results_path = os.path.abspath(path='hpo_framework/results')
 
 res_folder = os.path.join(abs_results_path, use_case)
 if not os.path.isdir(res_folder):
-    os.mkdir(res_folder)
+    os.makedirs(res_folder, exist_ok=True)
 
 log_folder = os.path.join(res_folder, 'logs')
 if not os.path.isdir(log_folder):
-    os.mkdir(log_folder)
+    os.makedirs(log_folder, exist_ok=True)
 
 time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
 
