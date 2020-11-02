@@ -11,9 +11,9 @@ from hpo_framework import multiproc_target_funcs
 
 
 class HyperoptOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
                  random_seed, n_workers):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
                          random_seed, n_workers)
 
     def optimize(self) -> TuningResult:
@@ -144,7 +144,7 @@ class HyperoptOptimizer(BaseOptimizer):
                 losses.append(this_result['loss'])
 
             # Best loss
-            best_loss = min(losses)
+            best_val_loss = min(losses)
 
             # Determine the best HP-configuration of this run
             best_configuration = {}
@@ -183,13 +183,14 @@ class HyperoptOptimizer(BaseOptimizer):
 
         # Run not successful (algorithm crashed)
         else:
-            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
+            evaluation_ids, timestamps, losses, configurations, best_val_loss, best_configuration, wall_clock_time, \
                 budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful, budget=budget)
+                              configurations=configurations, best_val_loss=best_val_loss,
+                              best_configuration=best_configuration, wall_clock_time=wall_clock_time,
+                              successful=run_successful, budget=budget)
 
         return result
 

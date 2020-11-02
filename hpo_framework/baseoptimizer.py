@@ -23,7 +23,7 @@ from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_kera
 
 class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
-                 x_train: pd.DataFrame, x_val: pd.DataFrame, y_train: pd.Series, y_val: pd.Series,
+                 x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.Series, y_test: pd.Series,
                  metric, n_func_evals: int, random_seed: int, n_workers: int):
         """
         Superclass for the individual optimizer classes of each HPO-library.
@@ -31,9 +31,9 @@ class BaseOptimizer(ABC):
         :param hpo_method:
         :param ml_algorithm:
         :param x_train:
-        :param x_val:
+        :param x_test:
         :param y_train:
-        :param y_val:
+        :param y_test:
         :param metric
         :param n_func_evals:
         :param random_seed
@@ -43,9 +43,9 @@ class BaseOptimizer(ABC):
         self.hpo_method = hpo_method
         self.ml_algorithm = ml_algorithm
         self.x_train = x_train
-        self.x_val = x_val
+        self.x_test = x_test
         self.y_train = y_train
-        self.y_val = y_val
+        self.y_test = y_test
         self.metric = metric
         self.n_func_evals = n_func_evals
         self.random_seed = random_seed
@@ -67,7 +67,6 @@ class BaseOptimizer(ABC):
         """
         return result.best_configuration
 
-    @staticmethod
     def get_best_val_score(result: TuningResult):
         """
         Method returns the best best validation loss  of this optimization run.
@@ -77,7 +76,7 @@ class BaseOptimizer(ABC):
             Best achieved validation loss of this optimization run.
         """
         # Returns the validation score of the best configuration of this optimization run
-        raise result.best_loss
+        raise result.best_val_loss
 
     def impute_results_for_crash(self):
         """
@@ -93,8 +92,11 @@ class BaseOptimizer(ABC):
         best_loss = [float('nan')]
         best_configuration = {'params': None}
         wall_clock_time = float('nan')
-        budget = float('nan')
-        return evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, budget
+        test_loss = float('nan')
+        budget = [float('nan')] * self.n_func_evals
+
+        return evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
+               test_loss, budget
 
     def get_warmstart_configuration(self):
         """
@@ -198,21 +200,20 @@ class BaseOptimizer(ABC):
 
             # Use the warmstart HP-configuration to create a model for the ML-algorithm selected
             if self.ml_algorithm == 'RandomForestRegressor':
-                model = RandomForestRegressor(**warmstart_config, random_state=self.random_seed)
+                model = RandomForestRegressor(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'RandomForestClassifier':
-                model = RandomForestClassifier(**warmstart_config, random_state=self.random_seed)
+                model = RandomForestClassifier(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'SVR':
-                # SVR has no random_state parameter
                 model = SVR(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -220,28 +221,27 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'SVC':
-                model = SVC(**warmstart_config, random_state=self.random_seed)
+                model = SVC(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'AdaBoostRegressor':
-                model = AdaBoostRegressor(**warmstart_config, random_state=self.random_seed)
+                model = AdaBoostRegressor(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'DecisionTreeRegressor':
-                model = DecisionTreeRegressor(**warmstart_config, random_state=self.random_seed)
+                model = DecisionTreeRegressor(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'LinearRegression':
-                # LinearRegression has no random_state parameter
                 model = LinearRegression(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -249,7 +249,6 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'KNNRegressor':
-                # KNeighborsRegressor has no random_state parameter
                 model = KNeighborsRegressor(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -257,14 +256,13 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'LogisticRegression':
-                model = LogisticRegression(**warmstart_config, random_state=self.random_seed)
+                model = LogisticRegression(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'NaiveBayes':
-                # GaussianNB has no random_state parameter
                 model = GaussianNB(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -283,12 +281,14 @@ class BaseOptimizer(ABC):
 
                 # Add first hidden layer
                 model.add(
-                    keras.layers.Dense(warmstart_config['layer1_size'], activation=warmstart_config['layer1_activation']))
+                    keras.layers.Dense(warmstart_config['layer1_size'],
+                                       activation=warmstart_config['layer1_activation']))
                 model.add(keras.layers.Dropout(warmstart_config['dropout1']))
 
                 # Add second hidden layer
                 model.add(
-                    keras.layers.Dense(warmstart_config['layer2_size'], activation=warmstart_config['layer2_activation']))
+                    keras.layers.Dense(warmstart_config['layer2_size'],
+                                       activation=warmstart_config['layer2_activation']))
                 model.add(keras.layers.Dropout(warmstart_config['dropout2']))
 
                 # Add output layer
@@ -359,11 +359,11 @@ class BaseOptimizer(ABC):
 
                 if self.ml_algorithm == 'XGBoostRegressor':
 
-                    model = XGBRegressor(**warmstart_config, random_state=self.random_seed)
+                    model = XGBRegressor(**warmstart_config)
 
                 elif self.ml_algorithm == 'XGBoostClassifier':
 
-                    model = XGBClassifier(**warmstart_config, random_state=self.random_seed)
+                    model = XGBClassifier(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
@@ -410,26 +410,43 @@ class BaseOptimizer(ABC):
 
         return warmstart_loss_cv
 
-    def train_evaluate_scikit_model(self, params: dict, **kwargs):
+    def train_evaluate_scikit_model(self, params: dict, cv_mode=True, **kwargs):
         """
         This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
             Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
-        :return: val_loss: float
+        :return: cv_loss: float
             Validation loss of this run
         """
 
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
         cross_val_losses = []
-
+        cv_iter = 0
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
-            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
-            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+            cv_iter = cv_iter + 1
+
+            # Cross validation
+            if cv_mode:
+
+                x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+                y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+
+            # Training on full training set and evaluation on test set
+            elif not cv_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv = self.x_train, self.x_test
+                y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            # Iteration doesn't make sense for non cross validation
+            else:
+                continue
 
             # Create ML-model for the HP-configuration selected by the HPO-method
             if self.ml_algorithm == 'RandomForestRegressor':
@@ -472,7 +489,7 @@ class BaseOptimizer(ABC):
             else:
                 raise Exception('Unknown ML-algorithm!')
 
-            if 'hb_budget' in kwargs:
+            if 'hb_budget' in kwargs and cv_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -481,7 +498,7 @@ class BaseOptimizer(ABC):
                 x_train_cv = x_train_cv.iloc[idx_train]
                 y_train_cv = y_train_cv.iloc[idx_train]
 
-            elif 'fabolas_budget' in kwargs:
+            elif 'fabolas_budget' in kwargs and cv_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
@@ -497,11 +514,16 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        # Compute the average cross validation loss
-        cv_loss = np.mean(cross_val_losses)
+        if cv_mode:
 
-        # Measure the finish time of the iteration
-        self.times.append(time.time())
+            # Measure the finish time of the iteration
+            self.times.append(time.time())
+
+            # Compute the average cross validation loss
+            cv_loss = np.mean(cross_val_losses)
+
+        else:
+            cv_loss = cross_val_losses[0]
 
         return cv_loss
 

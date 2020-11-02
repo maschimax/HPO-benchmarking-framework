@@ -10,9 +10,9 @@ from hpo_framework import multiproc_target_funcs
 
 
 class OptunaOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
                  random_seed, n_workers, do_warmstart):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
                          random_seed, n_workers)
 
         self.do_warmstart = do_warmstart
@@ -162,7 +162,7 @@ class OptunaOptimizer(BaseOptimizer):
             # Transformation of the results into a TuningResult-Object
             all_trials = study.get_trials()
             best_configuration = study.best_params
-            best_loss = study.best_value
+            best_val_loss = study.best_value
 
             start_times = []  # Start time of each trial
             finish_times = []  # Finish time of each trial
@@ -208,17 +208,41 @@ class OptunaOptimizer(BaseOptimizer):
             configurations = tuple(sorted_df['configurations'])
 
             # Optuna uses full budgets for its HPO methods
-            budget = [100.0 * len(losses)]
+            budget = [100.0] * len(losses)
 
-            # Run not successful (algorithm crashed)
+            # Compute the loss on the test set for the best found configuration (full training)
+            if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                    self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                    self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                    self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
+                    self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
+
+                test_func = self.train_evaluate_scikit_model
+
+            elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+                test_func = self.train_evaluate_keras_model
+
+            elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+                test_func = self.train_evaluate_xgboost_model
+
+            elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+                test_func = self.train_evaluate_lightgbm_model
+
+            else:
+                raise Exception('Unknown ML-algorithm!')
+
+            test_loss = test_func(best_configuration, cv_mode=False)
+
+        # Run not successful (algorithm crashed)
         else:
-            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
-                budget = self.impute_results_for_crash()
+            evaluation_ids, timestamps, losses, configurations, best_val_loss, best_configuration, wall_clock_time, \
+                test_loss, budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart,
+                              configurations=configurations, best_val_loss=best_val_loss,
+                              best_configuration=best_configuration, wall_clock_time=wall_clock_time,
+                              test_loss=test_loss, successful=run_successful, did_warmstart=did_warmstart,
                               budget=budget)
 
         return result

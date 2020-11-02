@@ -5,13 +5,9 @@ import skopt
 
 
 class HPBandsterWorker(Worker):
-    def __init__(self, x_train, x_val, y_train, y_val, ml_algorithm, optimizer_object, sleep_interval=0, **kwargs):
+    def __init__(self, ml_algorithm, optimizer_object, sleep_interval=0, **kwargs):
         super().__init__(**kwargs)
 
-        self.X_train = x_train
-        self.X_val = x_val
-        self.y_train = y_train
-        self.y_val = y_val
         self.ml_algorithm = ml_algorithm
         self.optimizer_object = optimizer_object
         self.sleep_interval = sleep_interval
