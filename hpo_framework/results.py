@@ -24,7 +24,7 @@ class TrialResult:
         self.trial_result_df = trial_result_df
         self.best_trial_configuration = best_trial_configuration
         self.best_val_loss = best_val_loss
-        self.best_test_loss = best_test_loss,
+        self.best_test_loss = best_test_loss
         self.hpo_library = hpo_library
         self.hpo_method = hpo_method
         self.did_warmstart = did_warmstart
