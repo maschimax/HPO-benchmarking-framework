@@ -157,10 +157,12 @@ class Trial:
                 elif best_val_losses[i] < best_val_loss:
                     best_val_loss = best_val_losses[i]
                     idx_best = i
+            # Best test loss of all runs for this HPO method
+            best_test_loss = test_losses[idx_best]
 
             # Create a TrialResult-object to save the results of this trial
             trial_result_obj = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
-                                           best_val_loss=best_val_loss, best_test_loss=test_losses[idx_best],
+                                           best_val_loss=best_val_loss, best_test_loss=best_test_loss,
                                            hpo_library=this_hpo_library, hpo_method=this_hpo_method,
                                            did_warmstart=optimization_results.did_warmstart)
 
@@ -326,7 +328,7 @@ class Trial:
             sorted_df.sort_values(by='val_losses', axis=0, ascending=False, inplace=True)
 
             # Tuned / Optimized hyperparameters
-            hyper_params = list(sorted_df['configurations'].iloc[1].keys())
+            hyper_params = list(sorted_df['configurations'].iloc[0].keys())
 
             # Divide the single column with all hyperparameters (sorted_df) into individual columns for each
             # hyperparameter and assign the evaluated parameter values
