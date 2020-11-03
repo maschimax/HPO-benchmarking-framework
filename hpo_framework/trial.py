@@ -29,8 +29,8 @@ from hpo_framework.lr_schedules import fix, exponential, cosine
 class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
-                 x_train: pd.DataFrame, y_train: pd.Series, x_val: pd.DataFrame, y_val: pd.Series, baseline=0.0,
-                 do_warmstart='No'):
+                 x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, baseline=0.0,
+                 do_warmstart='No', optimizer=None):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -40,10 +40,11 @@ class Trial:
         self.n_workers = n_workers
         self.x_train = x_train
         self.y_train = y_train
-        self.x_val = x_val
-        self.y_val = y_val
+        self.x_test = x_test
+        self.y_test = y_test
         self.baseline = baseline
         self.do_warmstart = do_warmstart
+        self.optimizer = optimizer
         # Attribute for CPU / GPU selection required
 
     def run(self):
@@ -63,11 +64,12 @@ class Trial:
 
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'eval_count', 'losses', 'timestamps', 'configurations',
-                                               'run_successful', 'warmstart', 'runs', 'evaluations', 'workers',
-                                               'budget [%]'])
+                                               'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
+                                               'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
+                                               'workers', 'budget [%]'])
             best_configs = ()
-            best_losses = []
+            best_val_losses = []
+            test_losses = []
 
             # Perform n_runs with varying random seeds
             for i in range(self.n_runs):
@@ -77,43 +79,45 @@ class Trial:
                 # Create an optimizer object
                 if this_hpo_library == 'skopt':
                     optimizer = SkoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
-                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
-                                               y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_test=self.x_test,
+                                               y_train=self.y_train, y_test=self.y_test, metric=self.metric,
                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
                                                n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
-                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
-                                                y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
-                                                n_workers=self.n_workers, do_warmstart=self.do_warmstart)
+                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train,
+                                                x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
+                                                metric=self.metric, n_func_evals=self.n_func_evals,
+                                                random_seed=this_seed, n_workers=self.n_workers,
+                                                do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'hpbandster':
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                     ml_algorithm=self.ml_algorithm, x_train=self.x_train,
-                                                    x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
+                                                    x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
                                                     random_seed=this_seed, n_workers=self.n_workers,
                                                     do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
-                                              ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_val=self.x_val,
-                                              y_train=self.y_train, y_val=self.y_val, metric=self.metric,
+                                              ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_test=self.x_test,
+                                              y_train=self.y_train, y_test=self.y_test, metric=self.metric,
                                               n_func_evals=self.n_func_evals, random_seed=this_seed,
                                               n_workers=self.n_workers, do_warmstart=self.do_warmstart)
 
                 elif this_hpo_library == 'hyperopt':
                     optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                   ml_algorithm=self.ml_algorithm, x_train=self.x_train,
-                                                  x_val=self.x_val,
-                                                  y_train=self.y_train, y_val=self.y_val, metric=self.metric,
-                                                  n_func_evals=self.n_func_evals, random_seed=this_seed,
-                                                  n_workers=self.n_workers)
+                                                  x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
+                                                  metric=self.metric, n_func_evals=self.n_func_evals,
+                                                  random_seed=this_seed, n_workers=self.n_workers)
 
                 else:
                     raise Exception('Unknown HPO-library!')
+
+                self.optimizer = optimizer
 
                 # Start the optimization
                 optimization_results = optimizer.optimize()
@@ -125,7 +129,8 @@ class Trial:
                              'run_id': [run_id] * len(optimization_results.losses),
                              'random_seed': [i] * len(optimization_results.losses),
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
-                             'losses': optimization_results.losses,
+                             'val_losses': optimization_results.losses,
+                             'test_loss [best config.]': [optimization_results.test_loss] * len(optimization_results.losses),
                              'timestamps': optimization_results.timestamps,
                              'configurations': optimization_results.configurations,
                              'run_successful': optimization_results.successful,
@@ -141,20 +146,26 @@ class Trial:
 
                 # Retrieve the best HP-configuration and the achieved loss
                 best_configs = best_configs + (optimization_results.best_configuration,)
-                best_losses.append(optimization_results.best_loss)
+                best_val_losses.append(optimization_results.best_val_loss)
+                test_losses.append(optimization_results.test_loss)
 
-            for i in range(len(best_losses)):
+            # Iterate over the runs and find the best configuration and its validation and test loss
+            for i in range(len(best_val_losses)):
                 if i == 0:
-                    best_loss = best_losses[i]
+                    best_val_loss = best_val_losses[i]
                     idx_best = i
-                elif best_losses[i] < best_loss:
-                    best_loss = best_losses[i]
+                elif best_val_losses[i] < best_val_loss:
+                    best_val_loss = best_val_losses[i]
                     idx_best = i
+
+            # Best test loss of all runs for this HPO method
+            best_test_loss = test_losses[idx_best]
 
             # Create a TrialResult-object to save the results of this trial
             trial_result_obj = TrialResult(trial_result_df=results_df, best_trial_configuration=best_configs[idx_best],
-                                           best_trial_loss=best_loss, hpo_library=this_hpo_library,
-                                           hpo_method=this_hpo_method, did_warmstart=optimization_results.did_warmstart)
+                                           best_val_loss=best_val_loss, best_test_loss=best_test_loss,
+                                           hpo_library=this_hpo_library, hpo_method=this_hpo_method,
+                                           did_warmstart=optimization_results.did_warmstart)
 
             # Append the TrialResult-object to the result dictionary
             trial_results_dict[opt_tuple] = trial_result_obj
@@ -207,10 +218,10 @@ class Trial:
                         timestamps[i, j] = this_subframe['timestamps'][i]
 
                         if i == 0:
-                            best_losses[i, j] = this_subframe['losses'][i]
+                            best_losses[i, j] = this_subframe['val_losses'][i]
 
-                        elif this_subframe['losses'][i] < best_losses[i - 1, j]:
-                            best_losses[i, j] = this_subframe['losses'][i]
+                        elif this_subframe['val_losses'][i] < best_losses[i - 1, j]:
+                            best_losses[i, j] = this_subframe['val_losses'][i]
 
                         else:
                             best_losses[i, j] = best_losses[i - 1, j]
@@ -243,7 +254,8 @@ class Trial:
         # Check whether a baseline has already been calculated
         if self.baseline == 0.0:
             # Compute a new baseline
-            baseline_loss = self.get_baseline_loss()
+            # baseline_loss = self.get_test_baseline()
+            baseline_loss = self.optimizer.get_warmstart_loss()
             self.baseline = baseline_loss
         else:
             baseline_loss = self.baseline
@@ -254,7 +266,7 @@ class Trial:
 
         # Formatting of the plot
         plt.xlabel('Wall clock time [s]')
-        plt.ylabel('Loss')
+        plt.ylabel('Validation loss')
         # plt.ylim([0.02, 1.0])
         # plt.xlim([0.05, 1000])
         plt.yscale('log')
@@ -302,11 +314,11 @@ class Trial:
             warmstart = str(this_df.iloc[0]['warmstart'])
 
             # Sort DataFrame by loss values
-            sorted_df = this_df.sort_values(by='losses', axis=0, ascending=True, inplace=False)
+            sorted_df = this_df.sort_values(by='val_losses', axis=0, ascending=True, inplace=False)
             sorted_df.reset_index(drop=True, inplace=True)
 
             # Find the indices of the 5 % best hyperparameter configurations
-            n_best_configs = round(.05 * len(sorted_df['losses']))
+            n_best_configs = round(.05 * len(sorted_df['val_losses']))
             idx_best_configs = sorted_df.index[:n_best_configs]
 
             # New column to distinguish the 'best' and the remaining configurations
@@ -314,10 +326,10 @@ class Trial:
             sorted_df.loc[idx_best_configs, 'Score'] = 'Best 5%'
 
             # Sort by descending losses to ensure that the best configurations are plotted on top
-            sorted_df.sort_values(by='losses', axis=0, ascending=False, inplace=True)
+            sorted_df.sort_values(by='val_losses', axis=0, ascending=False, inplace=True)
 
             # Tuned / Optimized hyperparameters
-            hyper_params = list(sorted_df['configurations'].iloc[1].keys())
+            hyper_params = list(sorted_df['configurations'].iloc[0].keys())
 
             # Divide the single column with all hyperparameters (sorted_df) into individual columns for each
             # hyperparameter and assign the evaluated parameter values
@@ -367,20 +379,22 @@ class Trial:
             this_opt_tuple = list(trial_results_dict.keys())[i]
 
             if i == 0:
-                best_loss = trial_results_dict[this_opt_tuple].best_loss
+                best_val_loss = trial_results_dict[this_opt_tuple].best_val_loss
+                best_test_loss = trial_results_dict[this_opt_tuple].best_test_loss
                 best_configuration = trial_results_dict[this_opt_tuple].best_trial_configuration
                 best_library = trial_results_dict[this_opt_tuple].hpo_library
                 best_method = trial_results_dict[this_opt_tuple].hpo_method
 
-            elif trial_results_dict[this_opt_tuple].best_loss < best_loss:
-                best_loss = trial_results_dict[this_opt_tuple].best_loss
+            elif trial_results_dict[this_opt_tuple].best_val_loss < best_val_loss:
+                best_val_loss = trial_results_dict[this_opt_tuple].best_val_loss
+                best_test_loss = trial_results_dict[this_opt_tuple].best_test_loss
                 best_configuration = trial_results_dict[this_opt_tuple].best_trial_configuration
                 best_library = trial_results_dict[this_opt_tuple].hpo_library
                 best_method = trial_results_dict[this_opt_tuple].hpo_method
 
         out_dict = {'ML-algorithm': self.ml_algorithm, 'HPO-method': best_method, 'HPO-library': best_library,
                     'HP-configuration': best_configuration,
-                    'Loss': best_loss}
+                    'Validation loss': best_val_loss, 'Test loss': best_test_loss}
         return out_dict
 
     def get_metrics(self, trial_results_dict: dict):
@@ -394,8 +408,8 @@ class Trial:
 
         metrics = {}
         cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Warmstart',
-                'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean(best loss)',
-                'Loss ratio', 'Interquartile range(best_loss)', 't best configuration [s]',
+                'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean (final test loss)',
+                'Loss ratio', 'Interquartile range (final test loss)', 't best configuration [s]',
                 'Evaluations for best configuration', 'Crashes']
 
         metrics_df = pd.DataFrame(columns=cols)
@@ -403,7 +417,8 @@ class Trial:
         # Check whether a baseline has already been calculated
         if self.baseline == 0.0:
             # Compute a new baseline
-            baseline_loss = self.get_baseline_loss()
+            # baseline_loss = self.get_test_baseline()
+            baseline_loss = self.optimizer.get_warmstart_loss()
             self.baseline = baseline_loss
         else:
             baseline_loss = self.baseline
@@ -429,8 +444,9 @@ class Trial:
                     n_rows = num_of_evals
 
             # n_rows = int(len(this_df['num_of_evaluation']) / n_cols)
-            best_losses = np.zeros(shape=(n_rows, n_cols))
+            best_val_losses = np.zeros(shape=(n_rows, n_cols))
             timestamps = np.zeros(shape=(n_rows, n_cols))
+            best_test_losses = np.zeros(shape=(1, n_cols))
 
             # Count the number of algorithm crashes that occurred during optimization
             number_of_crashes_this_algo = 0
@@ -439,6 +455,8 @@ class Trial:
             for j in range(n_cols):
                 this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
+
+                best_test_losses[0, j] = this_subframe['test_loss [best config.]'][0]
 
                 # Check, whether this run was completed successfully
                 if not all(this_subframe['run_successful']):
@@ -452,20 +470,20 @@ class Trial:
                         timestamps[i, j] = this_subframe['timestamps'][i]
 
                         if i == 0:
-                            best_losses[i, j] = this_subframe['losses'][i]
+                            best_val_losses[i, j] = this_subframe['val_losses'][i]
 
-                        elif this_subframe['losses'][i] < best_losses[i - 1, j]:
-                            best_losses[i, j] = this_subframe['losses'][i]
+                        elif this_subframe['val_losses'][i] < best_val_losses[i - 1, j]:
+                            best_val_losses[i, j] = this_subframe['val_losses'][i]
 
                         else:
-                            best_losses[i, j] = best_losses[i - 1, j]
+                            best_val_losses[i, j] = best_val_losses[i - 1, j]
 
                     except:
                         timestamps[i, j] = float('nan')
-                        best_losses[i, j] = float('nan')
+                        best_val_losses[i, j] = float('nan')
 
-            # Compute the average loss over all runs
-            mean_trace_desc = np.nanmean(best_losses, axis=1)
+            # Compute the average validation loss for each run
+            mean_trace_desc = np.nanmean(best_val_losses, axis=1)
 
             # Compute average timestamps
             mean_timestamps = np.nanmean(timestamps, axis=1)
@@ -485,23 +503,26 @@ class Trial:
             auc = area_under_curve(list(mean_trace_desc), lower_bound=0.0)
 
             # FINAL PERFORMANCE
-            # 3. Mean loss of the best configuration
-            best_mean_loss = min(mean_trace_desc)
+            # 3.1 Mean validation loss of the best configuration
+            best_mean_val_loss = min(mean_trace_desc)
+
+            # 3.2 MeantTest loss of the best configuration (full training)
+            mean_test_loss = np.mean(best_test_losses)
 
             # 4. Loss ratio (loss of best config. / loss of default config.)
-            loss_ratio = baseline_loss / best_mean_loss
+            loss_ratio = baseline_loss / best_mean_val_loss
 
             # ROBUSTNESS
-            # 5. Interquantile range of the loss of the best found configuration
-            quant75 = np.nanquantile(best_losses, q=.75, axis=1)
-            quant25 = np.nanquantile(best_losses, q=.25, axis=1)
+            # 5. Interquantile range of the test loss of the best found configuration
+            quant75 = np.nanquantile(best_test_losses, q=.75, axis=1)
+            quant25 = np.nanquantile(best_test_losses, q=.25, axis=1)
             interq_range = (quant75 - quant25)[-1]
 
             # 6. Total number of crashes during the optimization (for each HPO-method)
             # number_of_crashes_this_algo
 
             # USABILITY
-            if math.isnan(best_mean_loss):
+            if math.isnan(best_mean_val_loss):
                 # Only crashed runs for this HPO-method
                 best_idx = float('nan')
                 time_best_config = float('nan')
@@ -509,7 +530,7 @@ class Trial:
 
             else:
                 for eval_num in range(len(mean_trace_desc)):
-                    if mean_trace_desc[eval_num] <= best_mean_loss:
+                    if mean_trace_desc[eval_num] <= best_mean_val_loss:
                         best_idx = eval_num  # index of the first evaluation, that reaches the best loss
                         break
 
@@ -523,7 +544,7 @@ class Trial:
             metrics_object = MetricsResult(wall_clock_time=wall_clock_time,
                                            time_outperform_default=time_outperform_default,
                                            area_under_curve=auc,
-                                           best_mean_loss=best_mean_loss,
+                                           mean_test_loss=mean_test_loss,
                                            loss_ratio=loss_ratio,
                                            interquantile_range=interq_range,
                                            time_best_config=time_best_config,
@@ -545,9 +566,9 @@ class Trial:
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
                             'Area under curve (AUC)': auc,
-                            'Mean(best loss)': best_mean_loss,
+                            'Mean (final test loss)': mean_test_loss,
                             'Loss ratio': loss_ratio,
-                            'Interquartile range(best_loss)': interq_range,
+                            'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
                             'Evaluations for best configuration': evals_for_best_config,
                             'Crashes': number_of_crashes_this_algo}
@@ -563,62 +584,63 @@ class Trial:
 
         return metrics, metrics_df
 
-    def get_baseline_loss(self):
+    def get_test_baseline(self):
         """
-        Computes the loss for the default hyperparameter configuration of the ML-algorithm (baseline).
+        Computes the loss for the default hyperparameter configuration of the ML-algorithm
+        (use complete training set (no validation)).
         :return:
-        baseline_loss: float
-            Validation loss of the baseline HP-configuration
+        test_baseline: float
+            Test loss of the baseline HP-configuration (use complete training set (no validation))
         """
         if self.ml_algorithm == 'RandomForestRegressor':
             model = RandomForestRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'RandomForestClassifier':
             model = RandomForestClassifier(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'SVR':
             model = SVR()
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'SVC':
             model = SVC(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
             model = AdaBoostRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             model = DecisionTreeRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'LinearRegression':
             model = LinearRegression()
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'KNNRegressor':
             model = KNeighborsRegressor()
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'LogisticRegression':
             model = LogisticRegression()
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'NaiveBayes':
             model = GaussianNB()
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
 
@@ -677,11 +699,11 @@ class Trial:
 
             # Train the model
             model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=warmstart_keras['batch_size'],
-                      validation_data=(self.x_val, self.y_val), callbacks=callbacks_list,
+                      validation_data=(self.x_test, self.y_test), callbacks=callbacks_list,
                       verbose=1)
 
             # Make the prediction
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
             # In case of binary classification round to the neares integer
             if self.ml_algorithm == 'KerasClassifier':
@@ -690,17 +712,17 @@ class Trial:
         elif self.ml_algorithm == 'XGBoostRegressor':
             model = XGBRegressor(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'XGBoostClassifier':
             model = XGBClassifier(random_state=0)
             model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_val)
+            y_pred = model.predict(self.x_test)
 
         elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
             # Create lgb datasets
             train_data = lgb.Dataset(self.x_train, label=self.y_train)
-            valid_data = lgb.Dataset(self.x_val, label=self.y_val)
+            valid_data = lgb.Dataset(self.x_test, label=self.y_test)
 
             # Specify the ML task and the random seed
             if self.ml_algorithm == 'LGBMRegressor':
@@ -716,7 +738,7 @@ class Trial:
             lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
             # Make the prediction
-            y_pred = lgb_clf.predict(data=self.x_val)
+            y_pred = lgb_clf.predict(data=self.x_test)
 
             # In case of binary classification round to the nearest integer
             if self.ml_algorithm == 'LGBMClassifier':
@@ -727,9 +749,9 @@ class Trial:
 
         # Add remaining ML-algorithms here
 
-        baseline_loss = self.metric(self.y_val, y_pred)
+        test_baseline = self.metric(self.y_test, y_pred)
 
-        return baseline_loss
+        return test_baseline
 
     @staticmethod
     def train_best_model(trial_results_dict: dict):

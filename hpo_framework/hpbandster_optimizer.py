@@ -14,9 +14,9 @@ from hpo_framework import multiproc_target_funcs
 
 
 class HpbandsterOptimizer(BaseOptimizer):
-    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
+    def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
                  random_seed, n_workers, do_warmstart):
-        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_val, y_train, y_val, metric, n_func_evals,
+        super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
                          random_seed, n_workers)
 
         self.do_warmstart = do_warmstart
@@ -66,8 +66,7 @@ class HpbandsterOptimizer(BaseOptimizer):
                     warmstart_params[this_param] = this_warmstart_value
 
                 # Start a HPBandsterWorker to evaluate the warmstart configuration
-                ws_worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train,
-                                             y_val=self.y_val, ml_algorithm=self.ml_algorithm, optimizer_object=self,
+                ws_worker = HPBandsterWorker(ml_algorithm=self.ml_algorithm, optimizer_object=self,
                                              nameserver='127.0.0.1', run_id='hpbandster')
 
                 ws_worker.run(background=True)
@@ -120,8 +119,7 @@ class HpbandsterOptimizer(BaseOptimizer):
         # No parallelization
         if self.n_workers == 1:
             # Start a worker
-            worker = HPBandsterWorker(x_train=self.x_train, x_val=self.x_val, y_train=self.y_train, y_val=self.y_val,
-                                      ml_algorithm=self.ml_algorithm, optimizer_object=self,
+            worker = HPBandsterWorker(ml_algorithm=self.ml_algorithm, optimizer_object=self,
                                       nameserver='127.0.0.1', run_id='hpbandster')
 
             worker.run(background=True)
@@ -131,8 +129,7 @@ class HpbandsterOptimizer(BaseOptimizer):
             processes = []
             for i in range(self.n_workers):
                 p = Process(target=multiproc_target_funcs.initialize_worker,
-                            args=(self.x_train, self.x_val, self.y_train, self.y_val,
-                                  self.ml_algorithm, self, '127.0.0.1', 'hpbandster'))
+                            args=(self.ml_algorithm, self, '127.0.0.1', 'hpbandster'))
 
                 p.start()
                 processes.append(p)
@@ -237,7 +234,7 @@ class HpbandsterOptimizer(BaseOptimizer):
             runs_df.sort_values(by=['timestamps [finished]'], ascending=True, inplace=True)
 
             losses = list(runs_df['loss'])
-            best_loss = min(losses)
+            best_val_loss = min(losses)
             evaluation_ids = list(range(1, len(losses) + 1))
             timestamps = list(runs_df['timestamps [finished]'])  # << hpbandster's capabilities for time measurement
             wall_clock_time = max(timestamps)
@@ -251,15 +248,39 @@ class HpbandsterOptimizer(BaseOptimizer):
 
                 configurations = configurations + (id2config[this_config]['config'],)
 
+            # Compute the loss on the test set for the best found configuration (full training)
+            if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                    self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                    self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                    self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
+                    self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
+
+                test_func = self.train_evaluate_scikit_model
+
+            elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+                test_func = self.train_evaluate_keras_model
+
+            elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+                test_func = self.train_evaluate_xgboost_model
+
+            elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+                test_func = self.train_evaluate_lightgbm_model
+
+            else:
+                raise Exception('Unknown ML-algorithm!')
+
+            test_loss = test_func(best_configuration, cv_mode=False)
+
         # Run not successful (algorithm crashed)
         else:
-            evaluation_ids, timestamps, losses, configurations, best_loss, best_configuration, wall_clock_time, \
-                budget = self.impute_results_for_crash()
+            evaluation_ids, timestamps, losses, configurations, best_val_loss, best_configuration, wall_clock_time, \
+                test_loss, budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
-                              configurations=configurations, best_loss=best_loss, best_configuration=best_configuration,
-                              wall_clock_time=wall_clock_time, successful=run_successful, did_warmstart=did_warmstart,
+                              configurations=configurations, best_val_loss=best_val_loss,
+                              best_configuration=best_configuration, wall_clock_time=wall_clock_time,
+                              test_loss=test_loss, successful=run_successful, did_warmstart=did_warmstart,
                               budget=budget)
 
         return result
