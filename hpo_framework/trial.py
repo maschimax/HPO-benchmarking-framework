@@ -309,7 +309,7 @@ class Trial:
             this_df = trial_results_dict[opt_tuple].trial_result_df
 
             # TODO: include failed opt_tuples in the plot
-            if len(this_df['losses'].dropna()) > 0:
+            if len(this_df['val_losses'].dropna()) > 0:
                 # Strings used in the plot title
                 ml_algorithm = this_df.iloc[0]['ML-algorithm']
                 hpo_method = opt_tuple[1]
