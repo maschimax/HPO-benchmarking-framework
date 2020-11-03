@@ -181,28 +181,8 @@ class HyperoptOptimizer(BaseOptimizer):
             # Hyperopt uses full budgets for its HPO methods
             budget = [100.0 * len(losses)]
 
-            # Compute the loss on the test set for the best found configuration (full training)
-            if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                    self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                    self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
-                    self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                    self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
-
-                test_func = self.train_evaluate_scikit_model
-
-            elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-                test_func = self.train_evaluate_keras_model
-
-            elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-                test_func = self.train_evaluate_xgboost_model
-
-            elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-                test_func = self.train_evaluate_lightgbm_model
-
-            else:
-                raise Exception('Unknown ML-algorithm!')
-
-            test_loss = test_func(best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
 
         # Run not successful (algorithm crashed)
         else:
@@ -226,29 +206,10 @@ class HyperoptOptimizer(BaseOptimizer):
         :return: dict
             Dictionary that contains the validation loss, the optimization status and the evaluation time
         """
-        # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or\
-                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
-
-            eval_func = self.train_evaluate_scikit_model
-
-        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-            eval_func = self.train_evaluate_keras_model
-
-        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-            eval_func = self.train_evaluate_xgboost_model
-
-        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            eval_func = self.train_evaluate_lightgbm_model
-
-        else:
-            raise Exception('Unknown ML-algorithm!')
 
         try:
-            val_loss = eval_func(params=params)
+            # Compute the validation loss
+            val_loss = self.train_evaluate_ml_model(params=params)
             status = STATUS_OK
         except:
             status = STATUS_FAIL
