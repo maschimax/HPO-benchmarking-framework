@@ -308,59 +308,61 @@ class Trial:
             # Pandas DataFrame containing the optimization results
             this_df = trial_results_dict[opt_tuple].trial_result_df
 
-            # Strings used in the plot title
-            ml_algorithm = this_df.iloc[0]['ML-algorithm']
-            hpo_method = opt_tuple[1]
-            warmstart = str(this_df.iloc[0]['warmstart'])
+            # TODO: include failed opt_tuples in the plot
+            if len(this_df['losses'].dropna()) > 0:
+                # Strings used in the plot title
+                ml_algorithm = this_df.iloc[0]['ML-algorithm']
+                hpo_method = opt_tuple[1]
+                warmstart = str(this_df.iloc[0]['warmstart'])
 
-            # Sort DataFrame by loss values
-            sorted_df = this_df.sort_values(by='val_losses', axis=0, ascending=True, inplace=False)
-            sorted_df.reset_index(drop=True, inplace=True)
+                # Sort DataFrame by loss values
+                sorted_df = this_df.sort_values(by='val_losses', axis=0, ascending=True, inplace=False)
+                sorted_df.reset_index(drop=True, inplace=True)
 
-            # Find the indices of the 5 % best hyperparameter configurations
-            n_best_configs = round(.05 * len(sorted_df['val_losses']))
-            idx_best_configs = sorted_df.index[:n_best_configs]
+                # Find the indices of the 5 % best hyperparameter configurations
+                n_best_configs = round(.05 * len(sorted_df['val_losses']))
+                idx_best_configs = sorted_df.index[:n_best_configs]
 
-            # New column to distinguish the 'best' and the remaining configurations
-            sorted_df['Score'] = 'Rest'
-            sorted_df.loc[idx_best_configs, 'Score'] = 'Best 5%'
+                # New column to distinguish the 'best' and the remaining configurations
+                sorted_df['Score'] = 'Rest'
+                sorted_df.loc[idx_best_configs, 'Score'] = 'Best 5%'
 
-            # Sort by descending losses to ensure that the best configurations are plotted on top
-            sorted_df.sort_values(by='val_losses', axis=0, ascending=False, inplace=True)
+                # Sort by descending losses to ensure that the best configurations are plotted on top
+                sorted_df.sort_values(by='val_losses', axis=0, ascending=False, inplace=True)
 
-            # Tuned / Optimized hyperparameters
-            hyper_params = list(sorted_df['configurations'].iloc[0].keys())
+                # Tuned / Optimized hyperparameters
+                hyper_params = list(sorted_df['configurations'].iloc[0].keys())
 
-            # Divide the single column with all hyperparameters (sorted_df) into individual columns for each
-            # hyperparameter and assign the evaluated parameter values
-            sns_dict = {}
-            for param in hyper_params:
-                sns_dict[param] = []
-
-            sns_dict['Score'] = list(sorted_df['Score'])
-
-            for _, row in sorted_df.iterrows():
-                this_config_dict = row['configurations']
-
+                # Divide the single column with all hyperparameters (sorted_df) into individual columns for each
+                # hyperparameter and assign the evaluated parameter values
+                sns_dict = {}
                 for param in hyper_params:
-                    sns_dict[param].append(this_config_dict[param])
+                    sns_dict[param] = []
 
-            # Convert dictionary into a pd.DataFrame
-            sns_df = pd.DataFrame.from_dict(data=sns_dict)
+                sns_dict['Score'] = list(sorted_df['Score'])
 
-            # Set ipt colors
-            ipt_colors = ['#5cbaa4', '#0062a5']
-            sns.set_palette(ipt_colors)
+                for _, row in sorted_df.iterrows():
+                    this_config_dict = row['configurations']
 
-            # Plot seaborn pairplot
-            space_plot = sns.pairplot(data=sns_df, hue='Score', hue_order=['Rest', 'Best 5%'])
+                    for param in hyper_params:
+                        sns_dict[param].append(this_config_dict[param])
 
-            # Set plot title
-            title_str = ml_algorithm + ' - ' + hpo_method + ' - Warmstart: ' + warmstart
-            space_plot.fig.suptitle(title_str, y=1.05, fontweight='semibold')
+                # Convert dictionary into a pd.DataFrame
+                sns_df = pd.DataFrame.from_dict(data=sns_dict)
 
-            # Assign the seaborn pairplot to the dictionary
-            plots_dict[opt_tuple] = space_plot
+                # Set ipt colors
+                ipt_colors = ['#5cbaa4', '#0062a5']
+                sns.set_palette(ipt_colors)
+
+                # Plot seaborn pairplot
+                space_plot = sns.pairplot(data=sns_df, hue='Score', hue_order=['Rest', 'Best 5%'])
+
+                # Set plot title
+                title_str = ml_algorithm + ' - ' + hpo_method + ' - Warmstart: ' + warmstart
+                space_plot.fig.suptitle(title_str, y=1.05, fontweight='semibold')
+
+                # Assign the seaborn pairplot to the dictionary
+                plots_dict[opt_tuple] = space_plot
 
         return plots_dict
 

@@ -158,7 +158,11 @@ class HpbandsterOptimizer(BaseOptimizer):
 
             n_func_evals = self.n_func_evals
 
-            res = optimizer.run(n_iterations=int(n_func_evals / eta), min_n_workers=self.n_workers)
+            n_iterations = int(n_func_evals / eta)
+            if n_iterations < 1:
+                n_iterations = 1
+
+            res = optimizer.run(n_iterations=n_iterations, min_n_workers=self.n_workers)
             # Relation of budget stages, halving iterations and the number of evaluations:
             # https://arxiv.org/abs/1905.04970
             # number of function evaluations = eta * n_iterations
