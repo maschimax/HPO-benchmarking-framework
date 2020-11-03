@@ -420,6 +420,47 @@ class BaseOptimizer(ABC):
 
         return warmstart_loss_cv
 
+    def train_evaluate_ml_model(self, params, cv_mode=True, **kwargs):
+        """
+        Method serves as superior logic layer for the different train_evalute_<ML-library>_model(...) methods.
+        The method selects the selected ML algorithm and initiates the training based on the hyperparameter
+        configuration that is specified by params. Returns the loss.
+        :param params: dict
+            Dictionary of hyperparameters
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
+        :param kwargs: dict
+            Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
+        :return: loss
+            Loss of this evaluation
+        """
+
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
+                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
+
+            eval_func = self.train_evaluate_scikit_model
+
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+
+            eval_func = self.train_evaluate_keras_model
+
+        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+
+            eval_func = self.train_evaluate_xgboost_model
+
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+            eval_func = self.train_evaluate_lightgbm_model
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
+
+        loss = eval_func(params=params, cv_mode=cv_mode, **kwargs)
+
+        return loss
+
     def train_evaluate_scikit_model(self, params: dict, cv_mode=True, **kwargs):
         """
         This method trains a scikit-learn model according to the selected HP-configuration and returns the
@@ -869,31 +910,3 @@ class BaseOptimizer(ABC):
             cv_loss = cross_val_losses[0]
 
         return cv_loss
-
-    def train_evaluate_model(self, params, cv_mode=True, **kwargs):
-
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
-                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
-
-            eval_func = self.train_evaluate_scikit_model
-
-        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-
-            eval_func = self.train_evaluate_keras_model
-
-        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-
-            eval_func = self.train_evaluate_xgboost_model
-
-        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            eval_func = self.train_evaluate_lightgbm_model
-
-        else:
-            raise Exception('Unknown ML-algorithm!')
-
-        loss = eval_func(params=params, cv_mode=cv_mode, **kwargs)
-
-        return loss
