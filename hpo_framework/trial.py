@@ -157,6 +157,7 @@ class Trial:
                 elif best_val_losses[i] < best_val_loss:
                     best_val_loss = best_val_losses[i]
                     idx_best = i
+
             # Best test loss of all runs for this HPO method
             best_test_loss = test_losses[idx_best]
 
