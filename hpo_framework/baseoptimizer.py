@@ -27,16 +27,26 @@ class BaseOptimizer(ABC):
                  metric, n_func_evals: int, random_seed: int, n_workers: int):
         """
         Superclass for the individual optimizer classes of each HPO-library.
-        :param hp_space:
-        :param hpo_method:
-        :param ml_algorithm:
-        :param x_train:
-        :param x_test:
-        :param y_train:
-        :param y_test:
+        :param hp_space: list
+            List that stores the hyperparameter space in scikit optimize format.
+        :param hpo_method: str
+            Specifies the HPO method to use for hyperparameter optimization.
+        :param ml_algorithm: str
+            Specifies the ML algorithm.
+        :param x_train: pd.DataFrame
+            Training data set (features only).
+        :param x_test: pd.DataFrame
+            Test data set (features only).
+        :param y_train: pd.Series
+            Labels of the training data.
+        :param y_test: pd.Series
+            Labels of the test data.
         :param metric
-        :param n_func_evals:
-        :param random_seed
+            Reference to the loss metric function.
+        :param n_func_evals: int
+            Number of blackbox function evaluations that is allowed during the optimization (budget).
+        :param random_seed: int
+            Seed for random number generator
         """
 
         self.hp_space = hp_space
@@ -173,8 +183,8 @@ class BaseOptimizer(ABC):
 
     def get_warmstart_loss(self, **kwargs):
         """
-        Computes the validation loss of the selected ML-algorithm for the default hyperparameter configuration or any valid
-         configuration that has been passed via kwargs.
+        Computes the validation loss of the selected ML-algorithm for the default hyperparameter configuration or any
+        valid configuration that has been passed via kwargs (function is also used for computing the baseline loss)
         :param kwargs: dict
             Possibility to pass any valid HP-configuration for the ML-algorithm. If a argument 'warmstart_dict' is
              passed, this configuration is used to compute the loss.
@@ -428,6 +438,7 @@ class BaseOptimizer(ABC):
         kf = KFold(n_splits=5)
         cross_val_losses = []
         cv_iter = 0
+
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
             cv_iter = cv_iter + 1
@@ -527,10 +538,12 @@ class BaseOptimizer(ABC):
 
         return cv_loss
 
-    def train_evaluate_keras_model(self, params: dict, **kwargs):
+    def train_evaluate_keras_model(self, params: dict, cv_mode=True, **kwargs):
         """
         This method trains a keras model according to the selected HP-configuration and returns the
         validation loss
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
@@ -543,11 +556,27 @@ class BaseOptimizer(ABC):
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
         cross_val_losses = []
+        cv_iter = 0
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
-            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
-            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+            cv_iter = cv_iter + 1
+
+            # Cross validation
+            if cv_mode:
+
+                x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+                y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+
+            # Training on full training set and evaluation on test set
+            elif not cv_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv = self.x_train, self.x_test
+                y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            # Iteration doesn't make sense for non cross validation
+            else:
+                continue
 
             if 'hb_budget' in kwargs:
                 # For BOHB and Hyperband select the number of epochs according to the budget of this iteration
@@ -629,18 +658,25 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        # Compute the average cross validation loss
-        cv_loss = np.mean(cross_val_losses)
+        if cv_mode:
 
-        # Measure the finish time of the iteration
-        self.times.append(time.time())
+            # Measure the finish time of the iteration
+            self.times.append(time.time())
+
+            # Compute the average cross validation loss
+            cv_loss = np.mean(cross_val_losses)
+
+        else:
+            cv_loss = cross_val_losses[0]
 
         return cv_loss
 
-    def train_evaluate_xgboost_model(self, params: dict, **kwargs):
+    def train_evaluate_xgboost_model(self, params: dict, cv_mode=True, **kwargs):
         """
         This method trains a XGBoost model according to the selected HP-configuration and returns the
         validation loss
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
@@ -665,11 +701,27 @@ class BaseOptimizer(ABC):
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
         cross_val_losses = []
+        cv_iter = 0
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
-            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
-            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+            cv_iter = cv_iter + 1
+
+            # Cross validation
+            if cv_mode:
+
+                x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+                y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+
+            # Training on full training set and evaluation on test set
+            elif not cv_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv = self.x_train, self.x_test
+                y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            # Iteration doesn't make sense for non cross validation
+            else:
+                continue
 
             if 'hb_budget' in kwargs:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
@@ -705,18 +757,25 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        # Compute the average cross validation loss
-        cv_loss = np.mean(cross_val_losses)
+        if cv_mode:
 
-        # Measure the finish time of the iteration
-        self.times.append(time.time())
+            # Measure the finish time of the iteration
+            self.times.append(time.time())
+
+            # Compute the average cross validation loss
+            cv_loss = np.mean(cross_val_losses)
+
+        else:
+            cv_loss = cross_val_losses[0]
 
         return cv_loss
 
-    def train_evaluate_lightgbm_model(self, params, **kwargs):
+    def train_evaluate_lightgbm_model(self, params, cv_mode=True, **kwargs):
         """
         This method trains a LightGBM model according to the selected HP-configuration and returns the
         validation loss.
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
@@ -728,11 +787,27 @@ class BaseOptimizer(ABC):
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
         cross_val_losses = []
+        cv_iter = 0
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
-            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
-            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+            cv_iter = cv_iter + 1
+
+            # Cross validation
+            if cv_mode:
+
+                x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+                y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+
+            # Training on full training set and evaluation on test set
+            elif not cv_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv = self.x_train, self.x_test
+                y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            # Iteration doesn't make sense for non cross validation
+            else:
+                continue
 
             if 'hb_budget' in kwargs:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
@@ -782,10 +857,43 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        # Compute the average cross validation loss
-        cv_loss = np.mean(cross_val_losses)
+        if cv_mode:
 
-        # Measure the finish time of the iteration
-        self.times.append(time.time())
+            # Measure the finish time of the iteration
+            self.times.append(time.time())
+
+            # Compute the average cross validation loss
+            cv_loss = np.mean(cross_val_losses)
+
+        else:
+            cv_loss = cross_val_losses[0]
 
         return cv_loss
+
+    def train_evaluate_model(self, params, cv_mode=True, **kwargs):
+
+        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
+                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
+                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
+                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
+                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
+
+            eval_func = self.train_evaluate_scikit_model
+
+        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+
+            eval_func = self.train_evaluate_keras_model
+
+        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
+
+            eval_func = self.train_evaluate_xgboost_model
+
+        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+            eval_func = self.train_evaluate_lightgbm_model
+
+        else:
+            raise Exception('Unknown ML-algorithm!')
+
+        loss = eval_func(params=params, cv_mode=cv_mode, **kwargs)
+
+        return loss
