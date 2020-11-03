@@ -99,7 +99,7 @@ class BaseOptimizer(ABC):
         timestamps = [float('nan')] * self.n_func_evals
         losses = [float('nan')] * self.n_func_evals
         configurations = tuple([float('nan')] * self.n_func_evals)
-        best_loss = [float('nan')]
+        best_loss = float('nan')
         best_configuration = {'params': None}
         wall_clock_time = float('nan')
         test_loss = float('nan')
