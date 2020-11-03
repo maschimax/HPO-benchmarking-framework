@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import argparse
 import skopt
+import warnings
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb, \
     space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr, space_nb
@@ -44,12 +45,12 @@ if debug:
     # Set parameters manually
     hp_space = space_lgb
     ml_algo = 'LGBMClassifier'
-    opt_schedule = [('hpbandster', 'BOHB')]
+    opt_schedule = [('skopt', 'SMAC')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 15
+    n_runs = 1
+    n_func_evals = 1
     n_workers = 1
     loss_metric = f1_loss
     do_warmstart = 'No'
@@ -141,7 +142,7 @@ else:
     elif ml_algo == 'KNNRegressor':
         hp_space = space_knn_reg
 
-    elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBClassifier':
+    elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBMClassifier':
         hp_space = space_lgb
 
     elif ml_algo == 'LogisticRegression':
@@ -176,6 +177,9 @@ print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, '
       ' worker(s), warmstart: ' + do_warmstart + '.')
 print('------')
 print('Optimization schedule: ', opt_schedule)
+
+if n_func_evals <= 10:
+    warnings.warn('Some HPO-methods expect a budget of at least 10 evaluations. The optimization might fail.')
 
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
