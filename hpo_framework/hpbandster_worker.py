@@ -12,32 +12,11 @@ class HPBandsterWorker(Worker):
         self.optimizer_object = optimizer_object
         self.sleep_interval = sleep_interval
 
-    def compute(self, config, budget, *args, **kwargs):  # <<< ersetzt die objective function aus der optimizer Klasse?
-
-        # Select the corresponding objective function of the ML-Algorithm
-        if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
-                self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
-
-            eval_func = self.optimizer_object.train_evaluate_scikit_model
-
-        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-            eval_func = self.optimizer_object.train_evaluate_keras_model
-
-        elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-            eval_func = self.optimizer_object.train_evaluate_xgboost_model
-
-        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            eval_func = self.optimizer_object.train_evaluate_lightgbm_model
-
-        else:
-            raise Exception('Unknown ML-algorithm!')
+    def compute(self, config, budget, *args, **kwargs):  # ersetzt die objective function aus der optimizer Klasse
 
         try:
             # Pass the Hyperband budget (hpbandster specific) to the evaluation function
-            val_loss = eval_func(params=config, hb_budget=budget)
+            val_loss = self.optimizer_object.train_evaluate_ml_model(params=config, hb_budget=budget)
             training_successful = True
 
         # If the training fails (algorithm crash)

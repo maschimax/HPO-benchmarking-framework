@@ -194,14 +194,6 @@ class HpbandsterOptimizer(BaseOptimizer):
         # If the optimization run was successful, determine the optimization results
         if run_successful:
 
-            # for i in range(len(self.times)):
-            #     # Subtract the start time to receive the wall clock time of each function evaluation
-            #     self.times[i] = self.times[i] - start_time
-            # wall_clock_time = max(self.times)
-            #
-            # # Timestamps
-            # timestamps = self.times
-
             # Extract the results and create an TuningResult instance to save them
             id2config = res.get_id2config_mapping()
             incumbent = res.get_incumbent_id()
@@ -248,28 +240,8 @@ class HpbandsterOptimizer(BaseOptimizer):
 
                 configurations = configurations + (id2config[this_config]['config'],)
 
-            # Compute the loss on the test set for the best found configuration (full training)
-            if self.ml_algorithm == 'RandomForestRegressor' or self.ml_algorithm == 'SVR' or \
-                    self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
-                    self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
-                    self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                    self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
-
-                test_func = self.train_evaluate_scikit_model
-
-            elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-                test_func = self.train_evaluate_keras_model
-
-            elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-                test_func = self.train_evaluate_xgboost_model
-
-            elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-                test_func = self.train_evaluate_lightgbm_model
-
-            else:
-                raise Exception('Unknown ML-algorithm!')
-
-            test_loss = test_func(best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
 
         # Run not successful (algorithm crashed)
         else:
