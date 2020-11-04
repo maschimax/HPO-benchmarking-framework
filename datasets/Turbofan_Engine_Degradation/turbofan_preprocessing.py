@@ -40,9 +40,9 @@ def identify_corr_cols(train_df, corr_threshold=0.95):
 def turbofan_loading_and_preprocessing():
 
     # Load the datasets
-    raw_train_df = load_data('./datasets/Turbofan_Engine_Degredation/train_FD001.txt')
-    raw_test_df = load_data('./datasets/Turbofan_Engine_Degredation/test_FD001.txt')
-    rul = pd.read_csv('./datasets/Turbofan_Engine_Degredation/RUL_FD001.txt', decimal=".", header=None, names=['RUL'])
+    raw_train_df = load_data('./datasets/Turbofan_Engine_Degradation/train_FD001.txt')
+    raw_test_df = load_data('./datasets/Turbofan_Engine_Degradation/test_FD001.txt')
+    rul = pd.read_csv('./datasets/Turbofan_Engine_Degradation/RUL_FD001.txt', decimal=".", header=None, names=['RUL'])
 
     # Add RUL (Remaining Useful Lifetime) column to training DataFrame
     train_rul_df = raw_train_df.groupby(by='engine_no', as_index=False)['time_in_cycles'].max()
