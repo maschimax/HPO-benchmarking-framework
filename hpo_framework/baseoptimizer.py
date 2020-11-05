@@ -347,16 +347,25 @@ class BaseOptimizer(ABC):
                 model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
                 # Add first hidden layer
-                model.add(
-                    keras.layers.Dense(warmstart_config['layer1_size'],
-                                       activation=warmstart_config['layer1_activation']))
-                model.add(keras.layers.Dropout(warmstart_config['dropout1']))
+                if warmstart_config['hidden_layer1_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_config['hidden_layer1_size'],
+                                           activation=warmstart_config['hidden_layer1_activation']))
+                    model.add(keras.layers.Dropout(warmstart_config['dropout1']))
 
                 # Add second hidden layer
-                model.add(
-                    keras.layers.Dense(warmstart_config['layer2_size'],
-                                       activation=warmstart_config['layer2_activation']))
-                model.add(keras.layers.Dropout(warmstart_config['dropout2']))
+                if warmstart_config['hidden_layer2_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_config['hidden_layer2_size'],
+                                           activation=warmstart_config['hidden_layer2_activation']))
+                    model.add(keras.layers.Dropout(warmstart_config['dropout2']))
+
+                # Add third hidden layer
+                if warmstart_config['hidden_layer3_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_config['hidden_layer3_size'],
+                                           activation=warmstart_config['hidden_layer3_activation']))
+                    model.add(keras.layers.Dropout(warmstart_config['dropout3']))
 
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
@@ -536,7 +545,6 @@ class BaseOptimizer(ABC):
             hidden_layer_size = params.pop('hidden_layer_size')
 
             params['hidden_layer_sizes'] = (hidden_layer_size,) * n_hidden_layers
-
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
@@ -728,12 +736,20 @@ class BaseOptimizer(ABC):
             model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
             # Add first hidden layer
-            model.add(keras.layers.Dense(params['layer1_size'], activation=params['layer1_activation']))
-            model.add(keras.layers.Dropout(params['dropout1']))
+            if params['hidden_layer1_size'] > 0:
+                model.add(
+                    keras.layers.Dense(params['hidden_layer1_size'], activation=params['hidden_layer1_activation']))
+                model.add(keras.layers.Dropout(params['dropout1']))
 
             # Add second hidden layer
-            model.add(keras.layers.Dense(params['layer2_size'], activation=params['layer2_activation']))
-            model.add(keras.layers.Dropout(params['dropout2']))
+            if params['hidden_layer2_size'] > 0:
+                model.add(keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_size']))
+                model.add(keras.layers.Dropout(params['dropout2']))
+
+            # Add third hidden layer
+            if params['hidden_layer3_size'] > 0:
+                model.add(keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_size']))
+                model.add(keras.layers.Dropout(params['dropout3']))
 
             # Add output layer
             if self.ml_algorithm == 'KerasRegressor':

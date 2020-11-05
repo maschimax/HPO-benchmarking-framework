@@ -36,28 +36,36 @@ space_svm = [
 ]
 
 # KerasRegressor
-# HP space for fully connected neural network from: https://arxiv.org/pdf/1905.04970.pdf
-space_keras = [skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
-               skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
-               skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
-               skopt.space.Categorical(['relu', 'tanh'], name='layer1_activation'),
-               skopt.space.Categorical(['relu', 'tanh'], name='layer2_activation'),
-               skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer1_size'),
-               skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='layer2_size'),
-               skopt.space.Categorical([.0, .3, .6], name='dropout1'),
-               skopt.space.Categorical([.0, .3, .6], name='dropout2')]
+# Based on: https://arxiv.org/pdf/1905.04970.pdf
+space_keras = [
+    skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
+    skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
+    skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
+    skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
+    skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
+    skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer3_activation'),
+    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
+    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
+    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer3_size'),
+    skopt.space.Categorical([.0, .3, .6], name='dropout1'),
+    skopt.space.Categorical([.0, .3, .6], name='dropout2'),
+    skopt.space.Categorical([.0, .3, .6], name='dropout3'),
+]
 
 # HP values for warm starting a Keras model //
 # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
 warmstart_keras = {'init_lr': 0.001,
                    'batch_size': 200,
                    'lr_schedule': 'constant',
-                   'layer1_activation': 'relu',
-                   'layer2_activation': 'relu',
-                   'layer1_size': 100,
-                   'layer2_size': 100,
+                   'hidden_layer1_activation': 'relu',
+                   'hidden_layer2_activation': 'relu',
+                   'hidden_layer3_activation': 'relu',
+                   'hidden_layer1_size': 100,
+                   'hidden_layer2_size': 100,
+                   'hidden_layer3_size': 100,
                    'dropout1': 0.0,
-                   'dropout2': 0.0}
+                   'dropout2': 0.0,
+                   'dropout3': 0.0}
 
 # XGBoostModel
 # https://xgboost.readthedocs.io/en/latest/parameter.html
