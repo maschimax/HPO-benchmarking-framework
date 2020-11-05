@@ -60,18 +60,18 @@ class OptunaOptimizer(BaseOptimizer):
                                                       study_name=study_name,
                                                       load_if_exists=False)
 
-                # Retrieve the default hyperparameters for the ML-algorithm
-                default_params = self.get_warmstart_configuration()
+                # Retrieve the warmstart hyperparameters for the ML-algorithm
+                warmstart_params = self.get_warmstart_configuration()
 
                 # Initialize a dictionary for the warmstart HP-configuration
-                warmstart_params = {}
+                warmstart_dict = {}
 
                 # Iterate over all hyperparameters of this ML-algorithm's tuned HP-space and append the default values
                 # to the dictionary
                 for i in range(len(self.hp_space)):
 
                     this_param = self.hp_space[i].name
-                    this_warmstart_value = default_params[this_param]
+                    this_warmstart_value = warmstart_params[this_param]
 
                     # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                     # different (e.g. int)
@@ -80,10 +80,10 @@ class OptunaOptimizer(BaseOptimizer):
                         this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
 
                     # Add the warm start HP-value to the dictionary
-                    warmstart_params[this_param] = this_warmstart_value
+                    warmstart_dict[this_param] = this_warmstart_value
 
                 # Enqueue a trial with the warm start HP-values
-                warmstart_study.enqueue_trial(params=warmstart_params)
+                warmstart_study.enqueue_trial(params=warmstart_dict)
 
                 # Optimize to ensure that the warm start configuration is evaluated first (e.g. for parallel processes)
                 warmstart_study.optimize(func=self.objective, n_trials=1)

@@ -19,7 +19,8 @@ import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
-from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras
+from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras, warmstart_dt, warmstart_knn,\
+    warmstart_svm, warmstart_rf_clf, warmstart_rf_reg, warmstart_ada_clf, warmstart_ada_reg
 
 
 class BaseOptimizer(ABC):
@@ -111,89 +112,76 @@ class BaseOptimizer(ABC):
 
     def get_warmstart_configuration(self):
         """
-        Determine the default hyperparameter configuration of the selected ML-algorithm. This configuration can be used
-        as a warmstart configuration for the HPO-method.
-        :return: default_params: dict
-            Dictionary that contains the default HPs.
+        Return the warmstart hyperparameter configuration of the selected ML-algorithm. This configuration contains either
+        promising values from benchmarks / studies or the default value of the algorithm's implementation.
+        :return: warmstart_params: dict
+            Dictionary that contains the warmstart HPs.
         """
         if self.ml_algorithm == 'MLPRegressor':
             default_model = MLPRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'MLPClassifier':
             default_model = MLPClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'RandomForestRegressor':
-            default_model = RandomForestRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_rf_reg
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'RandomForestClassifier':
-            default_model = RandomForestClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_rf_clf
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state parameter
-            default_model = SVR()
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_svm
 
         elif self.ml_algorithm == 'SVC':
-            default_model = SVC(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_svm
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
-            default_model = AdaBoostRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_ada_reg
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'AdaBoostClassifier':
-            default_model = AdaBoostClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_ada_clf
+            warmstart_params['random_state'] = self.random_seed
 
-        elif self.ml_algorithm == 'DecisionTreeRegressor':
-            default_model = DecisionTreeRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
-
-        elif self.ml_algorithm == 'DecisionTreeClassifier':
-            default_model = DecisionTreeClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+        elif self.ml_algorithm == 'DecisionTreeRegressor' or self.ml_algorithm == 'DecisionTreeClassifier':
+            warmstart_params = warmstart_dt
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'LinearRegression':
             # LinearRegression has no random_state parameter
             default_model = LinearRegression()
-            default_params = default_model.get_params()
-
-        elif self.ml_algorithm == 'KNNRegressor':
-            # KNeighborsRegressor has no random_state parameter
-            default_model = KNeighborsRegressor()
-            default_params = default_model.get_params()
-
-        elif self.ml_algorithm == 'KNNClassifier':
-            # KNeighborsClassifier has no random_state parameter
-            default_model = KNeighborsClassifier()
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'LogisticRegression':
             default_model = LogisticRegression(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'KNNRegressor' or self.ml_algorithm == 'KNNClassifier':
+            # KNeighborsRegressor has no random_state parameter
+            warmstart_params = warmstart_knn
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'NaiveBayes':
             # GaussianNB has no random_state parameter
             default_model = GaussianNB()
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-            default_params = warmstart_keras
+            warmstart_params = warmstart_keras
 
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-            default_params = warmstart_xgb
+            warmstart_params = warmstart_xgb
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            # train_data = lgb.Dataset(self.x_train, self.y_train)
-            # params = {'objective': 'binary',
-            #           'seed': self.random_seed}
-            # default_model = lgb.train(params=params, train_set=train_data)
-            # default_params = default_model.params
-            default_params = warmstart_lgb
+            warmstart_params = warmstart_lgb
+            warmstart_params['seed'] = self.random_seed
 
             # Add remaining ML-algorithms here
 
@@ -201,12 +189,12 @@ class BaseOptimizer(ABC):
             raise Exception('Unknown ML-algorithm!')
 
         # Return the default HPs of the ML-algorithm
-        return default_params
+        return warmstart_params
 
     def get_warmstart_loss(self, **kwargs):
         """
-        Computes the validation loss of the selected ML-algorithm for the default hyperparameter configuration or any
-        valid configuration that has been passed via kwargs (function is also used for computing the baseline loss)
+        Computes the validation loss of the selected ML-algorithm for the warmstart hyperparameter configuration or any
+        valid configuration that has been passed via kwargs
         :param kwargs: dict
             Possibility to pass any valid HP-configuration for the ML-algorithm. If a argument 'warmstart_dict' is
              passed, this configuration is used to compute the loss.

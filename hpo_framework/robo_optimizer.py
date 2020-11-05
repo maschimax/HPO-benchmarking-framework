@@ -58,8 +58,8 @@ class RoboOptimizer(BaseOptimizer):
             warmstart_config = np.zeros(shape=(1, len(self.hp_space)))
             warmstart_loss = np.zeros(shape=(1, 1))
 
-            # Retrieve the default hyperparameters and the default loss for the ML-algorithm
-            default_params = self.get_warmstart_configuration()
+            # Retrieve the warmstart hyperparameters and the warmstart loss for the ML-algorithm
+            warmstart_params = self.get_warmstart_configuration()
 
             try:
 
@@ -77,7 +77,7 @@ class RoboOptimizer(BaseOptimizer):
                     if type(self.hp_space[i]) == skopt.space.space.Categorical:
 
                         choices = self.hp_space[i].categories
-                        this_warmstart_value_cat = default_params[this_param]
+                        this_warmstart_value_cat = warmstart_params[this_param]
                         dict_value = this_warmstart_value_cat
 
                         # Find the index of the default / warmstart HP in the list of possible choices
@@ -87,7 +87,7 @@ class RoboOptimizer(BaseOptimizer):
 
                     # For all non-categorical HPs
                     else:
-                        this_warmstart_value = default_params[this_param]
+                        this_warmstart_value = warmstart_params[this_param]
                         dict_value = this_warmstart_value
 
                         # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is

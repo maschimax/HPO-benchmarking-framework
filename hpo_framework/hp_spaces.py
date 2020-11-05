@@ -12,20 +12,34 @@ space_mlp = [
 # Random Forest Regressor
 space_rf_reg = [
     skopt.space.Integer(1, 20, name='min_samples_leaf'),
-    skopt.space.Real(low=0.1, high=0.9, name='max_features'),
+    skopt.space.Categorical(['auto', 'sqrt', 'log2'], name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
     skopt.space.Categorical(['mse', 'mae'], name='criterion')
 ]
 
+# Warm start configuration for Random Forest Regressor (based on: https://arxiv.org/pdf/1710.04725.pdf)
+warmstart_rf_reg = {'min_samples_leaf': 1,
+                    'max_features': 'auto',
+                    'bootstrap': True,
+                    'min_samples_split': 2,
+                    'criterion': 'mse'}
+
 # Random Forest Classifier
 space_rf_clf = [
     skopt.space.Integer(1, 20, name='min_samples_leaf'),
-    skopt.space.Real(low=0.1, high=0.9, name='max_features'),
+    skopt.space.Categorical(['auto', 'sqrt', 'log2'], name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
     skopt.space.Categorical(['entropy', 'gini'], name='criterion')
 ]
+
+# Warm start configuration for Random Forest Classifier (based on: https://arxiv.org/pdf/1710.04725.pdf)
+warmstart_rf_clf = {'min_samples_leaf': 1,
+                    'max_features': 'auto',
+                    'bootstrap': True,
+                    'min_samples_split': 2,
+                    'criterion': 'gini'}
 
 # SVM-Classifier (SVC) & SVM-Regressor (SVR)
 space_svm = [
@@ -34,6 +48,12 @@ space_svm = [
     skopt.space.Categorical(['sigmoid', 'rbf', 'poly'], name='kernel'),
     skopt.space.Real(low=1e-4, high=1.0, name='tol')
 ]
+
+# Warm start configuration for SVMs (based on: https://arxiv.org/pdf/1710.04725.pdf)
+warmstart_svm = {'gamma': 2e-15,
+                 'C': 1,
+                 'tol': 1e-3,
+                 'kernel': 'rbf'}
 
 # KerasRegressor
 # Based on: https://arxiv.org/pdf/1905.04970.pdf
@@ -77,19 +97,20 @@ space_xgb = [
     skopt.space.Real(1.0, 128.0, name='min_child_weight'),
     skopt.space.Real(0.0, 1.0, name='colsample_bytree'),
     skopt.space.Real(0.0, 1.0, name='colsample_bylevel'),
-    skopt.space.Real(9.77e-4, 1, name='lambda'),
-    skopt.space.Real(9.77e-4, 1, name='alpha')
+    skopt.space.Real(9.77e-4, 1024, name='lambda'),
+    skopt.space.Real(9.77e-4, 1024, name='alpha')
 ]
 
-# Default / warm start parameters for an XGBoostModel: https://github.com/dmlc/xgboost/blob/master/doc/parameter.rst
-warmstart_xgb = {'booster': 'gbtree',
-                 'n_estimators': 100,
-                 'eta': 0.3,
-                 'max_depth': 6,
-                 'sample_type': 'uniform',
-                 'normalize_type': 'tree',
-                 'rate_drop': 0.0,
-                 'updater': 'shotgun'}
+# Warm start configuration for XGBoost models. Based on: https://arxiv.org/pdf/1802.09596.pdf
+warmstart_xgb = {'eta': 0.018,
+                 'booster': 'gbtree',
+                 'subsample': 0.839,
+                 'max_depth': 13,
+                 'min_child_weight': 2.06,
+                 'colsample_bytree': 0.752,
+                 'colsample_bylevel': 0.585,
+                 'lambda': 0.982,
+                 'alpha': 1.113}
 
 # AdaBoostRegressor
 space_ada_reg = [
@@ -99,6 +120,12 @@ space_ada_reg = [
     skopt.space.Integer(40, 100, name='n_estimators')
 ]
 
+# Warm start configuration for AdaBoostRegressor (based on: https://arxiv.org/pdf/1710.04725.pdf)
+warmstart_ada_reg = {'max_depth': 10,
+                     'learning_rate': 1,
+                     'n_estimators': 50,
+                     'loss': 'linear'}
+
 # AdaBoostClassifier
 space_ada_clf = [
     skopt.space.Integer(1, 10, name='max_depth'),
@@ -106,6 +133,12 @@ space_ada_clf = [
     skopt.space.Categorical(['SAMME', 'SAMME.R'], name='algorithm'),
     skopt.space.Integer(40, 100, name='n_estimators')
 ]
+
+# Warm start configuration for AdaBoostClassifier (based on: https://arxiv.org/pdf/1710.04725.pdf)
+warmstart_ada_clf = {'max_depth': 10,
+                     'learning_rate': 1,
+                     'algorithm': 'SAMME.R',
+                     'n_estimators': 50}
 
 # DecisionTreeRegressor & -Classifier
 # Hanno treated all integer-HPs as a continuous HP >> only continuous HPs (CMA-ES is applicable)
@@ -116,6 +149,12 @@ space_dt = [
     skopt.space.Integer(1, 60, name='min_samples_leaf'),
     skopt.space.Real(0, 1, name='ccp_alpha')
 ]
+
+# Warm start configuration for decision trees (based on: https://arxiv.org/abs/1802.09596)
+warmstart_dt = {'min_samples_leaf': 12,
+                'min_samples_split': 24,
+                'ccp_alpha': 0,
+                'max_depth': 21}
 
 # Linear Regression
 space_linr = [
@@ -132,6 +171,13 @@ space_knn = [
     skopt.space.Integer(1, 2, name='p')
 ]
 
+# Warm start configuration for k-NN models (based on: https://arxiv.org/abs/1802.09596)
+warmstart_knn = {'n_neighbors': 30,
+                 'weights': 'uniform',
+                 'algorithm': 'auto',
+                 'leaf_size': 30,
+                 'p': 2}
+
 # LightGBM model
 # Important HPs: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
 # Example of HP tuning with Optuna:
@@ -139,16 +185,16 @@ space_knn = [
 space_lgb = [skopt.space.Integer(2, 256, name='num_leaves'),
              skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
              skopt.space.Integer(-1, 100, name='max_depth'),
-             skopt.space.Real(low=0.1, high=1.0, name='feature_fraction'),
-             skopt.space.Real(low=0.1, high=1.0, name='bagging_fraction')]
+             skopt.space.Real(low=0.3, high=1.0, name='feature_fraction'),
+             skopt.space.Real(low=0.3, high=1.0, name='bagging_fraction')]
 
 # HP values for warm starting a LightGBM model // HP values need to be inside the bounds of the predefined HP-space
-# for a LightGBM model (see above)
+# based on: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
 warmstart_lgb = {'num_leaves': 31,
                  'min_data_in_leaf': 20,
                  'max_depth': -1,
-                 'lambda_l1': 0.0,
-                 'lambda_l2': 0.0}
+                 'feature_fraction': 1.0,
+                 'bagging_fraction': 1.0}
 
 # Logistic Regression
 # https://machinelearningmastery.com/hyperparameters-for-classification-machine-learning-algorithms/

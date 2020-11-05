@@ -77,7 +77,7 @@ class HPBandsterWorker(Worker):
                                                                     choices=[warmstart_params[this_param]]))
 
             elif type(hp_space[i]) == skopt.space.space.Real:
-                # ConfigSpace doesn't accept equal values fot the lower and the upper bounds (real HPs)
+                # ConfigSpace doesn't accept equal values for the lower and the upper bounds (real HPs)
                 ws_params_list.append(CSH.UniformFloatHyperparameter(name=this_param,
                                                                      lower=warmstart_params[this_param],
                                                                      upper=warmstart_params[this_param] + 0.01))
