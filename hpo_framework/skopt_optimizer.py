@@ -23,6 +23,7 @@ class SkoptOptimizer(BaseOptimizer):
 
         # Select the specified HPO-tuning method
         if self.hpo_method == 'SMAC':
+            # SMAC expects a budget of at least 10 iterations / calls
             this_optimizer = forest_minimize
             this_acq_func = 'EI'
 

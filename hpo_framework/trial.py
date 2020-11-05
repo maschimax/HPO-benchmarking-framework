@@ -411,7 +411,7 @@ class Trial:
         metrics = {}
         cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Warmstart',
                 'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean (final test loss)',
-                'Loss ratio', 'Interquartile range (final test loss)', 't best configuration [s]',
+                'Test loss ratio (default / best)', 'Interquartile range (final test loss)', 't best configuration [s]',
                 'Evaluations for best configuration', 'Crashes']
 
         metrics_df = pd.DataFrame(columns=cols)
@@ -508,11 +508,12 @@ class Trial:
             # 3.1 Mean validation loss of the best configuration
             best_mean_val_loss = min(mean_trace_desc)
 
-            # 3.2 MeantTest loss of the best configuration (full training)
+            # 3.2 Mean test loss of the best configuration (full training)
             mean_test_loss = np.mean(best_test_losses)
 
-            # 4. Loss ratio (loss of best config. / loss of default config.)
-            loss_ratio = baseline_loss / best_mean_val_loss
+            # 4. Loss ratio (test loss of default config. / test loss of best found config.)
+            test_baseline_loss = self.get_test_baseline()
+            loss_ratio = test_baseline_loss / mean_test_loss
 
             # ROBUSTNESS
             # 5. Interquantile range of the test loss of the best found configuration
@@ -569,7 +570,7 @@ class Trial:
                             't outperform default [s]': time_outperform_default,
                             'Area under curve (AUC)': auc,
                             'Mean (final test loss)': mean_test_loss,
-                            'Loss ratio': loss_ratio,
+                            'Test loss ratio (default / best)': loss_ratio,
                             'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
                             'Evaluations for best configuration': evals_for_best_config,
@@ -588,8 +589,8 @@ class Trial:
 
     def get_test_baseline(self):
         """
-        Computes the loss for the default hyperparameter configuration of the ML-algorithm
-        (use complete training set (no validation)).
+        Computes the loss for the default hyperparameter configuration of the ML-algorithm on the test set
+        (full training).
         :return:
         test_baseline: float
             Test loss of the baseline HP-configuration (use complete training set (no validation))
