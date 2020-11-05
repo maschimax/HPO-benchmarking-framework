@@ -407,22 +407,12 @@ class BaseOptimizer(ABC):
 
                 # Consideration of conditional hyperparameters
                 if warmstart_config['booster'] not in ['gbtree', 'dart']:
-                    if 'eta' in warmstart_config.keys():
-                        del warmstart_config['eta']
-                    if 'max_depth' in warmstart_config.keys():
-                        del warmstart_config['max_depth']
-
-                if warmstart_config['booster'] != 'dart':
-                    if 'sample_type' in warmstart_config.keys():
-                        del warmstart_config['sample_type']
-                    if 'normalize_type' in warmstart_config.keys():
-                        del warmstart_config['normalize_type']
-                    if 'rate_drop' in warmstart_config.keys():
-                        del warmstart_config['rate_drop']
-
-                if warmstart_config['booster'] != 'gblinear':
-                    if 'updater' in warmstart_config.keys():
-                        del warmstart_config['updater']
+                    del warmstart_config['eta']
+                    del warmstart_config['subsample']
+                    del warmstart_config['max_depth']
+                    del warmstart_config['min_child_weight']
+                    del warmstart_config['colsample_bytree']
+                    del warmstart_config['colsample_bylevel']
 
                 if self.ml_algorithm == 'XGBoostRegressor':
 
@@ -591,10 +581,20 @@ class BaseOptimizer(ABC):
 
             elif self.ml_algorithm == 'AdaBoostRegressor':
                 # AdaBoostRegressor has no n_jobs parameter
+
+                # Set the max_depth of the base estimator object
+                max_depth = params.pop('max_depth')
+                params['base_estimator'] = DecisionTreeRegressor(max_depth=max_depth)
+
                 model = AdaBoostRegressor(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'AdaBoostClassifier':
                 # AdaBoostClassifier has no n_jobs parameter
+
+                # Set the max_depth of the base estimator object
+                max_depth = params.pop('max_depth')
+                params['base_estimator'] = DecisionTreeClassifier(max_depth=max_depth)
+
                 model = AdaBoostClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'DecisionTreeRegressor':
@@ -815,15 +815,11 @@ class BaseOptimizer(ABC):
         # Consideration of conditional hyperparameters // Remove invalid HPs according to the conditions
         if params['booster'] not in ['gbtree', 'dart']:
             del params['eta']
+            del params['subsample']
             del params['max_depth']
-
-        if params['booster'] != 'dart':
-            del params['sample_type']
-            del params['normalize_type']
-            del params['rate_drop']
-
-        if params['booster'] != 'gblinear':
-            del params['updater']
+            del params['min_child_weight']
+            del params['colsample_bytree']
+            del params['colsample_bylevel']
 
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
