@@ -16,7 +16,7 @@ from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'turbofan'
+use_case = 'scania'
 
 if use_case == 'dummy':
     # Loading data and preprocessing
@@ -51,17 +51,17 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_mlp
-    ml_algo = 'MLPClassifier'
-    opt_schedule = [('optuna', 'TPE')]
+    hp_space = space_lgb
+    ml_algo = 'LGBMClassifier'
+    opt_schedule = [('hpbandster', 'BOHB')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
-    n_func_evals = 5
+    n_runs = 2
+    n_func_evals = 15
     n_workers = 1
-    loss_metric = rul_loss_score
-    do_warmstart = 'No'
+    loss_metric = f1_loss
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")

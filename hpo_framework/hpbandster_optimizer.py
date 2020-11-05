@@ -45,16 +45,16 @@ class HpbandsterOptimizer(BaseOptimizer):
             try:
 
                 # Initialize a dictionary for saving the warmstart configuration
-                warmstart_params = {}
+                warmstart_dict = {}
 
-                # Retrieve the default hyperparameters for the ML-algorithm
-                default_params = self.get_warmstart_configuration()
+                # Retrieve the warmstart hyperparameters for the ML-algorithm
+                warmstart_params = self.get_warmstart_configuration()
 
                 # Iterate over all hyperparameters of this ML-algorithm's tuned HP-space and add them to the dictionary
                 for i in range(len(self.hp_space)):
 
                     this_param = self.hp_space[i].name
-                    this_warmstart_value = default_params[this_param]
+                    this_warmstart_value = warmstart_params[this_param]
 
                     # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                     # different (e.g. int)
@@ -63,7 +63,7 @@ class HpbandsterOptimizer(BaseOptimizer):
                         this_warmstart_value = int(0.5 * (self.hp_space[i].low + self.hp_space[i].high))
 
                     # Add the warmstart value to the dictionary
-                    warmstart_params[this_param] = this_warmstart_value
+                    warmstart_dict[this_param] = this_warmstart_value
 
                 # Start a HPBandsterWorker to evaluate the warmstart configuration
                 ws_worker = HPBandsterWorker(ml_algorithm=self.ml_algorithm, optimizer_object=self,
@@ -74,14 +74,14 @@ class HpbandsterOptimizer(BaseOptimizer):
                 # Initialize the  optimizer / HPO-method
                 if self.hpo_method == 'BOHB':
                     ws_optimizer = BOHB(configspace=HPBandsterWorker.get_warmstart_config(self.hp_space,
-                                                                                          warmstart_params),
+                                                                                          warmstart_dict),
                                         run_id='hpbandster',
                                         nameserver='127.0.0.1', min_budget=10, max_budget=10, eta=3.0,
                                         result_logger=result_logger)
 
                 elif self.hpo_method == 'Hyperband':
                     ws_optimizer = HyperBand(configspace=HPBandsterWorker.get_warmstart_config(self.hp_space,
-                                                                                               warmstart_params),
+                                                                                               warmstart_dict),
                                              run_id='hpbandster',
                                              nameserver='127.0.0.1', min_budget=1, max_budget=10, eta=3.0,
                                              result_logger=result_logger)

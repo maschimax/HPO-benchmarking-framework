@@ -42,15 +42,15 @@ class SkoptOptimizer(BaseOptimizer):
                 # Initialize a list for saving the warmstart configuration
                 warmstart_config = []
 
-                # Retrieve the default hyperparameters for the ML-algorithm
-                default_params = self.get_warmstart_configuration()
+                # Retrieve the warmstart hyperparameters for the ML-algorithm
+                warmstart_params = self.get_warmstart_configuration()
 
                 # Iterate over all hyperparameters of this ML-algorithm's tuned HP-space and append the default values
                 # to the list
                 for i in range(len(self.hp_space)):
 
                     this_param = self.hp_space[i].name
-                    this_warmstart_value = default_params[this_param]
+                    this_warmstart_value = warmstart_params[this_param]
 
                     # For some HPs (e.g. max_depth of RF) the default value is None, although their typical dtype is
                     # different (e.g. int)
