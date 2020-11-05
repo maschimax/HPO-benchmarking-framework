@@ -6,10 +6,10 @@ import skopt
 import warnings
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, \
-    space_svr, space_svc, space_xgb, space_ada_reg, space_ada_clf, space_dt, \
-    space_linr, space_knn_reg, space_knn_clf, space_lgb, space_logr, space_nb, \
+    space_svm, space_xgb, space_ada_reg, space_ada_clf, space_dt, \
+    space_linr, space_knn, space_lgb, space_logr, space_nb, \
     space_mlp
-from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
+from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss, rul_loss_score
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
@@ -69,8 +69,11 @@ else:
     parser.add_argument('ml_algorithm', help="Specify the machine learning algorithm.",
                         choices=['RandomForestRegressor', 'RandomForestClassifier', 'KerasRegressor', 'KerasClassifier',
                                  'XGBoostRegressor', 'XGBoostClassifier', 'SVR', 'SVC', 'AdaBoostRegressor',
-                                 'DecisionTreeRegressor', 'LinearRegression', 'KNNRegressor', 'LGBMRegressor',
-                                 'LGBMClassifier', 'LogisticRegression', 'NaiveBayes'])
+                                 'AdaBoostClassifier',
+                                 'DecisionTreeRegressor', 'DecisionTreeClassifier', 'LinearRegression',
+                                 'LogisticRegression', 'KNNRegressor', 'KNNClassifier',
+                                 'LGBMRegressor',
+                                 'LGBMClassifier', 'NaiveBayes', 'MLPRegressor', 'MLPClassifier'])
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
@@ -132,23 +135,23 @@ else:
     elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
         hp_space = space_xgb
 
-    elif ml_algo == 'SVR':
-        hp_space = space_svr
-
-    elif ml_algo == 'SVC':
-        hp_space = space_svc
+    elif ml_algo == 'SVR' or 'SVR':
+        hp_space = space_svm
 
     elif ml_algo == 'AdaBoostRegressor':
-        hp_space = space_ada
+        hp_space = space_ada_reg
 
-    elif ml_algo == 'DecisionTreeRegrssor':
+    elif ml_algo == 'AdaBoostClassifier':
+        hp_space = space_ada_clf
+
+    elif ml_algo == 'DecisionTreeRegressor' or ml_algo == 'DecisionTreeClassifier':
         hp_space = space_dt
 
     elif ml_algo == 'LinearRegression':
         hp_space = space_linr
 
-    elif ml_algo == 'KNNRegressor':
-        hp_space = space_knn_reg
+    elif ml_algo == 'KNNRegressor' or ml_algo == 'KNNClassifier':
+        hp_space = space_knn
 
     elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBMClassifier':
         hp_space = space_lgb
@@ -158,6 +161,9 @@ else:
 
     elif ml_algo == 'NaiveBayes':
         hp_space = space_nb
+
+    elif ml_algo == 'MLPRegressor' or ml_algo == 'MLPClassifier':
+        hp_space = space_mlp
 
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')

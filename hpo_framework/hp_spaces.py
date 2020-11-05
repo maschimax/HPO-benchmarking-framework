@@ -10,31 +10,30 @@ space_mlp = [
 ]
 
 # Random Forest Regressor
-space_rf_reg = [skopt.space.Integer(1, 200, name='n_estimators'),
-                skopt.space.Integer(1, 80, name='max_depth'),
-                skopt.space.Integer(1, 30, name='min_samples_leaf'),
-                skopt.space.Integer(2, 20, name='min_samples_split'),
-                skopt.space.Categorical(['auto', 'sqrt'], name='max_features')]
+space_rf_reg = [
+    skopt.space.Integer(1, 20, name='min_samples_leaf'),
+    skopt.space.Real(low=0.1, high=0.9, name='max_features'),
+    skopt.space.Categorical([True, False], name='bootstrap'),
+    skopt.space.Integer(2, 20, name='min_samples_split'),
+    skopt.space.Categorical(['mse', 'mae'], name='criterion')
+]
 
 # Random Forest Classifier
-space_rf_clf = [skopt.space.Integer(1, 80, name='max_depth'),
-                skopt.space.Integer(1, 30, name='min_samples_leaf'),
-                skopt.space.Integer(2, 20, name='min_samples_split'),
-                skopt.space.Categorical(['auto', 'sqrt'], name='max_features'),
-                skopt.space.Integer(10, 200, name='n_estimators')]
+space_rf_clf = [
+    skopt.space.Integer(1, 20, name='min_samples_leaf'),
+    skopt.space.Real(low=0.1, high=0.9, name='max_features'),
+    skopt.space.Categorical([True, False], name='bootstrap'),
+    skopt.space.Integer(2, 20, name='min_samples_split'),
+    skopt.space.Categorical(['entropy', 'gini'], name='criterion')
+]
 
-# skopt.space.Categorical(['balanced', None], name='class_weight')]
-
-# SVM-Regressor
-space_svr = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
-             skopt.space.Categorical(['scale', 'auto'], name='gamma'),
-             skopt.space.Real(low=1e-3, high=1e+0, name='epsilon')]
-
-# SVM-Classifier
-space_svc = [skopt.space.Real(low=1e-3, high=1e+3, name='C'),
-             skopt.space.Real(low=1e-3, high=1e+3, name='gamma'),
-             skopt.space.Categorical(['sigmoid', 'rbf', 'poly'], name='kernel'),
-             skopt.space.Categorical(['balanced', None], name='class_weight')]
+# SVM-Classifier (SVC) & SVM-Regressor (SVR)
+space_svm = [
+    skopt.space.Real(low=2e-5, high=2e15, name='C'),
+    skopt.space.Real(low=2e-15, high=2e3, name='gamma'),
+    skopt.space.Categorical(['sigmoid', 'rbf', 'poly'], name='kernel'),
+    skopt.space.Real(low=1e-4, high=1.0, name='tol')
+]
 
 # KerasRegressor
 # HP space for fully connected neural network from: https://arxiv.org/pdf/1905.04970.pdf
@@ -61,15 +60,18 @@ warmstart_keras = {'init_lr': 0.001,
                    'dropout2': 0.0}
 
 # XGBoostModel
-# HP space used by Hanno
-space_xgb = [skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
-             skopt.space.Integer(1, 200, name='n_estimators'),
-             skopt.space.Real(0.0, 1, name='eta'),
-             skopt.space.Integer(1, 80, name='max_depth'),
-             skopt.space.Categorical(['uniform', 'weighted'], name='sample_type'),
-             skopt.space.Categorical(['tree', 'forest'], name='normalize_type'),
-             skopt.space.Real(0.0, 1.0, name='rate_drop'),
-             skopt.space.Categorical(['shotgun', 'coord_descent'], name='updater')]
+# https://xgboost.readthedocs.io/en/latest/parameter.html
+space_xgb = [
+    skopt.space.Real(9.77e-4, 1.0, name='eta'),
+    skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
+    skopt.space.Real(0.1, 1.0, name='subsample'),
+    skopt.space.Integer(1, 15, name='max_depth'),
+    skopt.space.Real(1.0, 128.0, name='min_child_weight'),
+    skopt.space.Real(0.0, 1.0, name='colsample_bytree'),
+    skopt.space.Real(0.0, 1.0, name='colsample_bylevel'),
+    skopt.space.Real(9.77e-4, 1, name='lambda'),
+    skopt.space.Real(9.77e-4, 1, name='alpha')
+]
 
 # Default / warm start parameters for an XGBoostModel: https://github.com/dmlc/xgboost/blob/master/doc/parameter.rst
 warmstart_xgb = {'booster': 'gbtree',
@@ -82,43 +84,45 @@ warmstart_xgb = {'booster': 'gbtree',
                  'updater': 'shotgun'}
 
 # AdaBoostRegressor
-# First try >>> iterative testing to find meaningful ranges for each HP // or refer to the AdaBoost literature
 space_ada_reg = [
-    skopt.space.Integer(1, 200, name='n_estimators'),
-    skopt.space.Real(.1, 5, name='learning_rate'),
-    skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss')
+    skopt.space.Integer(1, 10, name='max_depth'),
+    skopt.space.Real(low=0.01, high=2.0, name='learning_rate'),
+    skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss'),
+    skopt.space.Integer(40, 100, name='n_estimators')
 ]
 
 # AdaBoostClassifier
 space_ada_clf = [
-    skopt.space.Integer(1, 200, name='n_estimators'),
-    skopt.space.Real(.1, 5, name='learning_rate')
+    skopt.space.Integer(1, 10, name='max_depth'),
+    skopt.space.Real(low=0.01, high=2.0, name='learning_rate'),
+    skopt.space.Categorical(['SAMME', 'SAMME.R'], name='algorithm'),
+    skopt.space.Integer(40, 100, name='n_estimators')
 ]
 
 # DecisionTreeRegressor & -Classifier
 # Hanno treated all integer-HPs as a continuous HP >> only continuous HPs (CMA-ES is applicable)
 # A lot more HPs in scikit-learn documentation (e.g. max_features; included in RF HP-space)
-space_dt = [skopt.space.Integer(2, 20, name='min_samples_split'),
-            skopt.space.Integer(1, 80, name='max_depth'),
-            skopt.space.Integer(1, 30, name='min_samples_leaf')]
+space_dt = [
+    skopt.space.Integer(1, 60, name='min_samples_split'),
+    skopt.space.Integer(1, 30, name='max_depth'),
+    skopt.space.Integer(1, 60, name='min_samples_leaf'),
+    skopt.space.Real(0, 1, name='ccp_alpha')
+]
 
 # Linear Regression
-space_linr = [skopt.space.Categorical([True, False], name='fit_intercept'),
-              skopt.space.Categorical([False, True], name='normalize')]
+space_linr = [
+    skopt.space.Categorical([True, False], name='fit_intercept'),
+    skopt.space.Categorical([False, True], name='normalize')
+]
 
-# KNNRegressor (KNeighborsRegressor)
-space_knn_reg = [skopt.space.Integer(1, 10, name='n_neighbors'),
-                 skopt.space.Categorical(['uniform', 'distance'], name='weights'),
-                 skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
-                 skopt.space.Integer(1, 60, name='leaf_size'),
-                 skopt.space.Integer(1, 2, name='p')]
-
-# KNNClassifier (KNeighborsClassifier)
-space_knn_clf = [skopt.space.Integer(1, 10, name='n_neighbors'),
-                 skopt.space.Categorical(['uniform', 'distance'], name='weights'),
-                 skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
-                 skopt.space.Integer(1, 60, name='leaf_size'),
-                 skopt.space.Integer(1, 2, name='p')]
+# KNNClassifier & KNNRegressor
+space_knn = [
+    skopt.space.Integer(1, 100, name='n_neighbors'),
+    skopt.space.Categorical(['uniform', 'distance'], name='weights'),
+    skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
+    skopt.space.Integer(1, 60, name='leaf_size'),
+    skopt.space.Integer(1, 2, name='p')
+]
 
 # LightGBM model
 # Important HPs: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
@@ -127,8 +131,8 @@ space_knn_clf = [skopt.space.Integer(1, 10, name='n_neighbors'),
 space_lgb = [skopt.space.Integer(2, 256, name='num_leaves'),
              skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
              skopt.space.Integer(-1, 100, name='max_depth'),
-             skopt.space.Real(low=0.0, high=10.0, name='lambda_l1'),
-             skopt.space.Real(low=0.0, high=10.0, name='lambda_l2')]
+             skopt.space.Real(low=0.1, high=1.0, name='feature_fraction'),
+             skopt.space.Real(low=0.1, high=1.0, name='bagging_fraction')]
 
 # HP values for warm starting a LightGBM model // HP values need to be inside the bounds of the predefined HP-space
 # for a LightGBM model (see above)
@@ -140,15 +144,14 @@ warmstart_lgb = {'num_leaves': 31,
 
 # Logistic Regression
 # https://machinelearningmastery.com/hyperparameters-for-classification-machine-learning-algorithms/
-# penalty, tol, C, fit_intercept, intercept_scaling, solver, max_iter
-space_logr = [skopt.space.Real(low=1e-6, high=1e-2, name='tol'),
-              skopt.space.Real(low=0.5, high=2.0, name='C'),
-              skopt.space.Categorical([True, False], name='fit_intercept'),
-              skopt.space.Real(low=0.5, high=2.0, name='intercept_scaling'),
-              skopt.space.Categorical(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'], name='solver'),
-              skopt.space.Integer(low=50, high=150, name='max_iter')]
-
-# skopt.space.Categorical(['l1', 'l2', 'elasticnet', 'none'], name='penalty'),
+space_logr = [
+    skopt.space.Real(low=1e-6, high=1e-2, name='tol'),
+    skopt.space.Real(low=0.1, high=4.0, name='C'),
+    skopt.space.Categorical([True, False], name='fit_intercept'),
+    skopt.space.Real(low=0.1, high=4.0, name='intercept_scaling'),
+    skopt.space.Categorical(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'], name='solver'),
+    skopt.space.Integer(low=50, high=150, name='max_iter')
+]
 
 # Gaussian Naive Bayes
-space_nb = [skopt.space.Real(low=1e-12, high=1e-2, name='var_smoothing')]
+space_nb = [skopt.space.Real(low=0, high=1, name='var_smoothing')]
