@@ -53,7 +53,7 @@ if debug:
     # Set parameters manually
     hp_space = space_mlp
     ml_algo = 'MLPClassifier'
-    opt_schedule = [('optuna', 'RandomSearch')]
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]

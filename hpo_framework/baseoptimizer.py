@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.model_selection import KFold
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -534,17 +534,17 @@ class BaseOptimizer(ABC):
             Validation loss of this run
         """
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5)
-        cross_val_losses = []
-        cv_iter = 0
-
         # Preprocess "bidimensional" MLP parameter
         if self.ml_algorithm == 'MLPRegressor' or self.ml_algorithm == 'MLPClassifier':
             n_hidden_layers = params.pop('n_hidden_layers')
             hidden_layer_size = params.pop('hidden_layer_size')
 
             params['hidden_layer_sizes'] = (hidden_layer_size,) * n_hidden_layers
+
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
+        cv_iter = 0
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
@@ -568,10 +568,10 @@ class BaseOptimizer(ABC):
 
             # Create ML-model for the HP-configuration selected by the HPO-method
             if self.ml_algorithm == 'MLPRegressor':
-                model = MLPRegressor(**params, random_state=self.random_seed)
+                model = MLPRegressor(**params, random_state=self.random_seed, verbose=True)
 
             elif self.ml_algorithm == 'MLPClassifier':
-                model = MLPClassifier(**params, random_state=self.random_seed)
+                model = MLPClassifier(**params, random_state=self.random_seed, verbose=True)
 
             elif self.ml_algorithm == 'RandomForestRegressor':
                 model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
