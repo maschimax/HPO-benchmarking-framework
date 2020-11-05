@@ -658,14 +658,25 @@ class Trial:
             model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
 
             # Add first hidden layer
-            model.add(
-                keras.layers.Dense(warmstart_keras['layer1_size'], activation=warmstart_keras['layer1_activation']))
-            model.add(keras.layers.Dropout(warmstart_keras['dropout1']))
+            if warmstart_keras['hidden_layer1_size'] > 0:
+                model.add(
+                    keras.layers.Dense(warmstart_keras['hidden_layer1_size'],
+                                       activation=warmstart_keras['hidden_layer1_activation']))
+                model.add(keras.layers.Dropout(warmstart_keras['dropout1']))
 
             # Add second hidden layer
-            model.add(
-                keras.layers.Dense(warmstart_keras['layer2_size'], activation=warmstart_keras['layer2_activation']))
-            model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
+            if warmstart_keras['hidden_layer2_size'] > 0:
+                model.add(
+                    keras.layers.Dense(warmstart_keras['hidden_layer2_size'],
+                                       activation=warmstart_keras['hidden_layer2_activation']))
+                model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
+
+            # Add third hidden layer
+            if warmstart_keras['hidden_layer3_size'] > 0:
+                model.add(
+                    keras.layers.Dense(warmstart_keras['hidden_layer3_size'],
+                                       activation=warmstart_keras['hidden_layer3_activation']))
+                model.add(keras.layers.Dropout(warmstart_keras['dropout3']))
 
             # Add output layer
             if self.ml_algorithm == 'KerasRegressor':
