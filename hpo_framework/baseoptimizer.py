@@ -6,11 +6,12 @@ import functools
 
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
-from sklearn.ensemble import AdaBoostRegressor
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import AdaBoostRegressor, AdaBoostClassifier
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.model_selection import KFold, train_test_split
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
@@ -115,7 +116,15 @@ class BaseOptimizer(ABC):
         :return: default_params: dict
             Dictionary that contains the default HPs.
         """
-        if self.ml_algorithm == 'RandomForestRegressor':
+        if self.ml_algorithm == 'MLPRegressor':
+            default_model = MLPRegressor(random_state=self.random_seed)
+            default_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'MLPClassifier':
+            default_model = MLPClassifier(random_state=self.random_seed)
+            default_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'RandomForestRegressor':
             default_model = RandomForestRegressor(random_state=self.random_seed)
             default_params = default_model.get_params()
 
@@ -136,8 +145,16 @@ class BaseOptimizer(ABC):
             default_model = AdaBoostRegressor(random_state=self.random_seed)
             default_params = default_model.get_params()
 
+        elif self.ml_algorithm == 'AdaBoostClassifier':
+            default_model = AdaBoostClassifier(random_state=self.random_seed)
+            default_params = default_model.get_params()
+
         elif self.ml_algorithm == 'DecisionTreeRegressor':
             default_model = DecisionTreeRegressor(random_state=self.random_seed)
+            default_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'DecisionTreeClassifier':
+            default_model = DecisionTreeClassifier(random_state=self.random_seed)
             default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'LinearRegression':
@@ -148,6 +165,11 @@ class BaseOptimizer(ABC):
         elif self.ml_algorithm == 'KNNRegressor':
             # KNeighborsRegressor has no random_state parameter
             default_model = KNeighborsRegressor()
+            default_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'KNNClassifier':
+            # KNeighborsClassifier has no random_state parameter
+            default_model = KNeighborsClassifier()
             default_params = default_model.get_params()
 
         elif self.ml_algorithm == 'LogisticRegression':
@@ -209,7 +231,21 @@ class BaseOptimizer(ABC):
                 warmstart_config = self.get_warmstart_configuration()
 
             # Use the warmstart HP-configuration to create a model for the ML-algorithm selected
-            if self.ml_algorithm == 'RandomForestRegressor':
+            if self.ml_algorithm == 'MLPRegressor':
+                model = MLPRegressor(**warmstart_config)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'MLPClassifier':
+                model = MLPClassifier(**warmstart_config)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'RandomForestRegressor':
                 model = RandomForestRegressor(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -244,8 +280,22 @@ class BaseOptimizer(ABC):
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
+            elif self.ml_algorithm == 'AdaBoostClassifier':
+                model = AdaBoostClassifier(**warmstart_config)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
             elif self.ml_algorithm == 'DecisionTreeRegressor':
                 model = DecisionTreeRegressor(**warmstart_config)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'DecisionTreeClassifier':
+                model = DecisionTreeClassifier(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
@@ -260,6 +310,13 @@ class BaseOptimizer(ABC):
 
             elif self.ml_algorithm == 'KNNRegressor':
                 model = KNeighborsRegressor(**warmstart_config)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'KNNClassifier':
+                model = KNeighborsClassifier(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
@@ -439,7 +496,10 @@ class BaseOptimizer(ABC):
                 self.ml_algorithm == 'AdaBoostRegressor' or self.ml_algorithm == 'DecisionTreeRegressor' or \
                 self.ml_algorithm == 'LinearRegression' or self.ml_algorithm == 'KNNRegressor' or \
                 self.ml_algorithm == 'RandomForestClassifier' or self.ml_algorithm == 'SVC' or \
-                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes':
+                self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes' or \
+                self.ml_algorithm == 'DecisionTreeClassifier' or self.ml_algorithm == 'KNNClassifier' or \
+                self.ml_algorithm == 'AdaBoostClassifier' or self.ml_algorithm == 'MLPClassifier' or \
+                self.ml_algorithm == 'MLPRegressor':
 
             eval_func = self.train_evaluate_scikit_model
 
@@ -480,6 +540,14 @@ class BaseOptimizer(ABC):
         cross_val_losses = []
         cv_iter = 0
 
+        # Preprocess "bidimensional" MLP parameter
+        if self.ml_algorithm == 'MLPRegressor' or self.ml_algorithm == 'MLPClassifier':
+            n_hidden_layers = params.pop('n_hidden_layers')
+            hidden_layer_size = params.pop('hidden_layer_size')
+
+            params['hidden_layer_sizes'] = (hidden_layer_size,) * n_hidden_layers
+
+
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
             cv_iter = cv_iter + 1
@@ -501,7 +569,13 @@ class BaseOptimizer(ABC):
                 continue
 
             # Create ML-model for the HP-configuration selected by the HPO-method
-            if self.ml_algorithm == 'RandomForestRegressor':
+            if self.ml_algorithm == 'MLPRegressor':
+                model = MLPRegressor(**params, random_state=self.random_seed)
+
+            elif self.ml_algorithm == 'MLPClassifier':
+                model = MLPClassifier(**params, random_state=self.random_seed)
+
+            elif self.ml_algorithm == 'RandomForestRegressor':
                 model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
             elif self.ml_algorithm == 'RandomForestClassifier':
@@ -516,12 +590,20 @@ class BaseOptimizer(ABC):
                 model = SVC(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'AdaBoostRegressor':
-                # AdaBoostRegrssor has no n_jobs parameter
+                # AdaBoostRegressor has no n_jobs parameter
                 model = AdaBoostRegressor(**params, random_state=self.random_seed)
+
+            elif self.ml_algorithm == 'AdaBoostClassifier':
+                # AdaBoostClassifier has no n_jobs parameter
+                model = AdaBoostClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'DecisionTreeRegressor':
                 # DecisionTreeRegressor has no n_jobs parameter
                 model = DecisionTreeRegressor(**params, random_state=self.random_seed)
+
+            elif self.ml_algorithm == 'DecisionTreeClassifier':
+                # DecisionTreeClassifier has no n_jobs parameter
+                model = DecisionTreeClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'LinearRegression':
                 # LinearRegression has no random_state parameter
@@ -530,6 +612,10 @@ class BaseOptimizer(ABC):
             elif self.ml_algorithm == 'KNNRegressor':
                 # KNeighborsRegressor has no random_state parameter
                 model = KNeighborsRegressor(**params, n_jobs=self.n_workers)
+
+            elif self.ml_algorithm == 'KNNClassifier':
+                # KNeighborsRegressor has no random_state parameter
+                model = KNeighborsClassifier(**params, n_jobs=self.n_workers)
 
             elif self.ml_algorithm == 'LogisticRegression':
                 model = LogisticRegression(**params, random_state=self.random_seed, n_jobs=self.n_workers)
