@@ -4,8 +4,10 @@ from pathlib import Path
 import argparse
 import skopt
 
-from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, space_svr, space_svc, space_xgb, \
-    space_ada, space_dt, space_linr, space_knn_reg, space_lgb, space_logr, space_nb
+from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, \
+    space_svr, space_svc, space_xgb, space_ada_reg, space_ada_clf, space_dt, \
+    space_linr, space_knn_reg, space_knn_clf, space_lgb, space_logr, space_nb, \
+    space_mlp
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
@@ -38,18 +40,18 @@ else:
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = False
+debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_lgb
-    ml_algo = 'LGBMClassifier'
-    opt_schedule = [('hpbandster', 'BOHB')]
+    hp_space = space_mlp
+    ml_algo = 'MLPClassifier'
+    opt_schedule = [('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 15
+    n_runs = 1
+    n_func_evals = 5
     n_workers = 1
     loss_metric = f1_loss
     do_warmstart = 'No'
