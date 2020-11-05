@@ -1,6 +1,14 @@
 import skopt
 
 # Hyperparameter spaces according to skopt
+# MLP
+space_mlp = [
+    skopt.space.Integer(0, 4, name='n_hidden_layers'),
+    skopt.space.Integer(10, 100, name='hidden_layer_size'),
+    skopt.space.Categorical(['identity', 'logistic', 'tanh', 'relu'], name='activation'),
+    skopt.space.Categorical(['constant', 'invscaling', 'adaptive'], name='learning_rate')
+]
+
 # Random Forest Regressor
 space_rf_reg = [skopt.space.Integer(1, 200, name='n_estimators'),
                 skopt.space.Integer(1, 80, name='max_depth'),
@@ -75,11 +83,19 @@ warmstart_xgb = {'booster': 'gbtree',
 
 # AdaBoostRegressor
 # First try >>> iterative testing to find meaningful ranges for each HP // or refer to the AdaBoost literature
-space_ada = [skopt.space.Integer(1, 200, name='n_estimators'),
-             skopt.space.Real(.1, 5, name='learning_rate'),
-             skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss')]
+space_ada_reg = [
+    skopt.space.Integer(1, 200, name='n_estimators'),
+    skopt.space.Real(.1, 5, name='learning_rate'),
+    skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss')
+]
 
-# DecisionTreeRegressor
+# AdaBoostClassifier
+space_ada_clf = [
+    skopt.space.Integer(1, 200, name='n_estimators'),
+    skopt.space.Real(.1, 5, name='learning_rate')
+]
+
+# DecisionTreeRegressor & -Classifier
 # Hanno treated all integer-HPs as a continuous HP >> only continuous HPs (CMA-ES is applicable)
 # A lot more HPs in scikit-learn documentation (e.g. max_features; included in RF HP-space)
 space_dt = [skopt.space.Integer(2, 20, name='min_samples_split'),
@@ -92,6 +108,13 @@ space_linr = [skopt.space.Categorical([True, False], name='fit_intercept'),
 
 # KNNRegressor (KNeighborsRegressor)
 space_knn_reg = [skopt.space.Integer(1, 10, name='n_neighbors'),
+                 skopt.space.Categorical(['uniform', 'distance'], name='weights'),
+                 skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
+                 skopt.space.Integer(1, 60, name='leaf_size'),
+                 skopt.space.Integer(1, 2, name='p')]
+
+# KNNClassifier (KNeighborsClassifier)
+space_knn_clf = [skopt.space.Integer(1, 10, name='n_neighbors'),
                  skopt.space.Categorical(['uniform', 'distance'], name='weights'),
                  skopt.space.Categorical(['auto', 'ball_tree', 'kd_tree', 'brute'], name='algorithm'),
                  skopt.space.Integer(1, 60, name='leaf_size'),
