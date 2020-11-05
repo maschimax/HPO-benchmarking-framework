@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import argparse
 import skopt
+import warnings
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, \
     space_svr, space_svc, space_xgb, space_ada_reg, space_ada_clf, space_dt, \
@@ -12,9 +13,10 @@ from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
+from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'scania'
+use_case = 'turbofan'
 
 if use_case == 'dummy':
     # Loading data and preprocessing
@@ -32,7 +34,12 @@ if use_case == 'dummy':
                                                      count_encoding=False)
 
 elif use_case == 'scania':
+
     X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
+
+elif use_case == 'turbofan':
+
+    X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
 
 else:
     raise Exception('Unknown dataset / use-case.')
@@ -53,7 +60,7 @@ if debug:
     n_runs = 1
     n_func_evals = 5
     n_workers = 1
-    loss_metric = f1_loss
+    loss_metric = rul_loss_score
     do_warmstart = 'No'
 
 else:
@@ -74,7 +81,7 @@ else:
                         help='Number of workers to be used for the optimization (parallelization)',
                         default=1)
     parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
-                        choices=['root_mean_squared_error', 'F1-loss', 'Accuracy-loss'])
+                        choices=['root_mean_squared_error', 'F1-loss', 'Accuracy-loss', 'RUL-loss'])
     parser.add_argument('--warmstart', type=str,
                         help="Use the algorithm's default HP-configuration for warmstart (yes/no).",
                         default='No', choices=['Yes', 'No'])
@@ -143,7 +150,7 @@ else:
     elif ml_algo == 'KNNRegressor':
         hp_space = space_knn_reg
 
-    elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBClassifier':
+    elif ml_algo == 'LGBMRegressor' or ml_algo == 'LGBMClassifier':
         hp_space = space_lgb
 
     elif ml_algo == 'LogisticRegression':
@@ -165,6 +172,9 @@ else:
     elif args.loss_metric == 'Accuracy-loss':
         loss_metric = accuracy_loss
 
+    elif args.loss_metric == 'RUL-loss':
+        loss_metric = rul_loss_score
+
     else:
         raise Exception('This loss metric has not yet been implemented.')
 
@@ -178,6 +188,9 @@ print('Setup: ' + str(n_func_evals) + ' evaluations, ' + str(n_runs) + ' runs, '
       ' worker(s), warmstart: ' + do_warmstart + '.')
 print('------')
 print('Optimization schedule: ', opt_schedule)
+
+if n_func_evals <= 10:
+    warnings.warn('Some HPO-methods expect a budget of at least 10 evaluations. The optimization might fail.')
 
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
