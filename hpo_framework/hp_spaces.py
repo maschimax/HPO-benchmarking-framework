@@ -185,16 +185,16 @@ warmstart_knn = {'n_neighbors': 30,
 space_lgb = [skopt.space.Integer(2, 256, name='num_leaves'),
              skopt.space.Integer(20, 1000, name='min_data_in_leaf'),
              skopt.space.Integer(-1, 100, name='max_depth'),
-             skopt.space.Real(low=0.3, high=1.0, name='feature_fraction'),
-             skopt.space.Real(low=0.3, high=1.0, name='bagging_fraction')]
+             skopt.space.Real(low=0.3, high=1, name='feature_fraction'),
+             skopt.space.Real(low=0.3, high=1, name='bagging_fraction')]
 
 # HP values for warm starting a LightGBM model // HP values need to be inside the bounds of the predefined HP-space
 # based on: https://lightgbm.readthedocs.io/en/latest/Parameters-Tuning.html
 warmstart_lgb = {'num_leaves': 31,
                  'min_data_in_leaf': 20,
-                 'max_depth': -1,
-                 'feature_fraction': 1.0,
-                 'bagging_fraction': 1.0}
+                 'max_depth': 99,  # instead of -1 (otherwise hpbandster can't be warm started)
+                 'feature_fraction': 0.9999,  # instead of 1 (otherwise hpbandster can't be warm started)
+                 'bagging_fraction': 0.9999}  # instead of 1 (otherwise hpbandster can't be warm started)
 
 # Logistic Regression
 # https://machinelearningmastery.com/hyperparameters-for-classification-machine-learning-algorithms/
