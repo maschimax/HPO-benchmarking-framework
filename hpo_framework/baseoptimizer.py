@@ -12,14 +12,15 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.model_selection import KFold
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
-from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras
+from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras, warmstart_dt, warmstart_knn,\
+    warmstart_svm, warmstart_rf_clf, warmstart_rf_reg, warmstart_ada_clf, warmstart_ada_reg
 
 
 class BaseOptimizer(ABC):
@@ -111,89 +112,76 @@ class BaseOptimizer(ABC):
 
     def get_warmstart_configuration(self):
         """
-        Determine the default hyperparameter configuration of the selected ML-algorithm. This configuration can be used
-        as a warmstart configuration for the HPO-method.
-        :return: default_params: dict
-            Dictionary that contains the default HPs.
+        Return the warmstart hyperparameter configuration of the selected ML-algorithm. This configuration contains either
+        promising values from benchmarks / studies or the default value of the algorithm's implementation.
+        :return: warmstart_params: dict
+            Dictionary that contains the warmstart HPs.
         """
         if self.ml_algorithm == 'MLPRegressor':
             default_model = MLPRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'MLPClassifier':
             default_model = MLPClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'RandomForestRegressor':
-            default_model = RandomForestRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_rf_reg
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'RandomForestClassifier':
-            default_model = RandomForestClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_rf_clf
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'SVR':
             # SVR has no random_state parameter
-            default_model = SVR()
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_svm
 
         elif self.ml_algorithm == 'SVC':
-            default_model = SVC(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_svm
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'AdaBoostRegressor':
-            default_model = AdaBoostRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_ada_reg
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'AdaBoostClassifier':
-            default_model = AdaBoostClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = warmstart_ada_clf
+            warmstart_params['random_state'] = self.random_seed
 
-        elif self.ml_algorithm == 'DecisionTreeRegressor':
-            default_model = DecisionTreeRegressor(random_state=self.random_seed)
-            default_params = default_model.get_params()
-
-        elif self.ml_algorithm == 'DecisionTreeClassifier':
-            default_model = DecisionTreeClassifier(random_state=self.random_seed)
-            default_params = default_model.get_params()
+        elif self.ml_algorithm == 'DecisionTreeRegressor' or self.ml_algorithm == 'DecisionTreeClassifier':
+            warmstart_params = warmstart_dt
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'LinearRegression':
             # LinearRegression has no random_state parameter
             default_model = LinearRegression()
-            default_params = default_model.get_params()
-
-        elif self.ml_algorithm == 'KNNRegressor':
-            # KNeighborsRegressor has no random_state parameter
-            default_model = KNeighborsRegressor()
-            default_params = default_model.get_params()
-
-        elif self.ml_algorithm == 'KNNClassifier':
-            # KNeighborsClassifier has no random_state parameter
-            default_model = KNeighborsClassifier()
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'LogisticRegression':
             default_model = LogisticRegression(random_state=self.random_seed)
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
+
+        elif self.ml_algorithm == 'KNNRegressor' or self.ml_algorithm == 'KNNClassifier':
+            # KNeighborsRegressor has no random_state parameter
+            warmstart_params = warmstart_knn
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'NaiveBayes':
             # GaussianNB has no random_state parameter
             default_model = GaussianNB()
-            default_params = default_model.get_params()
+            warmstart_params = default_model.get_params()
 
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
-            default_params = warmstart_keras
+            warmstart_params = warmstart_keras
 
         elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
-            default_params = warmstart_xgb
+            warmstart_params = warmstart_xgb
+            warmstart_params['random_state'] = self.random_seed
 
         elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            # train_data = lgb.Dataset(self.x_train, self.y_train)
-            # params = {'objective': 'binary',
-            #           'seed': self.random_seed}
-            # default_model = lgb.train(params=params, train_set=train_data)
-            # default_params = default_model.params
-            default_params = warmstart_lgb
+            warmstart_params = warmstart_lgb
+            warmstart_params['seed'] = self.random_seed
 
             # Add remaining ML-algorithms here
 
@@ -201,12 +189,12 @@ class BaseOptimizer(ABC):
             raise Exception('Unknown ML-algorithm!')
 
         # Return the default HPs of the ML-algorithm
-        return default_params
+        return warmstart_params
 
     def get_warmstart_loss(self, **kwargs):
         """
-        Computes the validation loss of the selected ML-algorithm for the default hyperparameter configuration or any
-        valid configuration that has been passed via kwargs (function is also used for computing the baseline loss)
+        Computes the validation loss of the selected ML-algorithm for the warmstart hyperparameter configuration or any
+        valid configuration that has been passed via kwargs
         :param kwargs: dict
             Possibility to pass any valid HP-configuration for the ML-algorithm. If a argument 'warmstart_dict' is
              passed, this configuration is used to compute the loss.
@@ -347,16 +335,25 @@ class BaseOptimizer(ABC):
                 model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
                 # Add first hidden layer
-                model.add(
-                    keras.layers.Dense(warmstart_config['layer1_size'],
-                                       activation=warmstart_config['layer1_activation']))
-                model.add(keras.layers.Dropout(warmstart_config['dropout1']))
+                if warmstart_config['hidden_layer1_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_config['hidden_layer1_size'],
+                                           activation=warmstart_config['hidden_layer1_activation']))
+                    model.add(keras.layers.Dropout(warmstart_config['dropout1']))
 
                 # Add second hidden layer
-                model.add(
-                    keras.layers.Dense(warmstart_config['layer2_size'],
-                                       activation=warmstart_config['layer2_activation']))
-                model.add(keras.layers.Dropout(warmstart_config['dropout2']))
+                if warmstart_config['hidden_layer2_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_config['hidden_layer2_size'],
+                                           activation=warmstart_config['hidden_layer2_activation']))
+                    model.add(keras.layers.Dropout(warmstart_config['dropout2']))
+
+                # Add third hidden layer
+                if warmstart_config['hidden_layer3_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_config['hidden_layer3_size'],
+                                           activation=warmstart_config['hidden_layer3_activation']))
+                    model.add(keras.layers.Dropout(warmstart_config['dropout3']))
 
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
@@ -407,22 +404,12 @@ class BaseOptimizer(ABC):
 
                 # Consideration of conditional hyperparameters
                 if warmstart_config['booster'] not in ['gbtree', 'dart']:
-                    if 'eta' in warmstart_config.keys():
-                        del warmstart_config['eta']
-                    if 'max_depth' in warmstart_config.keys():
-                        del warmstart_config['max_depth']
-
-                if warmstart_config['booster'] != 'dart':
-                    if 'sample_type' in warmstart_config.keys():
-                        del warmstart_config['sample_type']
-                    if 'normalize_type' in warmstart_config.keys():
-                        del warmstart_config['normalize_type']
-                    if 'rate_drop' in warmstart_config.keys():
-                        del warmstart_config['rate_drop']
-
-                if warmstart_config['booster'] != 'gblinear':
-                    if 'updater' in warmstart_config.keys():
-                        del warmstart_config['updater']
+                    del warmstart_config['eta']
+                    del warmstart_config['subsample']
+                    del warmstart_config['max_depth']
+                    del warmstart_config['min_child_weight']
+                    del warmstart_config['colsample_bytree']
+                    del warmstart_config['colsample_bylevel']
 
                 if self.ml_algorithm == 'XGBoostRegressor':
 
@@ -535,11 +522,6 @@ class BaseOptimizer(ABC):
             Validation loss of this run
         """
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5)
-        cross_val_losses = []
-        cv_iter = 0
-
         # Preprocess "bidimensional" MLP parameter
         if self.ml_algorithm == 'MLPRegressor' or self.ml_algorithm == 'MLPClassifier':
             n_hidden_layers = params.pop('n_hidden_layers')
@@ -547,6 +529,10 @@ class BaseOptimizer(ABC):
 
             params['hidden_layer_sizes'] = (hidden_layer_size,) * n_hidden_layers
 
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cross_val_losses = []
+        cv_iter = 0
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
@@ -570,10 +556,10 @@ class BaseOptimizer(ABC):
 
             # Create ML-model for the HP-configuration selected by the HPO-method
             if self.ml_algorithm == 'MLPRegressor':
-                model = MLPRegressor(**params, random_state=self.random_seed)
+                model = MLPRegressor(**params, random_state=self.random_seed, verbose=True)
 
             elif self.ml_algorithm == 'MLPClassifier':
-                model = MLPClassifier(**params, random_state=self.random_seed)
+                model = MLPClassifier(**params, random_state=self.random_seed, verbose=True)
 
             elif self.ml_algorithm == 'RandomForestRegressor':
                 model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
@@ -591,10 +577,20 @@ class BaseOptimizer(ABC):
 
             elif self.ml_algorithm == 'AdaBoostRegressor':
                 # AdaBoostRegressor has no n_jobs parameter
+
+                # Set the max_depth of the base estimator object
+                max_depth = params.pop('max_depth')
+                params['base_estimator'] = DecisionTreeRegressor(max_depth=max_depth)
+
                 model = AdaBoostRegressor(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'AdaBoostClassifier':
                 # AdaBoostClassifier has no n_jobs parameter
+
+                # Set the max_depth of the base estimator object
+                max_depth = params.pop('max_depth')
+                params['base_estimator'] = DecisionTreeClassifier(max_depth=max_depth)
+
                 model = AdaBoostClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'DecisionTreeRegressor':
@@ -728,12 +724,20 @@ class BaseOptimizer(ABC):
             model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
             # Add first hidden layer
-            model.add(keras.layers.Dense(params['layer1_size'], activation=params['layer1_activation']))
-            model.add(keras.layers.Dropout(params['dropout1']))
+            if params['hidden_layer1_size'] > 0:
+                model.add(
+                    keras.layers.Dense(params['hidden_layer1_size'], activation=params['hidden_layer1_activation']))
+                model.add(keras.layers.Dropout(params['dropout1']))
 
             # Add second hidden layer
-            model.add(keras.layers.Dense(params['layer2_size'], activation=params['layer2_activation']))
-            model.add(keras.layers.Dropout(params['dropout2']))
+            if params['hidden_layer2_size'] > 0:
+                model.add(keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_size']))
+                model.add(keras.layers.Dropout(params['dropout2']))
+
+            # Add third hidden layer
+            if params['hidden_layer3_size'] > 0:
+                model.add(keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_size']))
+                model.add(keras.layers.Dropout(params['dropout3']))
 
             # Add output layer
             if self.ml_algorithm == 'KerasRegressor':
@@ -815,15 +819,11 @@ class BaseOptimizer(ABC):
         # Consideration of conditional hyperparameters // Remove invalid HPs according to the conditions
         if params['booster'] not in ['gbtree', 'dart']:
             del params['eta']
+            del params['subsample']
             del params['max_depth']
-
-        if params['booster'] != 'dart':
-            del params['sample_type']
-            del params['normalize_type']
-            del params['rate_drop']
-
-        if params['booster'] != 'gblinear':
-            del params['updater']
+            del params['min_child_weight']
+            del params['colsample_bytree']
+            del params['colsample_bylevel']
 
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
