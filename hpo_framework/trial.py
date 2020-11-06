@@ -4,12 +4,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import uuid
 import math
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor, AdaBoostClassifier
 from sklearn.svm import SVR, SVC
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.model_selection import KFold
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -29,8 +31,8 @@ from hpo_framework.lr_schedules import fix, exponential, cosine
 class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
-                 x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, baseline=0.0,
-                 do_warmstart='No', optimizer=None):
+                 x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, val_baseline=0.0,
+                 test_baseline=0.0, do_warmstart='No', optimizer=None):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -42,7 +44,8 @@ class Trial:
         self.y_train = y_train
         self.x_test = x_test
         self.y_test = y_test
-        self.baseline = baseline
+        self.val_baseline = val_baseline  # Cross validation based baseline (split of training data set)
+        self.test_baseline = test_baseline  # Full training based baseline (performance evaluation on test data set)
         self.do_warmstart = do_warmstart
         self.optimizer = optimizer
         # Attribute for CPU / GPU selection required
@@ -251,17 +254,16 @@ class Trial:
             ax.fill_between(x=mean_timestamps, y1=quant25_trace_desc,
                             y2=quant75_trace_desc, alpha=0.2)
 
-        # Check whether a baseline has already been calculated
-        if self.baseline == 0.0:
+        # Check whether a validation baseline has already been calculated
+        if self.val_baseline == 0.0:
             # Compute a new baseline
-            # baseline_loss = self.get_test_baseline()
-            baseline_loss = self.optimizer.get_warmstart_loss()
-            self.baseline = baseline_loss
+            val_baseline_loss = self.get_baseline(cv_mode=True)
+            self.val_baseline = val_baseline_loss
         else:
-            baseline_loss = self.baseline
+            val_baseline_loss = self.val_baseline
 
         # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
-        baseline = ax.hlines(baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
+        baseline = ax.hlines(val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
                              colors='m')
 
         # Formatting of the plot
@@ -416,14 +418,13 @@ class Trial:
 
         metrics_df = pd.DataFrame(columns=cols)
 
-        # Check whether a baseline has already been calculated
-        if self.baseline == 0.0:
+        # Check whether a validation baseline has already been calculated
+        if self.val_baseline == 0.0:
             # Compute a new baseline
-            # baseline_loss = self.get_test_baseline()
-            baseline_loss = self.optimizer.get_warmstart_loss()
-            self.baseline = baseline_loss
+            val_baseline = self.get_baseline(cv_mode=True)
+            self.val_baseline = val_baseline
         else:
-            baseline_loss = self.baseline
+            val_baseline = self.val_baseline
 
         # Row index for pandas DataFrame
         idx = 1
@@ -494,10 +495,10 @@ class Trial:
             wall_clock_time = max(mean_timestamps)
 
             # ANYTIME PERFORMANCE
-            # 1. Wall clock time required to outperform the default configuration
+            # 1. Wall clock time required to outperform the default configuration (on the validation set)
             time_outperform_default = float('inf')
             for eval_num in range(len(mean_trace_desc)):
-                if mean_trace_desc[eval_num] < baseline_loss:
+                if mean_trace_desc[eval_num] < val_baseline:
                     time_outperform_default = mean_timestamps[eval_num]
                     break
 
@@ -512,7 +513,14 @@ class Trial:
             mean_test_loss = np.mean(best_test_losses)
 
             # 4. Loss ratio (test loss of default config. / test loss of best found config.)
-            test_baseline_loss = self.get_test_baseline()
+            # Check whether a test baseline has already been calculated
+            if self.test_baseline == 0.0:
+                # Compute a new baseline
+                test_baseline_loss = self.get_baseline(cv_mode=False)
+                self.test_baseline = test_baseline_loss
+            else:
+                test_baseline_loss = self.test_baseline
+
             loss_ratio = test_baseline_loss / mean_test_loss
 
             # ROBUSTNESS
@@ -587,174 +595,246 @@ class Trial:
 
         return metrics, metrics_df
 
-    def get_test_baseline(self):
+    def get_baseline(self, cv_mode=True):
         """
-        Computes the loss for the default hyperparameter configuration of the ML-algorithm on the test set
-        (full training).
+        Computes a loss baseline for the ML-algorithm based on its default hyperparameter configuration
+        (either cross validation loss or test loss after full training)
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
         :return:
-        test_baseline: float
-            Test loss of the baseline HP-configuration (use complete training set (no validation))
+        baseline: float
+             Loss of the baseline HP-configuration.
         """
-        if self.ml_algorithm == 'RandomForestRegressor':
-            model = RandomForestRegressor(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
 
-        elif self.ml_algorithm == 'RandomForestClassifier':
-            model = RandomForestClassifier(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+        # Create K-Folds cross validator
+        kf = KFold(n_splits=5)
+        cv_baselines = []
+        cv_iter = 0
 
-        elif self.ml_algorithm == 'SVR':
-            model = SVR()
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+        # Iterate over the cross validation splits
+        for train_index, val_index in kf.split(X=self.x_train):
+            cv_iter = cv_iter + 1
 
-        elif self.ml_algorithm == 'SVC':
-            model = SVC(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+            # Cross validation
+            if cv_mode:
 
-        elif self.ml_algorithm == 'AdaBoostRegressor':
-            model = AdaBoostRegressor(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+                x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+                y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
-        elif self.ml_algorithm == 'DecisionTreeRegressor':
-            model = DecisionTreeRegressor(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+            # Training on full training set and evaluation on test set
+            elif not cv_mode and cv_iter < 2:
 
-        elif self.ml_algorithm == 'LinearRegression':
-            model = LinearRegression()
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+                x_train_cv, x_val_cv = self.x_train, self.x_test
+                y_train_cv, y_val_cv = self.y_train, self.y_test
 
-        elif self.ml_algorithm == 'KNNRegressor':
-            model = KNeighborsRegressor()
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+            # Iteration doesn't make sense for non cross validation
+            else:
+                continue
 
-        elif self.ml_algorithm == 'LogisticRegression':
-            model = LogisticRegression()
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+            if self.ml_algorithm == 'RandomForestRegressor':
+                model = RandomForestRegressor(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-        elif self.ml_algorithm == 'NaiveBayes':
-            model = GaussianNB()
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
+            elif self.ml_algorithm == 'RandomForestClassifier':
+                model = RandomForestClassifier(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-        elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
+            elif self.ml_algorithm == 'SVR':
+                model = SVR()
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Use the warmstart configuration to create a baseline for Keras models
+            elif self.ml_algorithm == 'SVC':
+                model = SVC(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            epochs = 100
+            elif self.ml_algorithm == 'AdaBoostRegressor':
+                model = AdaBoostRegressor(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Initialize the neural network
-            model = keras.Sequential()
+            elif self.ml_algorithm == 'AdaBoostClassifier':
+                model = AdaBoostClassifier(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Add input layer
-            model.add(keras.layers.InputLayer(input_shape=len(self.x_train.keys())))
+            elif self.ml_algorithm == 'DecisionTreeRegressor':
+                model = DecisionTreeRegressor(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Add first hidden layer
-            model.add(
-                keras.layers.Dense(warmstart_keras['layer1_size'], activation=warmstart_keras['layer1_activation']))
-            model.add(keras.layers.Dropout(warmstart_keras['dropout1']))
+            elif self.ml_algorithm == 'DecisionTreeClassifier':
+                model = DecisionTreeClassifier(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Add second hidden layer
-            model.add(
-                keras.layers.Dense(warmstart_keras['layer2_size'], activation=warmstart_keras['layer2_activation']))
-            model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
+            elif self.ml_algorithm == 'LinearRegression':
+                model = LinearRegression()
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Add output layer
-            if self.ml_algorithm == 'KerasRegressor':
+            elif self.ml_algorithm == 'KNNRegressor':
+                model = KNeighborsRegressor()
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-                model.add(keras.layers.Dense(1, activation='linear'))
+            elif self.ml_algorithm == 'KNNClassifier':
+                model = KNeighborsClassifier()
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-                # Select optimizer and compile the model
-                adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
-                model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+            elif self.ml_algorithm == 'LogisticRegression':
+                model = LogisticRegression()
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            elif self.ml_algorithm == 'KerasClassifier':
-                # Binary classification
-                model.add(keras.layers.Dense(1, activation='sigmoid'))
+            elif self.ml_algorithm == 'NaiveBayes':
+                model = GaussianNB()
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-                adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
-                model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+            elif self.ml_algorithm == 'MLPRegressor':
+                model = MLPRegressor(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            # Learning rate schedule
-            if warmstart_keras["lr_schedule"] == "cosine":
-                schedule = functools.partial(cosine, initial_lr=warmstart_keras["init_lr"], T_max=epochs)
+            elif self.ml_algorithm == 'MLPClassifier':
+                model = MLPClassifier(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
-            elif warmstart_keras["lr_schedule"] == "exponential":
-                schedule = functools.partial(exponential, initial_lr=warmstart_keras["init_lr"], T_max=epochs)
+            elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
 
-            elif warmstart_keras["lr_schedule"] == "constant":
-                schedule = functools.partial(fix, initial_lr=warmstart_keras["init_lr"])
+                # Use the warmstart configuration to create a baseline for Keras models
+
+                epochs = 100
+
+                # Initialize the neural network
+                model = keras.Sequential()
+
+                # Add input layer
+                model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
+
+                # Add first hidden layer
+                if warmstart_keras['hidden_layer1_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_keras['hidden_layer1_size'],
+                                           activation=warmstart_keras['hidden_layer1_activation']))
+                    model.add(keras.layers.Dropout(warmstart_keras['dropout1']))
+
+                # Add second hidden layer
+                if warmstart_keras['hidden_layer2_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_keras['hidden_layer2_size'],
+                                           activation=warmstart_keras['hidden_layer2_activation']))
+                    model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
+
+                # Add third hidden layer
+                if warmstart_keras['hidden_layer3_size'] > 0:
+                    model.add(
+                        keras.layers.Dense(warmstart_keras['hidden_layer3_size'],
+                                           activation=warmstart_keras['hidden_layer3_activation']))
+                    model.add(keras.layers.Dropout(warmstart_keras['dropout3']))
+
+                # Add output layer
+                if self.ml_algorithm == 'KerasRegressor':
+
+                    model.add(keras.layers.Dense(1, activation='linear'))
+
+                    # Select optimizer and compile the model
+                    adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                    model.compile(optimizer=adam, loss='mse', metrics=['mse'])
+
+                elif self.ml_algorithm == 'KerasClassifier':
+                    # Binary classification
+                    model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+                    adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                    model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+                # Learning rate schedule
+                if warmstart_keras["lr_schedule"] == "cosine":
+                    schedule = functools.partial(cosine, initial_lr=warmstart_keras["init_lr"], T_max=epochs)
+
+                elif warmstart_keras["lr_schedule"] == "exponential":
+                    schedule = functools.partial(exponential, initial_lr=warmstart_keras["init_lr"], T_max=epochs)
+
+                elif warmstart_keras["lr_schedule"] == "constant":
+                    schedule = functools.partial(fix, initial_lr=warmstart_keras["init_lr"])
+
+                else:
+                    raise Exception('Unknown learning rate schedule!')
+
+                # Determine the learning rate for this iteration and pass it as callback
+                lr = keras.callbacks.LearningRateScheduler(schedule)
+                callbacks_list = [lr]
+
+                # Train the model
+                model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=warmstart_keras['batch_size'],
+                          validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
+                          verbose=1)
+
+                # Make the prediction
+                y_pred = model.predict(x_val_cv)
+
+                # In case of binary classification round to the neares integer
+                if self.ml_algorithm == 'KerasClassifier':
+                    y_pred = np.rint(y_pred)
+
+            elif self.ml_algorithm == 'XGBoostRegressor':
+                model = XGBRegressor(random_state=0)
+                model.fit(self.x_train, self.y_train)
+                y_pred = model.predict(self.x_test)
+
+            elif self.ml_algorithm == 'XGBoostClassifier':
+                model = XGBClassifier(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
+                # Create lgb datasets
+                train_data = lgb.Dataset(x_train_cv, label=y_train_cv)
+                valid_data = lgb.Dataset(x_val_cv, label=y_val_cv)
+
+                # Specify the ML task and the random seed
+                if self.ml_algorithm == 'LGBMRegressor':
+                    # Regression task
+                    params = {'objective': 'regression',
+                              'seed': 0}
+
+                elif self.ml_algorithm == 'LGBMClassifier':
+                    # Binary classification task
+                    params = {'objective': 'binary',
+                              'seed': 0}
+
+                lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+
+                # Make the prediction
+                y_pred = lgb_clf.predict(data=x_val_cv)
+
+                # In case of binary classification round to the nearest integer
+                if self.ml_algorithm == 'LGBMClassifier':
+                    y_pred = np.rint(y_pred)
 
             else:
-                raise Exception('Unknown learning rate schedule!')
+                raise Exception('Unknown ML-algorithm!')
 
-            # Determine the learning rate for this iteration and pass it as callback
-            lr = keras.callbacks.LearningRateScheduler(schedule)
-            callbacks_list = [lr]
+            # Add remaining ML-algorithms here
 
-            # Train the model
-            model.fit(self.x_train, self.y_train, epochs=epochs, batch_size=warmstart_keras['batch_size'],
-                      validation_data=(self.x_test, self.y_test), callbacks=callbacks_list,
-                      verbose=1)
+            cv_baselines.append(self.metric(y_val_cv, y_pred))
 
-            # Make the prediction
-            y_pred = model.predict(self.x_test)
+        if cv_mode:
 
-            # In case of binary classification round to the neares integer
-            if self.ml_algorithm == 'KerasClassifier':
-                y_pred = np.rint(y_pred)
-
-        elif self.ml_algorithm == 'XGBoostRegressor':
-            model = XGBRegressor(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
-
-        elif self.ml_algorithm == 'XGBoostClassifier':
-            model = XGBClassifier(random_state=0)
-            model.fit(self.x_train, self.y_train)
-            y_pred = model.predict(self.x_test)
-
-        elif self.ml_algorithm == 'LGBMRegressor' or self.ml_algorithm == 'LGBMClassifier':
-            # Create lgb datasets
-            train_data = lgb.Dataset(self.x_train, label=self.y_train)
-            valid_data = lgb.Dataset(self.x_test, label=self.y_test)
-
-            # Specify the ML task and the random seed
-            if self.ml_algorithm == 'LGBMRegressor':
-                # Regression task
-                params = {'objective': 'regression',
-                          'seed': 0}
-
-            elif self.ml_algorithm == 'LGBMClassifier':
-                # Binary classification task
-                params = {'objective': 'binary',
-                          'seed': 0}
-
-            lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
-
-            # Make the prediction
-            y_pred = lgb_clf.predict(data=self.x_test)
-
-            # In case of binary classification round to the nearest integer
-            if self.ml_algorithm == 'LGBMClassifier':
-                y_pred = np.rint(y_pred)
+            # Compute the average cross validation loss
+            baseline = np.mean(cv_baselines)
 
         else:
-            raise Exception('Unknown ML-algorithm!')
+            baseline = cv_baselines[0]
 
-        # Add remaining ML-algorithms here
-
-        test_baseline = self.metric(self.y_test, y_pred)
-
-        return test_baseline
+        return baseline
 
     @staticmethod
     def train_best_model(trial_results_dict: dict):
