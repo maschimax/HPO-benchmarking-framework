@@ -32,7 +32,7 @@ class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
                  x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, val_baseline=0.0,
-                 test_baseline=0.0, do_warmstart='No', optimizer=None):
+                 test_baseline=0.0, do_warmstart='No', optimizer=None, gpu=False):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -48,6 +48,7 @@ class Trial:
         self.test_baseline = test_baseline  # Full training based baseline (performance evaluation on test data set)
         self.do_warmstart = do_warmstart
         self.optimizer = optimizer
+        self.gpu = gpu
         # Attribute for CPU / GPU selection required
 
     def run(self):
@@ -56,6 +57,9 @@ class Trial:
         :return: trial_results_dict: dict
             Contains the optimization results of this trial
         """
+
+        # Unique trial ID
+        trial_id = str(uuid.uuid4())
 
         # Initialize a dictionary for saving the trial results
         trial_results_dict = {}
@@ -66,10 +70,13 @@ class Trial:
             this_hpo_method = opt_tuple[1]
 
             # Initialize a DataFrame for saving the trial results
-            results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
-                                               'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
-                                               'workers', 'budget [%]'])
+            results_df = pd.DataFrame(
+                columns=['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Run-ID', 'random_seed',
+                         'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
+                         'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
+                         'workers', 'GPU', 'budget [%]', '# training instances', '# training features',
+                         '# test instances', '# test features'])
+
             best_configs = ()
             best_val_losses = []
             test_losses = []
@@ -126,14 +133,16 @@ class Trial:
                 optimization_results = optimizer.optimize()
 
                 # Save the optimization results in a dictionary
-                temp_dict = {'HPO-library': [this_hpo_library] * len(optimization_results.losses),
+                temp_dict = {'Trial-ID': [trial_id] * len(optimization_results.losses),
+                             'HPO-library': [this_hpo_library] * len(optimization_results.losses),
                              'HPO-method': [this_hpo_method] * len(optimization_results.losses),
                              'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
-                             'run_id': [run_id] * len(optimization_results.losses),
+                             'Run-ID': [run_id] * len(optimization_results.losses),
                              'random_seed': [i] * len(optimization_results.losses),
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'val_losses': optimization_results.losses,
-                             'test_loss [best config.]': [optimization_results.test_loss] * len(optimization_results.losses),
+                             'test_loss [best config.]': [optimization_results.test_loss] * len(
+                                 optimization_results.losses),
                              'timestamps': optimization_results.timestamps,
                              'configurations': optimization_results.configurations,
                              'run_successful': optimization_results.successful,
@@ -141,7 +150,12 @@ class Trial:
                              'runs': [self.n_runs] * len(optimization_results.losses),
                              'evaluations': [self.n_func_evals] * len(optimization_results.losses),
                              'workers': [self.n_workers] * len(optimization_results.losses),
-                             'budget [%]': optimization_results.budget}
+                             'GPU': self.gpu,
+                             'budget [%]': optimization_results.budget,
+                             '# training instances': [len(self.x_train)] * len(optimization_results.losses),
+                             '# training features': [len(self.x_train.columns)] * len(optimization_results.losses),
+                             '# test instances': [len(self.x_test)] * len(optimization_results.losses),
+                             '# test features': [len(self.x_test.columns)] * len(optimization_results.losses)}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
@@ -193,14 +207,14 @@ class Trial:
         for opt_tuple in trial_results_dict.keys():
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
-            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
+            unique_ids = this_df['Run-ID'].unique()  # Unique id of each optimization run
 
             n_cols = len(unique_ids)
             n_rows = 0
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
+                num_of_evals = len(this_df.loc[this_df['Run-ID'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
@@ -210,7 +224,7 @@ class Trial:
 
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
-                this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
+                this_subframe = this_df.loc[this_df['Run-ID'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
                 # Iterate over all function evaluations
@@ -411,10 +425,11 @@ class Trial:
         """
 
         metrics = {}
-        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Warmstart',
-                'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean (final test loss)',
-                'Test loss ratio (default / best)', 'Interquartile range (final test loss)', 't best configuration [s]',
-                'Evaluations for best configuration', 'Crashes']
+        cols = ['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'GPU',
+                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)',
+                'Mean (final test loss)', 'Test loss ratio (default / best)', 'Interquartile range (final test loss)',
+                't best configuration [s]', 'Evaluations for best configuration', 'Crashes', '# training instances',
+                '# training features', '# test instances', '# test features']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -432,7 +447,7 @@ class Trial:
         for opt_tuple in trial_results_dict.keys():
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
-            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
+            unique_ids = this_df['Run-ID'].unique()  # Unique id of each optimization run
 
             # Flag indicates, whether a warmstart of the HPO-method was performed successfully
             did_warmstart = trial_results_dict[opt_tuple].did_warmstart
@@ -442,7 +457,7 @@ class Trial:
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
+                num_of_evals = len(this_df.loc[this_df['Run-ID'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
@@ -456,7 +471,7 @@ class Trial:
 
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
-                this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
+                this_subframe = this_df.loc[this_df['Run-ID'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
                 best_test_losses[0, j] = this_subframe['test_loss [best config.]'][0]
@@ -565,14 +580,19 @@ class Trial:
             # Assign the MetricsResult-object to a dictionary
             metrics[opt_tuple] = metrics_object
 
+            # ID of this Trial
+            trial_id = this_df['Trial-ID'].unique()[0]
+
             # Dictionary with new metrics
-            metrics_dict = {'idx': [idx],
+            metrics_dict = {'Trial-ID': trial_id,
+                            'idx': [idx],
                             'HPO-library': opt_tuple[0],
                             'HPO-method': opt_tuple[1],
                             'ML-algorithm': self.ml_algorithm,
                             'Runs': self.n_runs,
                             'Evaluations': self.n_func_evals,
                             'Workers': self.n_workers,
+                            'GPU': self.gpu,
                             'Warmstart': did_warmstart,
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
@@ -582,7 +602,11 @@ class Trial:
                             'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
                             'Evaluations for best configuration': evals_for_best_config,
-                            'Crashes': number_of_crashes_this_algo}
+                            'Crashes': number_of_crashes_this_algo,
+                            '# training instances': len(self.x_train),
+                            '# training features': len(self.x_train.columns),
+                            '# test instances': len(self.x_test),
+                            '# test features': len(self.x_test.columns)}
 
             # Create pandas DataFrame from dictionary
             this_metrics_df = pd.DataFrame.from_dict(data=metrics_dict)

@@ -57,11 +57,12 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 4
-    n_func_evals = 40
-    n_workers = 4
+    n_runs = 2
+    n_func_evals = 15
+    n_workers = 1
     loss_metric = f1_loss
-    do_warmstart = 'Yes'
+    loss_metric_str = 'F1-loss'
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -169,16 +170,17 @@ else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
 
     # Identify the correct loss metric
-    if args.loss_metric == 'root_mean_squared_error':
+    loss_metric_str = args.loss_metric
+    if loss_metric_str == 'root_mean_squared_error':
         loss_metric = root_mean_squared_error
 
-    elif args.loss_metric == 'F1-loss':
+    elif loss_metric_str == 'F1-loss':
         loss_metric = f1_loss
 
-    elif args.loss_metric == 'Accuracy-loss':
+    elif loss_metric_str == 'Accuracy-loss':
         loss_metric = accuracy_loss
 
-    elif args.loss_metric == 'RUL-loss':
+    elif loss_metric_str == 'RUL-loss':
         loss_metric = rul_loss_score
 
     else:
@@ -245,6 +247,7 @@ for opt_tuple in res.keys():
     res_df['# cont. HPs'] = num_params['continuous']
     res_df['# int. HPs'] = num_params['integer']
     res_df['# cat. HPs'] = num_params['categorical']
+    res_df['loss_metric'] = loss_metric_str
 
     res_str_csv = use_case + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
     res_path_csv = os.path.join(log_folder, res_str_csv)
@@ -278,6 +281,7 @@ metrics_df['dataset'] = use_case
 metrics_df['# cont. HPs'] = num_params['continuous']
 metrics_df['# int. HPs'] = num_params['integer']
 metrics_df['# cat. HPs'] = num_params['categorical']
+metrics_df['loss_metric'] = loss_metric_str
 
 metrics_str = 'metrics_' + use_case + '_' + ml_algo + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
