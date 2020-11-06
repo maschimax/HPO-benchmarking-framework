@@ -18,32 +18,6 @@ from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan
 # Flag for the ML use case / dataset to be used
 use_case = 'scania'
 
-if use_case == 'dummy':
-    # Loading data and preprocessing
-    # >>> Linux OS and Windows require different path representations -> use pathlib <<<
-    dataset_path = os.path.abspath(path='datasets/dummy')
-    data_folder = Path(dataset_path)
-    train_file = "train.csv"
-    test_file = "test.csv"
-    submission_file = "sample_submission.csv"
-
-    train_raw = pp.load_data(data_folder, train_file)
-    test_raw = pp.load_data(data_folder, test_file)
-
-    X_train, y_train, X_test, y_test, _ = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
-                                                     count_encoding=False)
-
-elif use_case == 'scania':
-
-    X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
-
-elif use_case == 'turbofan':
-
-    X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
-
-else:
-    raise Exception('Unknown dataset / use-case.')
-
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
@@ -57,12 +31,12 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 15
+    n_runs = 3
+    n_func_evals = 40
     n_workers = 1
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
-    do_warmstart = 'No'
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -136,7 +110,7 @@ else:
     elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
         hp_space = space_xgb
 
-    elif ml_algo == 'SVR' or 'SVR':
+    elif ml_algo == 'SVR' or ml_algo == 'SVR':
         hp_space = space_svm
 
     elif ml_algo == 'AdaBoostRegressor':
@@ -186,6 +160,33 @@ else:
     else:
         raise Exception('This loss metric has not yet been implemented.')
 
+# Loading and preprocessing of the selected data set
+if use_case == 'dummy':
+    # Loading data and preprocessing
+    # >>> Linux OS and Windows require different path representations -> use pathlib <<<
+    dataset_path = os.path.abspath(path='datasets/dummy')
+    data_folder = Path(dataset_path)
+    train_file = "train.csv"
+    test_file = "test.csv"
+    submission_file = "sample_submission.csv"
+
+    train_raw = pp.load_data(data_folder, train_file)
+    test_raw = pp.load_data(data_folder, test_file)
+
+    X_train, y_train, X_test, y_test, _ = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
+                                                     count_encoding=False)
+
+elif use_case == 'scania':
+
+    X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
+
+elif use_case == 'turbofan':
+
+    X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+
+else:
+    raise Exception('Unknown dataset / use-case.')
+
 # Display a summary of the trial settings
 print('Optimize: ' + ml_algo)
 print('With HPO-methods: ')
@@ -218,7 +219,7 @@ log_folder = os.path.join(res_folder, 'logs')
 if not os.path.isdir(log_folder):
     os.makedirs(log_folder, exist_ok=True)
 
-time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
+time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.localtime()))
 
 # Analyze the results
 print('Best configuration found:')
