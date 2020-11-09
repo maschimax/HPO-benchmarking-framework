@@ -36,19 +36,17 @@ def mining_loading_and_preprocessing(test_split=0.2):
     # Drop date column
     raw_df.drop(labels='date', axis=1, inplace=True)
 
+    # Drop constant cols
+    const_cols = identify_const_columns(raw_df)
+    raw_df.drop(const_cols, axis=1, inplace=True)
+
+    # Drop correlated cols
+    corr_cols = identify_corr_cols(raw_df)
+    raw_df.drop(corr_cols, axis=1, inplace=True)
+
     # Shuffle and split into training and test sets
     x_train, x_test, y_train, y_test = train_test_split(raw_df, y_raw, test_size=test_split, random_state=0,
                                                         shuffle=True)
-
-    # Drop constant cols
-    const_cols = identify_const_columns(x_train)
-    x_train.drop(labels=const_cols, axis=1, inplace=True)
-    x_test.drop(labels=const_cols, axis=1, inplace=True)
-
-    # Drop correlated cols
-    corr_cols = identify_corr_cols(x_train)
-    x_train.drop(labels=corr_cols, axis=1, inplace=True)
-    x_test.drop(labels=corr_cols, axis=1, inplace=True)
 
     # Scaling
     scaler = MinMaxScaler(feature_range=(0, 1))
