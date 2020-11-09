@@ -13,7 +13,7 @@ def identify_corr_cols(train_df, corr_threshold=0.95):
     # Compute the correlation matrix
     corr_matrix = train_df.corr().abs()
 
-    # Select the upper triangle of the corelation matrix
+    # Select the upper triangle of the correlation matrix
     upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
 
     # Find the columns with a correlation greater than the threshold
