@@ -14,29 +14,30 @@ from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
+from datasets.Mining_Process.mining_preprocessing import mining_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'scania'
+use_case = 'mining'
 
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = False
+debug = True
 
 if debug:
     # Set parameters manually
     hp_space = space_lgb
-    ml_algo = 'LGBMClassifier'
+    ml_algo = 'LGBMRegressor'
     opt_schedule = [('hpbandster', 'BOHB')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 3
-    n_func_evals = 40
+    n_runs = 2
+    n_func_evals = 20
     n_workers = 1
-    loss_metric = f1_loss
-    loss_metric_str = 'F1-loss'
-    do_warmstart = 'Yes'
+    loss_metric = root_mean_squared_error
+    loss_metric_str = 'root_mean_squared_error'
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -183,6 +184,10 @@ elif use_case == 'scania':
 elif use_case == 'turbofan':
 
     X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+
+elif use_case == 'mining':
+
+    X_train, X_test, y_train, y_test = mining_loading_and_preprocessing()
 
 else:
     raise Exception('Unknown dataset / use-case.')
