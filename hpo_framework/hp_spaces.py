@@ -75,14 +75,14 @@ space_keras = [
 # HP values for warm starting a Keras model //
 # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
 warmstart_keras = {'init_lr': 0.001,
-                   'batch_size': 200,
+                   'batch_size': 64,
                    'lr_schedule': 'constant',
                    'hidden_layer1_activation': 'relu',
                    'hidden_layer2_activation': 'relu',
                    'hidden_layer3_activation': 'relu',
-                   'hidden_layer1_size': 100,
-                   'hidden_layer2_size': 100,
-                   'hidden_layer3_size': 100,
+                   'hidden_layer1_size': 128,
+                   'hidden_layer2_size': 128,
+                   'hidden_layer3_size': 128,
                    'dropout1': 0.0,
                    'dropout2': 0.0,
                    'dropout3': 0.0}

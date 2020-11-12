@@ -773,11 +773,30 @@ class Trial:
                     model.compile(optimizer=adam, loss='mse', metrics=['mse'])
 
                 elif self.ml_algorithm == 'KerasClassifier':
-                    # Binary classification
-                    model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-                    adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
-                    model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+                    num_classes = len(y_train_cv.keys())
+
+                    # Binary classification
+                    if num_classes < 2:
+
+                        # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
+                        # https://keras.io/api/layers/activations/#sigmoid-function
+                        model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+                        adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                        model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+                    # Multiclass classification
+                    else:
+
+                        # Use softmax activation for multiclass clf. -> 'Softmax converts a real vector to a vector of
+                        # categorical probabilities.[...]the result could be interpreted as a probability distribution.'
+                        # https://keras.io/api/layers/activations/#softmax-function
+                        model.add(keras.layers.Dense(num_classes, activation='softmax'))
+
+                        adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                        model.compile(optimizer=adam, loss=keras.losses.CategoricalCrossentropy(),
+                                      metrics=[keras.metrics.CategoricalAccuracy()])
 
                 # Learning rate schedule
                 if warmstart_keras["lr_schedule"] == "cosine":
@@ -806,7 +825,30 @@ class Trial:
 
                 # In case of binary classification round to the neares integer
                 if self.ml_algorithm == 'KerasClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    num_classes = len(y_train_cv.keys())
+
+                    # Binary classification
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification
+                    else:
+
+                        # Identify the predicted class (maximum probability) in each row
+                        for row_idx in range(y_pred.shape[0]):
+
+                            # Predicted class
+                            this_class = np.argmax(y_pred[row_idx, :])
+
+                            # Iterate over columns / classes
+                            for col_idx in range(y_pred.shape[1]):
+
+                                if col_idx == this_class:
+                                    y_pred[row_idx, col_idx] = 1
+                                else:
+                                    y_pred[row_idx, col_idx] = 0
 
             elif self.ml_algorithm == 'XGBoostRegressor':
                 model = XGBRegressor(random_state=0)

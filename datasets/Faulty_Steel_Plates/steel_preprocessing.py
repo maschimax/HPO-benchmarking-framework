@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.utils import shuffle
 from imblearn.over_sampling import SMOTE
 
 
@@ -31,7 +32,10 @@ def oversample_minority(x_imb, y_imb):
     # Do resampling
     x_bal, y_bal = oversampler.fit_resample(np.array(x_imb), np.array(y_imb))
 
-    return pd.DataFrame(x_bal), pd.Series(y_bal)
+    # Shuffle again
+    x_bal, y_bal = shuffle(x_bal, y_bal, random_state=0)
+
+    return pd.DataFrame(x_bal), pd.DataFrame(y_bal)
 
 
 def steel_loading_and_preprocessing(test_split=0.2):
@@ -42,12 +46,6 @@ def steel_loading_and_preprocessing(test_split=0.2):
     label_cols = ['Pastry', 'Z_Scratch', 'K_Scatch', 'Stains', 'Dirtiness', 'Bumps', 'Other_Faults']
     y_raw = raw_df[label_cols].copy(deep=True)
     raw_df.drop(labels=label_cols, axis=1, inplace=True)
-
-    # Convert the one-hot-encoded labels into a single (label-encoded) column
-    # for iter_tuple in y_raw.itertuples():
-    #     idx = iter_tuple.Index
-    #     fault_id = [i for i, j in enumerate(iter_tuple[1:]) if j > 0.5]
-    #     y_raw.loc[idx, 'Fault_ID'] = fault_id
 
     # y_data = y_raw.loc[:, 'Fault_ID']
     y_data = y_raw.copy(deep=True)
@@ -72,7 +70,7 @@ def steel_loading_and_preprocessing(test_split=0.2):
     # PCA?
 
     # Oversampling
-    over = False
+    over = True
     if over:
         x_train, y_train = oversample_minority(x_train, y_train)
 

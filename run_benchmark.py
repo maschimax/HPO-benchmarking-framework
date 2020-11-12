@@ -27,18 +27,18 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_rf_clf
-    ml_algo = 'RandomForestClassifier'
-    opt_schedule = [('optuna', 'TPE')]
+    hp_space = space_keras
+    ml_algo = 'KerasClassifier'
+    opt_schedule = [('hpbandster', 'BOHB')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
-    n_func_evals = 20
+    n_runs = 1
+    n_func_evals = 3
     n_workers = 1
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
-    do_warmstart = 'No'
+    do_warmstart = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -193,6 +193,25 @@ elif use_case == 'mining':
 elif use_case == 'steel':
 
     X_train, X_test, y_train, y_test = steel_loading_and_preprocessing()
+
+    if ml_algo == 'RandomForestRegressor' or ml_algo == 'SVR' or \
+            ml_algo == 'AdaBoostRegressor' or ml_algo == 'DecisionTreeRegressor' or \
+            ml_algo == 'LinearRegression' or ml_algo == 'KNNRegressor' or \
+            ml_algo == 'RandomForestClassifier' or ml_algo == 'SVC' or \
+            ml_algo == 'LogisticRegression' or ml_algo == 'NaiveBayes' or \
+            ml_algo == 'DecisionTreeClassifier' or ml_algo == 'KNNClassifier' or \
+            ml_algo == 'AdaBoostClassifier' or ml_algo == 'MLPClassifier' or \
+            ml_algo == 'MLPRegressor':
+
+        # Reverse one hot encoding // sklearn models require a label encoded label vector for multiclass-classification
+        for y in [y_train, y_test]:
+            for iter_tuple in y.itertuples():
+                idx = iter_tuple.Index
+                fault_id = [i for i, j in enumerate(iter_tuple[1:]) if j > 0.5]
+                y.loc[idx, 'Fault_ID'] = fault_id
+
+        y_train = y_train.loc[:, 'Fault_ID']
+        y_test = y_test.loc[:, 'Fault_ID']
 
 else:
     raise Exception('Unknown dataset / use-case.')
