@@ -872,18 +872,44 @@ class Trial:
                               'seed': 0}
 
                 elif self.ml_algorithm == 'LGBMClassifier':
+
+                    # Determine the number of classes
+                    num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
                     # Binary classification task
-                    params = {'objective': 'binary',
-                              'seed': 0}
+                    if num_classes < 2:
+                        params = {'objective': 'binary',
+                                  'seed': 0}
+
+                    # Multiclass classification task
+                    else:
+                        params['objective'] = 'multiclass'  # uses Softmax objective function
+                        params['num_class'] = num_classes
 
                 lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
                 # Make the prediction
                 y_pred = lgb_clf.predict(data=x_val_cv)
 
-                # In case of binary classification round to the nearest integer
+                # Classification task
                 if self.ml_algorithm == 'LGBMClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    # Binary classification: round to the nearest integer
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification: identify the predicted class based on the one-hot-encoded probabilities
+                    else:
+
+                        y_one_hot_proba = np.copy(y_pred)
+                        n_rows = y_one_hot_proba.shape[0]
+
+                        y_pred = np.zeros(shape=(n_rows, 1))
+
+                        # Identify the predicted class for each row (highest probability)
+                        for row in range(n_rows):
+                            y_pred[row, 0] = np.argmax(y_one_hot_proba[row, :])
 
             else:
                 raise Exception('Unknown ML-algorithm!')

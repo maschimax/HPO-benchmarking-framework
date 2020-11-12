@@ -27,14 +27,14 @@ debug = True
 
 if debug:
     # Set parameters manually
-    hp_space = space_keras
-    ml_algo = 'KerasClassifier'
-    opt_schedule = [('hpbandster', 'BOHB')]
+    hp_space = space_lgb
+    ml_algo = 'LGBMClassifier'
+    opt_schedule = [('robo', 'Bohamiann')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 3
+    n_func_evals = 10
     n_workers = 1
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
@@ -194,16 +194,14 @@ elif use_case == 'steel':
 
     X_train, X_test, y_train, y_test = steel_loading_and_preprocessing()
 
-    if ml_algo == 'RandomForestRegressor' or ml_algo == 'SVR' or \
-            ml_algo == 'AdaBoostRegressor' or ml_algo == 'DecisionTreeRegressor' or \
-            ml_algo == 'LinearRegression' or ml_algo == 'KNNRegressor' or \
-            ml_algo == 'RandomForestClassifier' or ml_algo == 'SVC' or \
+    if ml_algo == 'RandomForestClassifier' or ml_algo == 'SVC' or \
             ml_algo == 'LogisticRegression' or ml_algo == 'NaiveBayes' or \
             ml_algo == 'DecisionTreeClassifier' or ml_algo == 'KNNClassifier' or \
             ml_algo == 'AdaBoostClassifier' or ml_algo == 'MLPClassifier' or \
-            ml_algo == 'MLPRegressor':
+            ml_algo == 'XGBoostClassifier' or ml_algo == 'LGBMClassifier':
 
-        # Reverse one hot encoding // sklearn models require a label encoded label vector for multiclass-classification
+        # Reverse one hot encoding // sklearn, xgboost and lightgbm models require a label encoded label vector
+        # for multiclass-classification
         for y in [y_train, y_test]:
             for iter_tuple in y.itertuples():
                 idx = iter_tuple.Index

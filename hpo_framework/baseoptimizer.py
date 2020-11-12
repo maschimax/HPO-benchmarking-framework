@@ -476,8 +476,18 @@ class BaseOptimizer(ABC):
                         warmstart_config['objective'] = 'regression'
 
                     elif self.ml_algorithm == 'LGBMClassifier':
+
+                        # Determine the number of classes
+                        num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
                         # Binary classification task
-                        warmstart_config['objective'] = 'binary'
+                        if num_classes < 2:
+                            warmstart_config['objective'] = 'binary'
+
+                        # Multiclass classification task
+                        else:
+                            warmstart_config['objective'] = 'multiclass'  # uses Softmax objective function
+                            warmstart_config['num_class'] = num_classes
 
                 if 'seed' not in warmstart_config.keys():
                     # Specify the random seed
@@ -487,9 +497,25 @@ class BaseOptimizer(ABC):
                 model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
                 y_pred = model.predict(x_val_cv)
 
-                # In case of binary classification, round to the neares integer
+                # Classification task
                 if self.ml_algorithm == 'LGBMClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    # Binary classification: round to the nearest integer
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification: identify the predicted class based on the one-hot-encoded probabilities
+                    else:
+
+                        y_one_hot_proba = np.copy(y_pred)
+                        n_rows = y_one_hot_proba.shape[0]
+
+                        y_pred = np.zeros(shape=(n_rows, 1))
+
+                        # Identify the predicted class for each row (highest probability)
+                        for row in range(n_rows):
+                            y_pred[row, 0] = np.argmax(y_one_hot_proba[row, :])
 
                 # Add remaining ML-algorithms here
 
@@ -1042,8 +1068,18 @@ class BaseOptimizer(ABC):
                 params['objective'] = 'regression'
 
             elif self.ml_algorithm == 'LGBMClassifier':
+
+                # Determine the number of classes
+                num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
                 # Binary classification task
-                params['objective'] = 'binary'
+                if num_classes < 2:
+                    params['objective'] = 'binary'
+
+                # Multiclass classification task
+                else:
+                    params['objective'] = 'multiclass'  # uses Softmax objective function
+                    params['num_class'] = num_classes
 
             # Specify the number of threads (parallelization) and the random seed
             params['num_threads'] = self.n_workers
@@ -1059,9 +1095,25 @@ class BaseOptimizer(ABC):
             # Make the prediction
             y_pred = lgb_model.predict(data=x_val_cv)
 
-            # In case of binary classification round to the nearest integer
+            # Classification task
             if self.ml_algorithm == 'LGBMClassifier':
-                y_pred = np.rint(y_pred)
+
+                # Binary classification: round to the nearest integer
+                if num_classes < 2:
+
+                    y_pred = np.rint(y_pred)
+
+                # Multiclass classification: identify the predicted class based on the one-hot-encoded probabilities
+                else:
+
+                    y_one_hot_proba = np.copy(y_pred)
+                    n_rows = y_one_hot_proba.shape[0]
+
+                    y_pred = np.zeros(shape=(n_rows, 1))
+
+                    # Identify the predicted class for each row (highest probability)
+                    for row in range(n_rows):
+                        y_pred[row, 0] = np.argmax(y_one_hot_proba[row, :])
 
             # Compute the validation loss according to the loss_metric selected
             val_loss = self.metric(y_val_cv, y_pred)
