@@ -883,8 +883,9 @@ class Trial:
 
                     # Multiclass classification task
                     else:
-                        params['objective'] = 'multiclass'  # uses Softmax objective function
-                        params['num_class'] = num_classes
+                        params = {'objective': 'multiclass',  # uses Softmax objective function
+                                  'num_class': num_classes,
+                                  'seed': 0}
 
                 lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
