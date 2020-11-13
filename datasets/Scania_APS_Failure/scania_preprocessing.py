@@ -6,6 +6,8 @@ from imblearn.under_sampling import EditedNearestNeighbours
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 
 
 def drop_correlated(df, corr_threshold=0.95):
@@ -65,22 +67,22 @@ def sample_SMOTEENN(df_X, df_y):
     return X_res, y_res
 
 
-def preprocess_scania(train_data, test_data):
+def preprocess_scania(train_data, test_data, test_size):
     # https://www.kaggle.com/gxkok21/aps-failure-in-scania-trucks-challenge
     # https://www.kaggle.com/romulomadu/minimizing-total-cost-result-9020-00
     # https://www.kaggle.com/kagglespabr/scania-data-analysis
 
-    # Deep copy of datasets
-    X_train = train_data.copy(deep=True)
-    X_test = test_data.copy(deep=True)
+    # Concatenate both data sets
+    raw_data = pd.concat(objs=[train_data, test_data], axis=0)
 
     # Encode class labels as integers
-    X_train['class'] = (X_train["class"] == "pos").astype("int")
-    X_test['class'] = (X_test["class"] == "pos").astype("int")
+    raw_data['class'] = (raw_data['class'] == 'pos').astype('int')
 
     # Pop labels
-    y_train = X_train.pop('class')
-    y_test = X_test.pop('class')
+    y_raw = raw_data.pop('class')
+
+    X_train, X_test, y_train, y_test = train_test_split(raw_data, y_raw, test_size=test_size, random_state=0,
+                                                        shuffle=True)
 
     # Impute NaN's with mean values
     nan_imputer = SimpleImputer(strategy='mean')
@@ -128,6 +130,9 @@ def balance_scania(X_train_std_pca, y_train):
     # Undersampling of majority class
     X_train_balanced, y_train_balanced = undersample(df_X_smoteenn, df_y_smoteenn)
 
+    # Shuffle again
+    X_train_balanced, y_train_balanced = shuffle(X_train_balanced, y_train_balanced, random_state=0)
+
     return X_train_balanced, y_train_balanced
 
 
@@ -137,7 +142,7 @@ def scania_loading_and_preprocessing(test_size=0.2):
     test_data = pd.read_csv("./datasets/Scania_APS_Failure/aps_failure_test_set.csv", na_values=["na"])
 
     # Preprocessing (NaN-Handling, drop constant features, drop highly correlated features, standardization, PCA)
-    X_train, X_test, y_train, y_test = preprocess_scania(train_data, test_data)
+    X_train, X_test, y_train, y_test = preprocess_scania(train_data, test_data, test_size)
 
     # Balance the training dataset using a combination of over- and undersampling
     X_train_bal, y_train_bal = balance_scania(X_train, y_train)
