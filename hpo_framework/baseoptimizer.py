@@ -366,10 +366,18 @@ class BaseOptimizer(ABC):
 
                 elif self.ml_algorithm == 'KerasClassifier':
 
-                    num_classes = len(y_train_cv.keys())
+                    # Determine the number of different classes depending on the data format
+                    if type(y_train_cv) == pd.core.series.Series:
+                        num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
+                    elif type(y_train_cv) == pd.core.frame.DataFrame:
+                        num_classes = len(y_train_cv.keys())
+
+                    else:
+                        raise Exception('Unknown data format!')
 
                     # Binary classification
-                    if num_classes < 2:
+                    if num_classes <= 2:
 
                         # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
                         # https://keras.io/api/layers/activations/#sigmoid-function
@@ -418,10 +426,8 @@ class BaseOptimizer(ABC):
                 # In case of binary classification round to the neares integer
                 if self.ml_algorithm == 'KerasClassifier':
 
-                    num_classes = len(y_train_cv.keys())
-
                     # Binary classification
-                    if num_classes < 2:
+                    if num_classes <= 2:
 
                         y_pred = np.rint(y_pred)
 
@@ -481,7 +487,7 @@ class BaseOptimizer(ABC):
                         num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
 
                         # Binary classification task
-                        if num_classes < 2:
+                        if num_classes <= 2:
                             warmstart_config['objective'] = 'binary'
 
                         # Multiclass classification task
@@ -501,7 +507,7 @@ class BaseOptimizer(ABC):
                 if self.ml_algorithm == 'LGBMClassifier':
 
                     # Binary classification: round to the nearest integer
-                    if num_classes < 2:
+                    if num_classes <= 2:
 
                         y_pred = np.rint(y_pred)
 
@@ -818,14 +824,22 @@ class BaseOptimizer(ABC):
 
             elif self.ml_algorithm == 'KerasClassifier':
 
-                num_classes = len(y_train_cv.keys())
+                # Determine the number of different classes depending on the data format
+                if type(y_train_cv) == pd.core.series.Series:
+                    num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
+                elif type(y_train_cv) == pd.core.frame.DataFrame:
+                    num_classes = len(y_train_cv.keys())
+
+                else:
+                    raise Exception('Unknown data format!')
 
                 # Binary classification
-                if num_classes < 2:
+                if num_classes <= 2:
 
                     # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
                     # https://keras.io/api/layers/activations/#sigmoid-function
-                    model.add(keras.layers.Dense(num_classes, activation='sigmoid'))
+                    model.add(keras.layers.Dense(1, activation='sigmoid'))
 
                     adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
                     model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
@@ -870,10 +884,8 @@ class BaseOptimizer(ABC):
             # In case of binary classification round to the nearest integer
             if self.ml_algorithm == 'KerasClassifier':
 
-                num_classes = len(y_train_cv.keys())
-
                 # Binary classification
-                if num_classes < 2:
+                if num_classes <= 2:
 
                     y_pred = np.rint(y_pred)
 
@@ -1073,7 +1085,7 @@ class BaseOptimizer(ABC):
                 num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
 
                 # Binary classification task
-                if num_classes < 2:
+                if num_classes <= 2:
                     params['objective'] = 'binary'
 
                 # Multiclass classification task
@@ -1099,7 +1111,7 @@ class BaseOptimizer(ABC):
             if self.ml_algorithm == 'LGBMClassifier':
 
                 # Binary classification: round to the nearest integer
-                if num_classes < 2:
+                if num_classes <= 2:
 
                     y_pred = np.rint(y_pred)
 

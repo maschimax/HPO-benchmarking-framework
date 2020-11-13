@@ -774,10 +774,18 @@ class Trial:
 
                 elif self.ml_algorithm == 'KerasClassifier':
 
-                    num_classes = len(y_train_cv.keys())
+                    # Determine the number of different classes depending on the data format
+                    if type(y_train_cv) == pd.core.series.Series:
+                        num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
+                    elif type(y_train_cv) == pd.core.frame.DataFrame:
+                        num_classes = len(y_train_cv.keys())
+
+                    else:
+                        raise Exception('Unknown data format!')
 
                     # Binary classification
-                    if num_classes < 2:
+                    if num_classes <= 2:
 
                         # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
                         # https://keras.io/api/layers/activations/#sigmoid-function
@@ -826,10 +834,8 @@ class Trial:
                 # In case of binary classification round to the neares integer
                 if self.ml_algorithm == 'KerasClassifier':
 
-                    num_classes = len(y_train_cv.keys())
-
                     # Binary classification
-                    if num_classes < 2:
+                    if num_classes <= 2:
 
                         y_pred = np.rint(y_pred)
 
@@ -877,7 +883,7 @@ class Trial:
                     num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
 
                     # Binary classification task
-                    if num_classes < 2:
+                    if num_classes <= 2:
                         params = {'objective': 'binary',
                                   'seed': 0}
 
@@ -896,7 +902,7 @@ class Trial:
                 if self.ml_algorithm == 'LGBMClassifier':
 
                     # Binary classification: round to the nearest integer
-                    if num_classes < 2:
+                    if num_classes <= 2:
 
                         y_pred = np.rint(y_pred)
 
