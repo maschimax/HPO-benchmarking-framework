@@ -23,7 +23,7 @@ use_case = 'steel'
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = True
+debug = False
 
 if debug:
     # Set parameters manually
