@@ -32,7 +32,7 @@ class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
                  x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, val_baseline=0.0,
-                 test_baseline=0.0, do_warmstart='No', optimizer=None):
+                 test_baseline=0.0, do_warmstart='No', optimizer=None, gpu=False):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -48,6 +48,7 @@ class Trial:
         self.test_baseline = test_baseline  # Full training based baseline (performance evaluation on test data set)
         self.do_warmstart = do_warmstart
         self.optimizer = optimizer
+        self.gpu = gpu
         # Attribute for CPU / GPU selection required
 
     def run(self):
@@ -56,6 +57,9 @@ class Trial:
         :return: trial_results_dict: dict
             Contains the optimization results of this trial
         """
+
+        # Unique trial ID
+        trial_id = str(uuid.uuid4())
 
         # Initialize a dictionary for saving the trial results
         trial_results_dict = {}
@@ -66,10 +70,13 @@ class Trial:
             this_hpo_method = opt_tuple[1]
 
             # Initialize a DataFrame for saving the trial results
-            results_df = pd.DataFrame(columns=['HPO-library', 'HPO-method', 'ML-algorithm', 'run_id', 'random_seed',
-                                               'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
-                                               'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
-                                               'workers', 'budget [%]'])
+            results_df = pd.DataFrame(
+                columns=['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Run-ID', 'random_seed',
+                         'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
+                         'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
+                         'workers', 'GPU', 'budget [%]', '# training instances', '# training features',
+                         '# test instances', '# test features'])
+
             best_configs = ()
             best_val_losses = []
             test_losses = []
@@ -126,14 +133,16 @@ class Trial:
                 optimization_results = optimizer.optimize()
 
                 # Save the optimization results in a dictionary
-                temp_dict = {'HPO-library': [this_hpo_library] * len(optimization_results.losses),
+                temp_dict = {'Trial-ID': [trial_id] * len(optimization_results.losses),
+                             'HPO-library': [this_hpo_library] * len(optimization_results.losses),
                              'HPO-method': [this_hpo_method] * len(optimization_results.losses),
                              'ML-algorithm': [self.ml_algorithm] * len(optimization_results.losses),
-                             'run_id': [run_id] * len(optimization_results.losses),
+                             'Run-ID': [run_id] * len(optimization_results.losses),
                              'random_seed': [i] * len(optimization_results.losses),
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'val_losses': optimization_results.losses,
-                             'test_loss [best config.]': [optimization_results.test_loss] * len(optimization_results.losses),
+                             'test_loss [best config.]': [optimization_results.test_loss] * len(
+                                 optimization_results.losses),
                              'timestamps': optimization_results.timestamps,
                              'configurations': optimization_results.configurations,
                              'run_successful': optimization_results.successful,
@@ -141,7 +150,12 @@ class Trial:
                              'runs': [self.n_runs] * len(optimization_results.losses),
                              'evaluations': [self.n_func_evals] * len(optimization_results.losses),
                              'workers': [self.n_workers] * len(optimization_results.losses),
-                             'budget [%]': optimization_results.budget}
+                             'GPU': self.gpu,
+                             'budget [%]': optimization_results.budget,
+                             '# training instances': [len(self.x_train)] * len(optimization_results.losses),
+                             '# training features': [len(self.x_train.columns)] * len(optimization_results.losses),
+                             '# test instances': [len(self.x_test)] * len(optimization_results.losses),
+                             '# test features': [len(self.x_test.columns)] * len(optimization_results.losses)}
 
                 # Append the optimization results to the result DataFrame of this trial
                 this_df = pd.DataFrame.from_dict(data=temp_dict)
@@ -193,14 +207,14 @@ class Trial:
         for opt_tuple in trial_results_dict.keys():
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
-            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
+            unique_ids = this_df['Run-ID'].unique()  # Unique id of each optimization run
 
             n_cols = len(unique_ids)
             n_rows = 0
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
+                num_of_evals = len(this_df.loc[this_df['Run-ID'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
@@ -210,7 +224,7 @@ class Trial:
 
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
-                this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
+                this_subframe = this_df.loc[this_df['Run-ID'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
                 # Iterate over all function evaluations
@@ -411,10 +425,11 @@ class Trial:
         """
 
         metrics = {}
-        cols = ['HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'Warmstart',
-                'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)', 'Mean (final test loss)',
-                'Test loss ratio (default / best)', 'Interquartile range (final test loss)', 't best configuration [s]',
-                'Evaluations for best configuration', 'Crashes']
+        cols = ['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'GPU',
+                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)',
+                'Mean (final test loss)', 'Test loss ratio (default / best)', 'Interquartile range (final test loss)',
+                't best configuration [s]', 'Evaluations for best configuration', 'Crashes', '# training instances',
+                '# training features', '# test instances', '# test features']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -432,7 +447,7 @@ class Trial:
         for opt_tuple in trial_results_dict.keys():
 
             this_df = trial_results_dict[opt_tuple].trial_result_df
-            unique_ids = this_df['run_id'].unique()  # Unique id of each optimization run
+            unique_ids = this_df['Run-ID'].unique()  # Unique id of each optimization run
 
             # Flag indicates, whether a warmstart of the HPO-method was performed successfully
             did_warmstart = trial_results_dict[opt_tuple].did_warmstart
@@ -442,7 +457,7 @@ class Trial:
 
             # Find the maximum number of function evaluations over all runs of this tuning tuple
             for uniq in unique_ids:
-                num_of_evals = len(this_df.loc[this_df['run_id'] == uniq]['eval_count'])
+                num_of_evals = len(this_df.loc[this_df['Run-ID'] == uniq]['eval_count'])
                 if num_of_evals > n_rows:
                     n_rows = num_of_evals
 
@@ -456,7 +471,7 @@ class Trial:
 
             # Iterate over all runs (with varying random seeds)
             for j in range(n_cols):
-                this_subframe = this_df.loc[this_df['run_id'] == unique_ids[j]]
+                this_subframe = this_df.loc[this_df['Run-ID'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
                 best_test_losses[0, j] = this_subframe['test_loss [best config.]'][0]
@@ -565,14 +580,19 @@ class Trial:
             # Assign the MetricsResult-object to a dictionary
             metrics[opt_tuple] = metrics_object
 
+            # ID of this Trial
+            trial_id = this_df['Trial-ID'].unique()[0]
+
             # Dictionary with new metrics
-            metrics_dict = {'idx': [idx],
+            metrics_dict = {'Trial-ID': trial_id,
+                            'idx': [idx],
                             'HPO-library': opt_tuple[0],
                             'HPO-method': opt_tuple[1],
                             'ML-algorithm': self.ml_algorithm,
                             'Runs': self.n_runs,
                             'Evaluations': self.n_func_evals,
                             'Workers': self.n_workers,
+                            'GPU': self.gpu,
                             'Warmstart': did_warmstart,
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
@@ -582,7 +602,11 @@ class Trial:
                             'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
                             'Evaluations for best configuration': evals_for_best_config,
-                            'Crashes': number_of_crashes_this_algo}
+                            'Crashes': number_of_crashes_this_algo,
+                            '# training instances': len(self.x_train),
+                            '# training features': len(self.x_train.columns),
+                            '# test instances': len(self.x_test),
+                            '# test features': len(self.x_test.columns)}
 
             # Create pandas DataFrame from dictionary
             this_metrics_df = pd.DataFrame.from_dict(data=metrics_dict)
@@ -749,11 +773,30 @@ class Trial:
                     model.compile(optimizer=adam, loss='mse', metrics=['mse'])
 
                 elif self.ml_algorithm == 'KerasClassifier':
-                    # Binary classification
-                    model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-                    adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
-                    model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+                    num_classes = len(y_train_cv.keys())
+
+                    # Binary classification
+                    if num_classes < 2:
+
+                        # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
+                        # https://keras.io/api/layers/activations/#sigmoid-function
+                        model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+                        adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                        model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+                    # Multiclass classification
+                    else:
+
+                        # Use softmax activation for multiclass clf. -> 'Softmax converts a real vector to a vector of
+                        # categorical probabilities.[...]the result could be interpreted as a probability distribution.'
+                        # https://keras.io/api/layers/activations/#softmax-function
+                        model.add(keras.layers.Dense(num_classes, activation='softmax'))
+
+                        adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                        model.compile(optimizer=adam, loss=keras.losses.CategoricalCrossentropy(),
+                                      metrics=[keras.metrics.CategoricalAccuracy()])
 
                 # Learning rate schedule
                 if warmstart_keras["lr_schedule"] == "cosine":
@@ -782,7 +825,30 @@ class Trial:
 
                 # In case of binary classification round to the neares integer
                 if self.ml_algorithm == 'KerasClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    num_classes = len(y_train_cv.keys())
+
+                    # Binary classification
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification
+                    else:
+
+                        # Identify the predicted class (maximum probability) in each row
+                        for row_idx in range(y_pred.shape[0]):
+
+                            # Predicted class
+                            this_class = np.argmax(y_pred[row_idx, :])
+
+                            # Iterate over columns / classes
+                            for col_idx in range(y_pred.shape[1]):
+
+                                if col_idx == this_class:
+                                    y_pred[row_idx, col_idx] = 1
+                                else:
+                                    y_pred[row_idx, col_idx] = 0
 
             elif self.ml_algorithm == 'XGBoostRegressor':
                 model = XGBRegressor(random_state=0)
@@ -806,18 +872,45 @@ class Trial:
                               'seed': 0}
 
                 elif self.ml_algorithm == 'LGBMClassifier':
+
+                    # Determine the number of classes
+                    num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
                     # Binary classification task
-                    params = {'objective': 'binary',
-                              'seed': 0}
+                    if num_classes < 2:
+                        params = {'objective': 'binary',
+                                  'seed': 0}
+
+                    # Multiclass classification task
+                    else:
+                        params = {'objective': 'multiclass',  # uses Softmax objective function
+                                  'num_class': num_classes,
+                                  'seed': 0}
 
                 lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
 
                 # Make the prediction
                 y_pred = lgb_clf.predict(data=x_val_cv)
 
-                # In case of binary classification round to the nearest integer
+                # Classification task
                 if self.ml_algorithm == 'LGBMClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    # Binary classification: round to the nearest integer
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification: identify the predicted class based on the one-hot-encoded probabilities
+                    else:
+
+                        y_one_hot_proba = np.copy(y_pred)
+                        n_rows = y_one_hot_proba.shape[0]
+
+                        y_pred = np.zeros(shape=(n_rows, 1))
+
+                        # Identify the predicted class for each row (highest probability)
+                        for row in range(n_rows):
+                            y_pred[row, 0] = np.argmax(y_one_hot_proba[row, :])
 
             else:
                 raise Exception('Unknown ML-algorithm!')

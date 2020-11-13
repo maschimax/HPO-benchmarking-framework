@@ -8,7 +8,6 @@ def root_mean_squared_error(y_true, y_pred):
 
 
 def f1_loss(y_true, y_pred):
-    # >> according to the documentation, a weighted average makes sense for multiclass targets only!
     loss = 1 - f1_score(y_true=y_true, y_pred=y_pred, average='weighted')
     return loss
 

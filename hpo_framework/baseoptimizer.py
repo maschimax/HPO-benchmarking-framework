@@ -365,11 +365,30 @@ class BaseOptimizer(ABC):
                     model.compile(optimizer=adam, loss='mse', metrics=['mse'])
 
                 elif self.ml_algorithm == 'KerasClassifier':
-                    # Binary classification
-                    model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-                    adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
-                    model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+                    num_classes = len(y_train_cv.keys())
+
+                    # Binary classification
+                    if num_classes < 2:
+
+                        # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
+                        # https://keras.io/api/layers/activations/#sigmoid-function
+                        model.add(keras.layers.Dense(1, activation='sigmoid'))
+
+                        adam = keras.optimizers.Adam(learning_rate=warmstart_config['init_lr'])
+                        model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+                    # Multiclass classification
+                    else:
+
+                        # Use softmax activation for multiclass clf. -> 'Softmax converts a real vector to a vector of
+                        # categorical probabilities.[...]the result could be interpreted as a probability distribution.'
+                        # https://keras.io/api/layers/activations/#softmax-function
+                        model.add(keras.layers.Dense(num_classes, activation='softmax'))
+
+                        adam = keras.optimizers.Adam(learning_rate=warmstart_keras['init_lr'])
+                        model.compile(optimizer=adam, loss=keras.losses.CategoricalCrossentropy(),
+                                      metrics=[keras.metrics.CategoricalAccuracy()])
 
                 # Learning rate schedule
                 if warmstart_config["lr_schedule"] == "cosine":
@@ -398,7 +417,30 @@ class BaseOptimizer(ABC):
 
                 # In case of binary classification round to the neares integer
                 if self.ml_algorithm == 'KerasClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    num_classes = len(y_train_cv.keys())
+
+                    # Binary classification
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification
+                    else:
+
+                        # Identify the predicted class (maximum probability) in each row
+                        for row_idx in range(y_pred.shape[0]):
+
+                            # Predicted class
+                            this_class = np.argmax(y_pred[row_idx, :])
+
+                            # Iterate over columns / classes
+                            for col_idx in range(y_pred.shape[1]):
+
+                                if col_idx == this_class:
+                                    y_pred[row_idx, col_idx] = 1
+                                else:
+                                    y_pred[row_idx, col_idx] = 0
 
             elif self.ml_algorithm == 'XGBoostRegressor' or self.ml_algorithm == 'XGBoostClassifier':
 
@@ -434,8 +476,18 @@ class BaseOptimizer(ABC):
                         warmstart_config['objective'] = 'regression'
 
                     elif self.ml_algorithm == 'LGBMClassifier':
+
+                        # Determine the number of classes
+                        num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
                         # Binary classification task
-                        warmstart_config['objective'] = 'binary'
+                        if num_classes < 2:
+                            warmstart_config['objective'] = 'binary'
+
+                        # Multiclass classification task
+                        else:
+                            warmstart_config['objective'] = 'multiclass'  # uses Softmax objective function
+                            warmstart_config['num_class'] = num_classes
 
                 if 'seed' not in warmstart_config.keys():
                     # Specify the random seed
@@ -445,9 +497,25 @@ class BaseOptimizer(ABC):
                 model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
                 y_pred = model.predict(x_val_cv)
 
-                # In case of binary classification, round to the neares integer
+                # Classification task
                 if self.ml_algorithm == 'LGBMClassifier':
-                    y_pred = np.rint(y_pred)
+
+                    # Binary classification: round to the nearest integer
+                    if num_classes < 2:
+
+                        y_pred = np.rint(y_pred)
+
+                    # Multiclass classification: identify the predicted class based on the one-hot-encoded probabilities
+                    else:
+
+                        y_one_hot_proba = np.copy(y_pred)
+                        n_rows = y_one_hot_proba.shape[0]
+
+                        y_pred = np.zeros(shape=(n_rows, 1))
+
+                        # Identify the predicted class for each row (highest probability)
+                        for row in range(n_rows):
+                            y_pred[row, 0] = np.argmax(y_one_hot_proba[row, :])
 
                 # Add remaining ML-algorithms here
 
@@ -731,12 +799,12 @@ class BaseOptimizer(ABC):
 
             # Add second hidden layer
             if params['hidden_layer2_size'] > 0:
-                model.add(keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_size']))
+                model.add(keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_activation']))
                 model.add(keras.layers.Dropout(params['dropout2']))
 
             # Add third hidden layer
             if params['hidden_layer3_size'] > 0:
-                model.add(keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_size']))
+                model.add(keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_activation']))
                 model.add(keras.layers.Dropout(params['dropout3']))
 
             # Add output layer
@@ -749,11 +817,30 @@ class BaseOptimizer(ABC):
                 model.compile(optimizer=adam, loss='mse', metrics=['mse'])
 
             elif self.ml_algorithm == 'KerasClassifier':
-                # Binary classification
-                model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-                adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
-                model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+                num_classes = len(y_train_cv.keys())
+
+                # Binary classification
+                if num_classes < 2:
+
+                    # 'Sigmoid is equivalent to a 2-element Softmax, where the second element is assumed to be zero'
+                    # https://keras.io/api/layers/activations/#sigmoid-function
+                    model.add(keras.layers.Dense(num_classes, activation='sigmoid'))
+
+                    adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+                    model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+
+                # Multiclass classification
+                else:
+
+                    # Use softmax activation for multiclass clf. -> 'Softmax converts a real vector to a vector of
+                    # categorical probabilities. [...] the result could be interpreted as a probability distribution.'
+                    # https://keras.io/api/layers/activations/#softmax-function
+                    model.add(keras.layers.Dense(num_classes, activation='softmax'))
+
+                    adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
+                    model.compile(optimizer=adam, loss=keras.losses.CategoricalCrossentropy(),
+                                  metrics=[keras.metrics.CategoricalAccuracy()])
 
             # Learning rate schedule
             if params["lr_schedule"] == "cosine":
@@ -782,7 +869,30 @@ class BaseOptimizer(ABC):
 
             # In case of binary classification round to the nearest integer
             if self.ml_algorithm == 'KerasClassifier':
-                y_pred = np.rint(y_pred)
+
+                num_classes = len(y_train_cv.keys())
+
+                # Binary classification
+                if num_classes < 2:
+
+                    y_pred = np.rint(y_pred)
+
+                # Multiclass classification
+                else:
+
+                    # Identify the predicted class (maximum probability) in each row
+                    for row_idx in range(y_pred.shape[0]):
+
+                        # Predicted class
+                        this_class = np.argmax(y_pred[row_idx, :])
+
+                        # Iterate over columns / classes
+                        for col_idx in range(y_pred.shape[1]):
+
+                            if col_idx == this_class:
+                                y_pred[row_idx, col_idx] = 1
+                            else:
+                                y_pred[row_idx, col_idx] = 0
 
             # Compute the validation loss according to the loss_metric selected
             val_loss = self.metric(y_val_cv, y_pred)
@@ -958,8 +1068,18 @@ class BaseOptimizer(ABC):
                 params['objective'] = 'regression'
 
             elif self.ml_algorithm == 'LGBMClassifier':
+
+                # Determine the number of classes
+                num_classes = int(max(y_train_cv) - min(y_train_cv) + 1)
+
                 # Binary classification task
-                params['objective'] = 'binary'
+                if num_classes < 2:
+                    params['objective'] = 'binary'
+
+                # Multiclass classification task
+                else:
+                    params['objective'] = 'multiclass'  # uses Softmax objective function
+                    params['num_class'] = num_classes
 
             # Specify the number of threads (parallelization) and the random seed
             params['num_threads'] = self.n_workers
@@ -975,9 +1095,25 @@ class BaseOptimizer(ABC):
             # Make the prediction
             y_pred = lgb_model.predict(data=x_val_cv)
 
-            # In case of binary classification round to the nearest integer
+            # Classification task
             if self.ml_algorithm == 'LGBMClassifier':
-                y_pred = np.rint(y_pred)
+
+                # Binary classification: round to the nearest integer
+                if num_classes < 2:
+
+                    y_pred = np.rint(y_pred)
+
+                # Multiclass classification: identify the predicted class based on the one-hot-encoded probabilities
+                else:
+
+                    y_one_hot_proba = np.copy(y_pred)
+                    n_rows = y_one_hot_proba.shape[0]
+
+                    y_pred = np.zeros(shape=(n_rows, 1))
+
+                    # Identify the predicted class for each row (highest probability)
+                    for row in range(n_rows):
+                        y_pred[row, 0] = np.argmax(y_one_hot_proba[row, :])
 
             # Compute the validation loss according to the loss_metric selected
             val_loss = self.metric(y_val_cv, y_pred)

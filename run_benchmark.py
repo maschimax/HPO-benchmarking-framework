@@ -14,53 +14,30 @@ from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
+from datasets.Mining_Process.mining_preprocessing import mining_loading_and_preprocessing
+from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'scania'
-
-if use_case == 'dummy':
-    # Loading data and preprocessing
-    # >>> Linux OS and Windows require different path representations -> use pathlib <<<
-    dataset_path = os.path.abspath(path='datasets/dummy')
-    data_folder = Path(dataset_path)
-    train_file = "train.csv"
-    test_file = "test.csv"
-    submission_file = "sample_submission.csv"
-
-    train_raw = pp.load_data(data_folder, train_file)
-    test_raw = pp.load_data(data_folder, test_file)
-
-    X_train, y_train, X_test, y_test, _ = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
-                                                     count_encoding=False)
-
-elif use_case == 'scania':
-
-    X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
-
-elif use_case == 'turbofan':
-
-    X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
-
-else:
-    raise Exception('Unknown dataset / use-case.')
+use_case = 'steel'
 
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = False
+debug = True
 
 if debug:
     # Set parameters manually
     hp_space = space_lgb
     ml_algo = 'LGBMClassifier'
-    opt_schedule = [('hpbandster', 'BOHB')]
+    opt_schedule = [('robo', 'Bohamiann')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 4
-    n_func_evals = 40
-    n_workers = 4
+    n_runs = 1
+    n_func_evals = 10
+    n_workers = 1
     loss_metric = f1_loss
+    loss_metric_str = 'F1-loss'
     do_warmstart = 'Yes'
 
 else:
@@ -135,7 +112,7 @@ else:
     elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
         hp_space = space_xgb
 
-    elif ml_algo == 'SVR' or 'SVR':
+    elif ml_algo == 'SVR' or ml_algo == 'SVR':
         hp_space = space_svm
 
     elif ml_algo == 'AdaBoostRegressor':
@@ -169,20 +146,73 @@ else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')
 
     # Identify the correct loss metric
-    if args.loss_metric == 'root_mean_squared_error':
+    loss_metric_str = args.loss_metric
+    if loss_metric_str == 'root_mean_squared_error':
         loss_metric = root_mean_squared_error
 
-    elif args.loss_metric == 'F1-loss':
+    elif loss_metric_str == 'F1-loss':
         loss_metric = f1_loss
 
-    elif args.loss_metric == 'Accuracy-loss':
+    elif loss_metric_str == 'Accuracy-loss':
         loss_metric = accuracy_loss
 
-    elif args.loss_metric == 'RUL-loss':
+    elif loss_metric_str == 'RUL-loss':
         loss_metric = rul_loss_score
 
     else:
         raise Exception('This loss metric has not yet been implemented.')
+
+# Loading and preprocessing of the selected data set
+if use_case == 'dummy':
+    # Loading data and preprocessing
+    # >>> Linux OS and Windows require different path representations -> use pathlib <<<
+    dataset_path = os.path.abspath(path='datasets/dummy')
+    data_folder = Path(dataset_path)
+    train_file = "train.csv"
+    test_file = "test.csv"
+    submission_file = "sample_submission.csv"
+
+    train_raw = pp.load_data(data_folder, train_file)
+    test_raw = pp.load_data(data_folder, test_file)
+
+    X_train, y_train, X_test, y_test, _ = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
+                                                     count_encoding=False)
+
+elif use_case == 'scania':
+
+    X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
+
+elif use_case == 'turbofan':
+
+    X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+
+elif use_case == 'mining':
+
+    X_train, X_test, y_train, y_test = mining_loading_and_preprocessing()
+
+elif use_case == 'steel':
+
+    X_train, X_test, y_train, y_test = steel_loading_and_preprocessing()
+
+    if ml_algo == 'RandomForestClassifier' or ml_algo == 'SVC' or \
+            ml_algo == 'LogisticRegression' or ml_algo == 'NaiveBayes' or \
+            ml_algo == 'DecisionTreeClassifier' or ml_algo == 'KNNClassifier' or \
+            ml_algo == 'AdaBoostClassifier' or ml_algo == 'MLPClassifier' or \
+            ml_algo == 'XGBoostClassifier' or ml_algo == 'LGBMClassifier':
+
+        # Reverse one hot encoding // sklearn, xgboost and lightgbm models require a label encoded label vector
+        # for multiclass-classification
+        for y in [y_train, y_test]:
+            for iter_tuple in y.itertuples():
+                idx = iter_tuple.Index
+                fault_id = [i for i, j in enumerate(iter_tuple[1:]) if j > 0.5]
+                y.loc[idx, 'Fault_ID'] = fault_id
+
+        y_train = y_train.loc[:, 'Fault_ID']
+        y_test = y_test.loc[:, 'Fault_ID']
+
+else:
+    raise Exception('Unknown dataset / use-case.')
 
 # Display a summary of the trial settings
 print('Optimize: ' + ml_algo)
@@ -216,7 +246,7 @@ log_folder = os.path.join(res_folder, 'logs')
 if not os.path.isdir(log_folder):
     os.makedirs(log_folder, exist_ok=True)
 
-time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.gmtime()))
+time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.localtime()))
 
 # Analyze the results
 print('Best configuration found:')
@@ -245,6 +275,7 @@ for opt_tuple in res.keys():
     res_df['# cont. HPs'] = num_params['continuous']
     res_df['# int. HPs'] = num_params['integer']
     res_df['# cat. HPs'] = num_params['categorical']
+    res_df['loss_metric'] = loss_metric_str
 
     res_str_csv = use_case + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
     res_path_csv = os.path.join(log_folder, res_str_csv)
@@ -278,6 +309,7 @@ metrics_df['dataset'] = use_case
 metrics_df['# cont. HPs'] = num_params['continuous']
 metrics_df['# int. HPs'] = num_params['integer']
 metrics_df['# cat. HPs'] = num_params['categorical']
+metrics_df['loss_metric'] = loss_metric_str
 
 metrics_str = 'metrics_' + use_case + '_' + ml_algo + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
