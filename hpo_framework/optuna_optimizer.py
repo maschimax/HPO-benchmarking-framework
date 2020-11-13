@@ -3,6 +3,7 @@ import skopt
 from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 import pandas as pd
 from multiprocessing import Process
+import os
 
 from hpo_framework.baseoptimizer import BaseOptimizer
 from hpo_framework.results import TuningResult
@@ -48,6 +49,9 @@ class OptunaOptimizer(BaseOptimizer):
         # Delete old study objects ('fresh start') >> otherwise the old results will be included
         try:
             optuna.delete_study(study_name, study_storage)
+            if os.path.exists('hpo.db'):
+                os.remove('hpo.db')
+
         except:
             print('No old optuna study objects found!')
 
