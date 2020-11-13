@@ -8,3 +8,7 @@
   - Predictive Maintenance
     - Air pressure system failures in Scania trucks: https://www.kaggle.com/uciml/aps-failure-at-scania-trucks-data-set
     - Turbofan Engine Degradation Simulation: https://c3.nasa.gov/dashlink/resources/139/
+  - Predictive Quality
+    - Predict failures in steel plate production (multiclass problem): https://www.kaggle.com/uciml/faulty-steel-plates
+  - Process Parameter Prediction
+    - Predict the amount of impurity in a mining process: https://www.kaggle.com/edumagalhaes/quality-prediction-in-a-mining-process
