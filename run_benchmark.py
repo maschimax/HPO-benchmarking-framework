@@ -18,7 +18,7 @@ from datasets.Mining_Process.mining_preprocessing import mining_loading_and_prep
 from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_preprocessing
 
 # Flag for the ML use case / dataset to be used
-use_case = 'steel'
+use_case = 'scania'
 
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
@@ -29,16 +29,16 @@ if debug:
     # Set parameters manually
     hp_space = space_lgb
     ml_algo = 'LGBMClassifier'
-    opt_schedule = [('robo', 'Bohamiann')]
+    opt_schedule = [('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 1
-    n_func_evals = 10
+    n_func_evals = 2
     n_workers = 1
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
-    do_warmstart = 'Yes'
+    do_warmstart = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
