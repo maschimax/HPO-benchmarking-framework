@@ -979,7 +979,7 @@ class BaseOptimizer(ABC):
                 n_budget = int(0.1 * hb_budget * n_train)
                 idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
                 x_train_cv = x_train_cv.iloc[idx_train]
-                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
 
             elif 'fabolas_budget' in kwargs:
                 # For Fabolas select the training data according to the budget of this iteration
