@@ -144,7 +144,7 @@ warmstart_ada_clf = {'max_depth': 10,
 # Hanno treated all integer-HPs as a continuous HP >> only continuous HPs (CMA-ES is applicable)
 # A lot more HPs in scikit-learn documentation (e.g. max_features; included in RF HP-space)
 space_dt = [
-    skopt.space.Integer(1, 60, name='min_samples_split'),
+    skopt.space.Integer(2, 60, name='min_samples_split'),
     skopt.space.Integer(1, 30, name='max_depth'),
     skopt.space.Integer(1, 60, name='min_samples_leaf'),
     skopt.space.Real(0, 1, name='ccp_alpha')
