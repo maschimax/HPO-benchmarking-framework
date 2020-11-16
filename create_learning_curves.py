@@ -139,13 +139,14 @@ if __name__ == '__main__':
     log_path = './hpo_framework/results/temp'
     log_dict = {}
 
-    # Iterate over all files in the temp folder and load the .csv (log) files into a dictionary
+    # Iterate over all csv.files in the temp folder and load the .csv (log) files into a dictionary
     for file in os.listdir(log_path):
-        file_path = os.path.join(log_path, file)
-        log_df = pd.read_csv(file_path, index_col=0)
-        trial_id, dataset, ml_algo, hpo_method = log_df['Trial-ID'][0], log_df['dataset'][0], log_df['ML-algorithm'][0], \
-            log_df['HPO-method'][0]
-        log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
+        if file[-4:] == '.csv':
+            file_path = os.path.join(log_path, file)
+            log_df = pd.read_csv(file_path, index_col=0)
+            trial_id, dataset, ml_algo, hpo_method = log_df['Trial-ID'][0], log_df['dataset'][0], log_df['ML-algorithm'][0], \
+                log_df['HPO-method'][0]
+            log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
 
     # Plot the learning curves
     curves_fig, curves_str = plot_aggregated_learning_curves(log_dict)
