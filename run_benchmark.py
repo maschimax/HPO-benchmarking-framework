@@ -1,6 +1,7 @@
 import time
 import os
 from pathlib import Path
+from joblib import cpu_count
 import argparse
 import skopt
 import warnings
@@ -20,22 +21,24 @@ from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_p
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
-debug = False
+debug = True
 
 if debug:
     # Set parameters manually
-    dataset = 'turbofan'  # Flag for the ML use case / dataset to be used
+    dataset = 'scania'  # Flag for the ML use case / dataset to be used
     hp_space = space_xgb
-    ml_algo = 'XGBoostRegressor'
-    opt_schedule = [('skopt', 'GPBO')]
+    ml_algo = 'XGBoostClassifier'
+    opt_schedule = [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
+    ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
+    ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
     n_runs = 6
-    n_func_evals = 20
-    n_workers = 1
-    loss_metric = rul_loss_score
-    loss_metric_str = 'RUL-loss'
+    n_func_evals = 100
+    n_workers = cpu_count()
+    loss_metric = f1_loss
+    loss_metric_str = 'F1-loss'
     do_warmstart = 'No'
     plot_learning_curves = 'No'
     use_gpu = 'No'
