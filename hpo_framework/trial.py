@@ -72,7 +72,7 @@ class Trial:
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(
                 columns=['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Run-ID', 'random_seed',
-                         'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
+                         'eval_count', 'val_losses', 'val_baseline', 'test_loss [best config.]', 'timestamps',
                          'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
                          'workers', 'GPU', 'budget [%]', '# training instances', '# training features',
                          '# test instances', '# test features'])
@@ -132,6 +132,14 @@ class Trial:
                 # Start the optimization
                 optimization_results = optimizer.optimize()
 
+                # Check whether a validation baseline has already been calculated
+                if self.val_baseline == 0.0:
+                    # Compute a new baseline
+                    val_baseline_loss = self.get_baseline(cv_mode=True)
+                    self.val_baseline = val_baseline_loss
+                else:
+                    val_baseline_loss = self.val_baseline
+
                 # Save the optimization results in a dictionary
                 temp_dict = {'Trial-ID': [trial_id] * len(optimization_results.losses),
                              'HPO-library': [this_hpo_library] * len(optimization_results.losses),
@@ -141,6 +149,7 @@ class Trial:
                              'random_seed': [i] * len(optimization_results.losses),
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'val_losses': optimization_results.losses,
+                             'val_baseline': [val_baseline_loss] * len(optimization_results.losses),
                              'test_loss [best config.]': [optimization_results.test_loss] * len(
                                  optimization_results.losses),
                              'timestamps': optimization_results.timestamps,

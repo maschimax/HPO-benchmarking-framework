@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+from hpo_framework.trial import Trial
+
 
 def plot_aggregated_learning_curves(logs: dict):
     # Initialize the plot figure
@@ -33,6 +35,7 @@ def plot_aggregated_learning_curves(logs: dict):
         for j in range(n_cols):
             this_subframe = this_df.loc[this_df['Run-ID'] == unique_ids[j]]
             this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
+            this_subframe.reset_index(inplace=True, drop=True)
 
             # Iterate over all function evaluations
             for i in range(n_rows):
@@ -98,7 +101,7 @@ def plot_aggregated_learning_curves(logs: dict):
 
     # Add a legend
     # mean_lines.append(baseline)
-    legend_labels = [this_tuple[1] for this_tuple in logs.keys()]
+    legend_labels = ["{0} - {1}".format(this_tuple[2], this_tuple[3]) for this_tuple in logs.keys()]
     # legend_labels.append('Default HPs')
     plt.legend(mean_lines, legend_labels, loc='upper right')
 
