@@ -5,7 +5,7 @@ import numpy as np
 import time
 
 
-def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
+def plot_aggregated_learning_curves(logs: dict):
     # Initialize the plot figure
     fig, ax = plt.subplots()
     mean_lines = []
@@ -89,16 +89,17 @@ def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
         ax.fill_between(x=mean_timestamps, y1=quant25_trace_desc,
                         y2=quant75_trace_desc, alpha=0.2)
 
-    if show_baseline:
-        # Add a horizontal line for the default HP configuration of each ML algorithm (baseline)
+    ml_algorithms = [opt_tuple[2] for opt_tuple in logs.keys()]
+    hpo_methods = [opt_tuple[3] for opt_tuple in logs.keys()]
 
-        baseline_colors = ['magenta', 'aquamarine', 'springgreen', 'lightcoral', 'darkcyan', 'deepskyblue']
+    # If the log files contain HPO-results for a single ML algorithm only, add a horizontal baseline
+    if len(set(ml_algorithms)) < 2:
 
         for i in range(len(baseline_dict.keys())):
             algo = list(baseline_dict.keys())[i]
             this_val_baseline_loss = baseline_dict[algo]
             this_val_baseline = ax.hlines(y=this_val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
-                                          colors=baseline_colors[i])
+                                          colors='deepskyblue')
             mean_lines.append(this_val_baseline)
             legend_labels.append(algo + ' - Default HPs')
 
@@ -119,8 +120,6 @@ def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
     plt.title(label=title_label, fontdict=font, loc='center')
 
     time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.localtime()))
-    ml_algorithms = [opt_tuple[2] for opt_tuple in logs.keys()]
-    hpo_methods = [opt_tuple[3] for opt_tuple in logs.keys()]
 
     algo_str = '_'
     for algo in set(ml_algorithms):
@@ -149,6 +148,6 @@ if __name__ == '__main__':
         log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
 
     # Plot the learning curves
-    curves_fig, curves_str = plot_aggregated_learning_curves(log_dict, show_baseline=True)
+    curves_fig, curves_str = plot_aggregated_learning_curves(log_dict)
     fig_path = os.path.join(log_path, curves_str)
     curves_fig.savefig(fname=fig_path)
