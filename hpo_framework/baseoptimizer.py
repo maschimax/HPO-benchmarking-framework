@@ -500,7 +500,8 @@ class BaseOptimizer(ABC):
                     warmstart_config['seed'] = self.random_seed
 
                 # Train the model and make the prediction
-                model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data])
+                model = lgb.train(params=warmstart_config, train_set=train_data, valid_sets=[valid_data],
+                                  verbose_eval=False)
                 y_pred = model.predict(x_val_cv)
 
                 # Classification task
@@ -1102,7 +1103,7 @@ class BaseOptimizer(ABC):
             valid_data = lgb.Dataset(x_val_cv, label=y_val_cv)
 
             # Initialize and train the model
-            lgb_model = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+            lgb_model = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data], verbose_eval=False)
 
             # Make the prediction
             y_pred = lgb_model.predict(data=x_val_cv)

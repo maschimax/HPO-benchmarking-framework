@@ -49,8 +49,6 @@ class OptunaOptimizer(BaseOptimizer):
         # Delete old study objects ('fresh start') >> otherwise the old results will be included
         try:
             optuna.delete_study(study_name, study_storage)
-            if os.path.exists('hpo.db'):
-                os.remove('hpo.db')
 
         except:
             print('No old optuna study objects found!')
@@ -121,37 +119,7 @@ class OptunaOptimizer(BaseOptimizer):
         # Start the optimization
         try:
 
-            # Process based parallelization using multiprocessing
-            # Alternative: Optuna allows parallelization using the n_jobs parameter of study.optimize()
-            if self.n_workers > 1:
-                # Split the total number of function evaluations between the processes for multiprocessing:
-                # First process performs the equal share + the remainder
-                n_evals_first_proc = int(n_func_evals / self.n_workers) + (n_func_evals % self.n_workers)
-                # All remaining process perform the equal share of evaluations
-                n_evals_remain_proc = int(n_func_evals / self.n_workers)
-
-                # Start parallel workers
-                processes = []
-                for i in range(self.n_workers):
-
-                    if i == 0:
-                        n_evals = n_evals_first_proc
-                    else:
-                        n_evals = n_evals_remain_proc
-
-                    p = Process(target=multiproc_target_funcs.load_study_and_optimize,
-                                args=(study_name, study_storage, n_evals, self.objective))
-
-                    p.start()
-                    processes.append(p)
-
-                for p in processes:
-                    p.join()
-
-            # No parallelization
-            else:
-                study.optimize(func=self.objective, n_trials=n_func_evals)
-
+            study.optimize(func=self.objective, n_trials=n_func_evals, n_jobs=self.n_workers)
             run_successful = True
 
         # Algorithm crashed

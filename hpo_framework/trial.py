@@ -72,7 +72,7 @@ class Trial:
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(
                 columns=['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Run-ID', 'random_seed',
-                         'eval_count', 'val_losses', 'test_loss [best config.]', 'timestamps',
+                         'eval_count', 'val_losses', 'val_baseline', 'test_loss [best config.]', 'timestamps',
                          'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
                          'workers', 'GPU', 'budget [%]', '# training instances', '# training features',
                          '# test instances', '# test features'])
@@ -132,6 +132,14 @@ class Trial:
                 # Start the optimization
                 optimization_results = optimizer.optimize()
 
+                # Check whether a validation baseline has already been calculated
+                if self.val_baseline == 0.0:
+                    # Compute a new baseline
+                    val_baseline_loss = self.get_baseline(cv_mode=True)
+                    self.val_baseline = val_baseline_loss
+                else:
+                    val_baseline_loss = self.val_baseline
+
                 # Save the optimization results in a dictionary
                 temp_dict = {'Trial-ID': [trial_id] * len(optimization_results.losses),
                              'HPO-library': [this_hpo_library] * len(optimization_results.losses),
@@ -141,6 +149,7 @@ class Trial:
                              'random_seed': [i] * len(optimization_results.losses),
                              'eval_count': list(range(1, len(optimization_results.losses) + 1)),
                              'val_losses': optimization_results.losses,
+                             'val_baseline': [val_baseline_loss] * len(optimization_results.losses),
                              'test_loss [best config.]': [optimization_results.test_loss] * len(
                                  optimization_results.losses),
                              'timestamps': optimization_results.timestamps,
@@ -426,10 +435,11 @@ class Trial:
 
         metrics = {}
         cols = ['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'GPU',
-                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)',
-                'Mean (final test loss)', 'Test loss ratio (default / best)', 'Interquartile range (final test loss)',
-                't best configuration [s]', 'Evaluations for best configuration', 'Crashes', '# training instances',
-                '# training features', '# test instances', '# test features']
+                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Validation baseline',
+                'Area under curve (AUC)', 'Mean (final test loss)', 'Test loss ratio (default / best)', 'Test baseline',
+                'Interquartile range (final test loss)', 't best configuration [s]',
+                'Evaluations for best configuration', 'Crashes', '# training instances', '# training features',
+                '# test instances', '# test features']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -596,9 +606,11 @@ class Trial:
                             'Warmstart': did_warmstart,
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
+                            'Validation baseline': val_baseline,
                             'Area under curve (AUC)': auc,
                             'Mean (final test loss)': mean_test_loss,
                             'Test loss ratio (default / best)': loss_ratio,
+                            'Test baseline': test_baseline_loss,
                             'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
                             'Evaluations for best configuration': evals_for_best_config,
@@ -893,7 +905,7 @@ class Trial:
                                   'num_class': num_classes,
                                   'seed': 0}
 
-                lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+                lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data], verbose_eval=False)
 
                 # Make the prediction
                 y_pred = lgb_clf.predict(data=x_val_cv)
