@@ -435,10 +435,11 @@ class Trial:
 
         metrics = {}
         cols = ['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'GPU',
-                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Area under curve (AUC)',
-                'Mean (final test loss)', 'Test loss ratio (default / best)', 'Interquartile range (final test loss)',
-                't best configuration [s]', 'Evaluations for best configuration', 'Crashes', '# training instances',
-                '# training features', '# test instances', '# test features']
+                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Validation baseline',
+                'Area under curve (AUC)', 'Mean (final test loss)', 'Test loss ratio (default / best)', 'Test baseline',
+                'Interquartile range (final test loss)', 't best configuration [s]',
+                'Evaluations for best configuration', 'Crashes', '# training instances', '# training features',
+                '# test instances', '# test features']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -605,9 +606,11 @@ class Trial:
                             'Warmstart': did_warmstart,
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
+                            'Validation baseline': val_baseline,
                             'Area under curve (AUC)': auc,
                             'Mean (final test loss)': mean_test_loss,
                             'Test loss ratio (default / best)': loss_ratio,
+                            'Test baseline': test_baseline_loss,
                             'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
                             'Evaluations for best configuration': evals_for_best_config,
@@ -902,7 +905,7 @@ class Trial:
                                   'num_class': num_classes,
                                   'seed': 0}
 
-                lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data])
+                lgb_clf = lgb.train(params=params, train_set=train_data, valid_sets=[valid_data], verbose_eval=False)
 
                 # Make the prediction
                 y_pred = lgb_clf.predict(data=x_val_cv)
