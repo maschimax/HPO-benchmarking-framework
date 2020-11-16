@@ -2,21 +2,34 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 from hpo_framework.trial import Trial
 
 
-def plot_aggregated_learning_curves(logs: dict):
+def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
     # Initialize the plot figure
     fig, ax = plt.subplots()
     mean_lines = []
     max_time = 0  # necessary to limit the length of the baseline curve (default configuration)
+
+    # Dictionary for saving the validation baseline losses of each ML algorithm
+    baseline_dict = {}
+
+    # Labels for the legend of the plot
+    legend_labels = []
 
     # Iterate over the optimization tuples
     for opt_tuple in logs.keys():
 
         this_df = logs[opt_tuple]
         unique_ids = this_df['Run-ID'].unique()  # Unique id of each optimization run
+
+        this_algo = opt_tuple[2]
+        baseline_dict[this_algo] = this_df['val_baseline'][0]
+
+        # Add legend label (ML-algorithm - HPO-technique)
+        legend_labels.append(opt_tuple[2] + ' - ' + opt_tuple[3])
 
         n_cols = len(unique_ids)
         n_rows = 0
@@ -78,13 +91,18 @@ def plot_aggregated_learning_curves(logs: dict):
         ax.fill_between(x=mean_timestamps, y1=quant25_trace_desc,
                         y2=quant75_trace_desc, alpha=0.2)
 
-    # # Check whether a validation baseline has already been calculated
-    # if self.val_baseline == 0.0:
-    #     # Compute a new baseline
-    #     val_baseline_loss = self.get_baseline(cv_mode=True)
-    #     self.val_baseline = val_baseline_loss
-    # else:
-    #     val_baseline_loss = self.val_baseline
+    if show_baseline:
+        # Add a horizontal line for the default HP configuration of each ML algorithm (baseline)
+
+        baseline_colors = ['magenta', 'aquamarine', 'springgreen', 'lightcoral', 'darkcyan', 'deepskyblue']
+
+        for i in range(len(baseline_dict.keys())):
+            algo = list(baseline_dict.keys())[i]
+            this_val_baseline_loss = baseline_dict[algo]
+            this_val_baseline = ax.hlines(y=this_val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
+                                          colors=baseline_colors[i])
+            mean_lines.append(this_val_baseline)
+            legend_labels.append(algo + ' - Default HPs')
 
     # # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
     # baseline = ax.hlines(val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
@@ -100,19 +118,32 @@ def plot_aggregated_learning_curves(logs: dict):
     # ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
 
     # Add a legend
-    # mean_lines.append(baseline)
-    legend_labels = ["{0} - {1}".format(this_tuple[2], this_tuple[3]) for this_tuple in logs.keys()]
+    # legend_labels = ["{0} - {1}".format(this_tuple[2], this_tuple[3]) for this_tuple in logs.keys()]
     # legend_labels.append('Default HPs')
-    plt.legend(mean_lines, legend_labels, loc='upper right')
+    plt.legend(mean_lines, legend_labels, loc='upper right', fontsize='small')
 
     # Add a title
     font = {'weight': 'semibold',
             'size': 'large'}
 
-    # title_label = self.ml_algorithm + " - " + str(self.n_workers) + " worker(s) - " + str(self.n_runs) + " runs"
-    # plt.title(label=title_label, fontdict=font, loc='center')
+    title_label = 'Learning curves'
+    plt.title(label=title_label, fontdict=font, loc='center')
 
-    return fig
+    time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.localtime()))
+    ml_algorithms = [opt_tuple[2] for opt_tuple in logs.keys()]
+    hpo_methods = [opt_tuple[3] for opt_tuple in logs.keys()]
+
+    algo_str = '_'
+    for algo in set(ml_algorithms):
+        algo_str = algo_str + algo
+
+    hpo_str = '_'
+    for hpo in set(hpo_methods):
+        hpo_str = hpo_str + hpo
+
+    fig_str = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '_' + time_str + '.jpg'
+
+    return fig, fig_str
 
 
 if __name__ == '__main__':
@@ -128,5 +159,6 @@ if __name__ == '__main__':
         log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
 
     # Use modified plot learning curves function
-    curves_fig = plot_aggregated_learning_curves(log_dict)
-    curves_fig.savefig(fname='test.jpg')
+    curves_fig, curves_str = plot_aggregated_learning_curves(log_dict, show_baseline=True)
+    fig_path = os.path.join(log_path, curves_str)
+    curves_fig.savefig(fname=fig_path)
