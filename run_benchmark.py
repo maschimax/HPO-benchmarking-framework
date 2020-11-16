@@ -17,9 +17,6 @@ from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan
 from datasets.Mining_Process.mining_preprocessing import mining_loading_and_preprocessing
 from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_preprocessing
 
-# Flag for the ML use case / dataset to be used
-use_case = 'scania'
-
 # Flag for debug mode (yes/no)
 # yes (True) -> set parameters for this trial in source code (below)
 # no (False) -> call script via terminal and pass arguments via argparse
@@ -27,6 +24,7 @@ debug = False
 
 if debug:
     # Set parameters manually
+    dataset = 'scania'  # Flag for the ML use case / dataset to be used
     hp_space = space_lgb
     ml_algo = 'LGBMClassifier'
     opt_schedule = [('optuna', 'RandomSearch')]
@@ -39,6 +37,7 @@ if debug:
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
     do_warmstart = 'No'
+    plot_learning_curves = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -51,31 +50,45 @@ else:
                                  'LogisticRegression', 'KNNRegressor', 'KNNClassifier',
                                  'LGBMRegressor',
                                  'LGBMClassifier', 'NaiveBayes', 'MLPRegressor', 'MLPClassifier'])
+
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
                                  'Bohamiann'])
+
+    parser.add_argument('--dataset', type=str, help='Dataset / use case.', default='scania',
+                        choices=['scania', 'turbofan', 'mining', 'steel', 'dummy'])
+
     parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
+
     parser.add_argument('--n_runs', type=int, help='Number of runs for each HPO-method (varying random seeds).',
                         default=5)
+
     parser.add_argument('--n_workers', type=int,
                         help='Number of workers to be used for the optimization (parallelization)',
                         default=1)
+
     parser.add_argument('--loss_metric', type=str, help='Loss metric', default='root_mean_squared_error',
                         choices=['root_mean_squared_error', 'F1-loss', 'Accuracy-loss', 'RUL-loss'])
+
     parser.add_argument('--warmstart', type=str,
                         help="Use the algorithm's default HP-configuration for warmstart (yes/no).",
+                        default='No', choices=['Yes', 'No'])
+
+    parser.add_argument('--plot_learning_curves', type=str, help='Show learning curves (yes/no).',
                         default='No', choices=['Yes', 'No'])
 
     args = parser.parse_args()
 
     # Settings for this trial
     ml_algo = args.ml_algorithm
+    dataset = args.dataset
     n_runs = args.n_runs
     # Optimization budget is limited by the number of function evaluations (should be dividable by 3 for BOHB and HB
     # to ensure comparability)
     n_func_evals = args.n_func_evals
     n_workers = args.n_workers
     do_warmstart = args.warmstart
+    plot_learning_curves = args.plot_learning_curves
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -163,7 +176,7 @@ else:
         raise Exception('This loss metric has not yet been implemented.')
 
 # Loading and preprocessing of the selected data set
-if use_case == 'dummy':
+if dataset == 'dummy':
     # Loading data and preprocessing
     # >>> Linux OS and Windows require different path representations -> use pathlib <<<
     dataset_path = os.path.abspath(path='datasets/dummy')
@@ -178,19 +191,19 @@ if use_case == 'dummy':
     X_train, y_train, X_test, y_test, _ = pp.process(train_raw, test_raw, standardization=False, logarithmic=False,
                                                      count_encoding=False)
 
-elif use_case == 'scania':
+elif dataset == 'scania':
 
     X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
 
-elif use_case == 'turbofan':
+elif dataset == 'turbofan':
 
     X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
 
-elif use_case == 'mining':
+elif dataset == 'mining':
 
     X_train, X_test, y_train, y_test = mining_loading_and_preprocessing()
 
-elif use_case == 'steel':
+elif dataset == 'steel':
 
     X_train, X_test, y_train, y_test = steel_loading_and_preprocessing()
 
@@ -238,7 +251,7 @@ res = trial.run()
 
 abs_results_path = os.path.abspath(path='hpo_framework/results')
 
-res_folder = os.path.join(abs_results_path, use_case)
+res_folder = os.path.join(abs_results_path, dataset)
 if not os.path.isdir(res_folder):
     os.makedirs(res_folder, exist_ok=True)
 
@@ -271,13 +284,13 @@ for param in hp_space:
 # Optimization results
 for opt_tuple in res.keys():
     res_df = res[opt_tuple].trial_result_df
-    res_df['dataset'] = use_case
+    res_df['dataset'] = dataset
     res_df['# cont. HPs'] = num_params['continuous']
     res_df['# int. HPs'] = num_params['integer']
     res_df['# cat. HPs'] = num_params['categorical']
     res_df['loss_metric'] = loss_metric_str
 
-    res_str_csv = use_case + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
+    res_str_csv = dataset + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
     res_path_csv = os.path.join(log_folder, res_str_csv)
 
     # res_str_json = use_case + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.json'
@@ -289,28 +302,29 @@ for opt_tuple in res.keys():
     # res_df.to_json(res_path_json)
 
 # Learning curves
-curves = trial.plot_learning_curve(res)
-curves_str = 'learning_curves_' + use_case + '_' + ml_algo + '_' + time_str + '.jpg'
-curves_path = os.path.join(res_folder, curves_str)
-curves.savefig(fname=curves_path)
+if plot_learning_curves == 'Yes':
+    curves = trial.plot_learning_curve(res)
+    curves_str = 'learning_curves_' + dataset + '_' + ml_algo + '_' + time_str + '.jpg'
+    curves_path = os.path.join(res_folder, curves_str)
+    curves.savefig(fname=curves_path)
 
 # Hyperparameter space
 space_plots = trial.plot_hp_space(res)
 for opt_tuple in space_plots.keys():
     this_plot = space_plots[opt_tuple]
     this_hpo_method = opt_tuple[1]
-    space_str = 'hp_space_' + use_case + '_' + ml_algo + '_' + this_hpo_method + '_' + time_str + '.jpg'
+    space_str = 'hp_space_' + dataset + '_' + ml_algo + '_' + this_hpo_method + '_' + time_str + '.jpg'
     space_path = os.path.join(res_folder, space_str)
     this_plot.savefig(fname=space_path)
 
 # Metrics
 metrics, metrics_df = trial.get_metrics(res)
-metrics_df['dataset'] = use_case
+metrics_df['dataset'] = dataset
 metrics_df['# cont. HPs'] = num_params['continuous']
 metrics_df['# int. HPs'] = num_params['integer']
 metrics_df['# cat. HPs'] = num_params['categorical']
 metrics_df['loss_metric'] = loss_metric_str
 
-metrics_str = 'metrics_' + use_case + '_' + ml_algo + '_' + time_str + '.csv'
+metrics_str = 'metrics_' + dataset + '_' + ml_algo + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
 metrics_df.to_csv(metrics_path)

@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
-from hpo_framework.trial import Trial
-
 
 def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
     # Initialize the plot figure
@@ -104,22 +102,13 @@ def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
             mean_lines.append(this_val_baseline)
             legend_labels.append(algo + ' - Default HPs')
 
-    # # Add a horizontal line for the default hyperparameter configuration of the ML-algorithm (baseline)
-    # baseline = ax.hlines(val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
-    #                      colors='m')
-
     # Formatting of the plot
     plt.xlabel('Wall clock time [s]')
     plt.ylabel('Validation loss')
-    # plt.ylim([0.02, 1.0])
-    # plt.xlim([0.05, 1000])
     plt.yscale('log')
     plt.xscale('log')
-    # ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
 
     # Add a legend
-    # legend_labels = ["{0} - {1}".format(this_tuple[2], this_tuple[3]) for this_tuple in logs.keys()]
-    # legend_labels.append('Default HPs')
     plt.legend(mean_lines, legend_labels, loc='upper right', fontsize='small')
 
     # Add a title
@@ -147,10 +136,11 @@ def plot_aggregated_learning_curves(logs: dict, show_baseline=True):
 
 
 if __name__ == '__main__':
-    # Load log files
+
     log_path = './hpo_framework/results/temp'
     log_dict = {}
 
+    # Iterate over all files in the temp folder and load the .csv (log) files into a dictionary
     for file in os.listdir(log_path):
         file_path = os.path.join(log_path, file)
         log_df = pd.read_csv(file_path, index_col=0)
@@ -158,7 +148,7 @@ if __name__ == '__main__':
             log_df['HPO-method'][0]
         log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
 
-    # Use modified plot learning curves function
+    # Plot the learning curves
     curves_fig, curves_str = plot_aggregated_learning_curves(log_dict, show_baseline=True)
     fig_path = os.path.join(log_path, curves_str)
     curves_fig.savefig(fname=fig_path)
