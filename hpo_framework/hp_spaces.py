@@ -209,3 +209,15 @@ space_logr = [
 
 # Gaussian Naive Bayes
 space_nb = [skopt.space.Real(low=0, high=1, name='var_smoothing')]
+
+# ElasticNet Regression
+space_elnet = [
+    skopt.space.Real(low=0.01, high=10.0, name='alpha'),
+    skopt.space.Real(low=0, high=1, name='l1_ratio'),
+    skopt.space.Categorical([True, False], name='fit_intercept'),
+    skopt.space.Categorical([False, True], name='normalize'),
+    skopt.space.Integer(low=100, high=2000, name='max_iter'),
+    skopt.space.Real(low=1e-6, high=1e-2, name='tol'),
+    skopt.space.Categorical([False, True], name='positive'),
+    skopt.space.Categorical(['cyclic', 'random'], name='selection'),
+]
