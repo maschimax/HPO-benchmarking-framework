@@ -336,7 +336,7 @@ for opt_tuple in space_plots.keys():
     this_plot = space_plots[opt_tuple]
     this_hpo_method = opt_tuple[1]
     space_str = 'hp_space_' + dataset + '_' + ml_algo + '_' + this_hpo_method + '_' + str(n_workers) + 'Workers' + '_'\
-                + gpu_str + '_' + warmstart_str + '_' + time_str + '.csv'
+                + gpu_str + '_' + warmstart_str + '_' + time_str + '.jpg'
     space_path = os.path.join(res_folder, space_str)
     this_plot.savefig(fname=space_path)
 
