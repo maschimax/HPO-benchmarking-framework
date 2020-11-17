@@ -72,8 +72,8 @@ class Trial:
             # Initialize a DataFrame for saving the trial results
             results_df = pd.DataFrame(
                 columns=['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Run-ID', 'random_seed',
-                         'eval_count', 'val_losses', 'val_baseline', 'test_loss [best config.]', 'timestamps',
-                         'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
+                         'eval_count', 'val_losses', 'val_baseline', 'test_loss [best config.]', 'test_baseline',
+                         'timestamps', 'configurations', 'run_successful', 'warmstart', 'runs', 'evaluations',
                          'workers', 'GPU', 'budget [%]', '# training instances', '# training features',
                          '# test instances', '# test features'])
 
@@ -140,6 +140,14 @@ class Trial:
                 else:
                     val_baseline_loss = self.val_baseline
 
+                # Check whether a test baseline has already been calculated
+                if self.test_baseline == 0.0:
+                    # Compute a new baseline
+                    test_baseline_loss = self.get_baseline(cv_mode=False)
+                    self.test_baseline = test_baseline_loss
+                else:
+                    test_baseline_loss = self.test_baseline
+
                 # Save the optimization results in a dictionary
                 temp_dict = {'Trial-ID': [trial_id] * len(optimization_results.losses),
                              'HPO-library': [this_hpo_library] * len(optimization_results.losses),
@@ -152,6 +160,7 @@ class Trial:
                              'val_baseline': [val_baseline_loss] * len(optimization_results.losses),
                              'test_loss [best config.]': [optimization_results.test_loss] * len(
                                  optimization_results.losses),
+                             'test_baseline': [test_baseline_loss] * len(optimization_results.losses),
                              'timestamps': optimization_results.timestamps,
                              'configurations': optimization_results.configurations,
                              'run_successful': optimization_results.successful,
