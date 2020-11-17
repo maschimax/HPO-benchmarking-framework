@@ -31,13 +31,14 @@ if debug:
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
-    n_func_evals = 2
+    n_runs = 3
+    n_func_evals = 5
     n_workers = 1
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
     do_warmstart = 'No'
     plot_learning_curves = 'No'
+    use_gpu = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -77,6 +78,9 @@ else:
     parser.add_argument('--plot_learning_curves', type=str, help='Show learning curves (yes/no).',
                         default='No', choices=['Yes', 'No'])
 
+    parser.add_argument('--gpu', type=str, help='Use GPU resources if available (yes/no).', default='No',
+                        choices=['Yes', 'No'])
+
     args = parser.parse_args()
 
     # Settings for this trial
@@ -89,6 +93,7 @@ else:
     n_workers = args.n_workers
     do_warmstart = args.warmstart
     plot_learning_curves = args.plot_learning_curves
+    use_gpu = args.gpu
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -241,10 +246,16 @@ print('Optimization schedule: ', opt_schedule)
 if n_func_evals <= 10:
     warnings.warn('Some HPO-methods expect a budget of at least 10 evaluations. The optimization might fail.')
 
+if use_gpu == 'No':
+    gpu = False
+else:
+    gpu = True
+
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
-              x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test, do_warmstart=do_warmstart)
+              x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test, do_warmstart=do_warmstart,
+              gpu=gpu)
 
 # Run the optimization
 res = trial.run()
@@ -281,6 +292,16 @@ for param in hp_space:
     else:
         continue
 
+if gpu:
+    gpu_str = 'GPU'
+else:
+    gpu_str = 'CPU'
+
+if do_warmstart == 'Yes':
+    warmstart_str = 'Warmstart'
+else:
+    warmstart_str = 'NoWarmstart'
+
 # Optimization results
 for opt_tuple in res.keys():
     res_df = res[opt_tuple].trial_result_df
@@ -290,7 +311,8 @@ for opt_tuple in res.keys():
     res_df['# cat. HPs'] = num_params['categorical']
     res_df['loss_metric'] = loss_metric_str
 
-    res_str_csv = dataset + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.csv'
+    res_str_csv = dataset + '_' + ml_algo + '_' + opt_tuple[1] + '_' + str(n_workers) + 'Workers' + '_' + gpu_str + \
+        '_' + warmstart_str + '_' + time_str + '.csv'
     res_path_csv = os.path.join(log_folder, res_str_csv)
 
     # res_str_json = use_case + '_' + ml_algo + '_' + opt_tuple[1] + '_' + time_str + '.json'
@@ -313,7 +335,8 @@ space_plots = trial.plot_hp_space(res)
 for opt_tuple in space_plots.keys():
     this_plot = space_plots[opt_tuple]
     this_hpo_method = opt_tuple[1]
-    space_str = 'hp_space_' + dataset + '_' + ml_algo + '_' + this_hpo_method + '_' + time_str + '.jpg'
+    space_str = 'hp_space_' + dataset + '_' + ml_algo + '_' + this_hpo_method + '_' + str(n_workers) + 'Workers' + '_'\
+                + gpu_str + '_' + warmstart_str + '_' + time_str + '.jpg'
     space_path = os.path.join(res_folder, space_str)
     this_plot.savefig(fname=space_path)
 
@@ -325,6 +348,11 @@ metrics_df['# int. HPs'] = num_params['integer']
 metrics_df['# cat. HPs'] = num_params['categorical']
 metrics_df['loss_metric'] = loss_metric_str
 
-metrics_str = 'metrics_' + dataset + '_' + ml_algo + '_' + time_str + '.csv'
+hpo_str = '_'
+for opt_tuple in opt_schedule:
+    hpo_str = hpo_str + opt_tuple[1]
+
+metrics_str = 'metrics_' + dataset + '_' + ml_algo + hpo_str + '_' + str(n_workers) + 'Workers' + '_' \
+              + gpu_str + '_' + warmstart_str + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
 metrics_df.to_csv(metrics_path)
