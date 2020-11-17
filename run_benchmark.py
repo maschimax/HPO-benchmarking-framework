@@ -8,7 +8,7 @@ import warnings
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, \
     space_svm, space_xgb, space_ada_reg, space_ada_clf, space_dt, \
     space_linr, space_knn, space_lgb, space_logr, space_nb, \
-    space_mlp
+    space_mlp, space_elnet
 from hpo_framework.hpo_metrics import root_mean_squared_error, f1_loss, accuracy_loss, rul_loss_score
 from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
@@ -50,7 +50,7 @@ else:
                                  'DecisionTreeRegressor', 'DecisionTreeClassifier', 'LinearRegression',
                                  'LogisticRegression', 'KNNRegressor', 'KNNClassifier',
                                  'LGBMRegressor',
-                                 'LGBMClassifier', 'NaiveBayes', 'MLPRegressor', 'MLPClassifier'])
+                                 'LGBMClassifier', 'NaiveBayes', 'MLPRegressor', 'MLPClassifier', 'ElasticNet'])
 
     parser.add_argument('hpo_methods', help='Specify the HPO-methods.', nargs='*',
                         choices=['CMA-ES', 'RandomSearch', 'SMAC', 'GPBO', 'TPE', 'BOHB', 'Hyperband', 'Fabolas',
@@ -159,6 +159,9 @@ else:
 
     elif ml_algo == 'MLPRegressor' or ml_algo == 'MLPClassifier':
         hp_space = space_mlp
+
+    elif ml_algo == 'ElasticNet':
+        hp_space = space_elnet
 
     else:
         raise Exception('For this ML-algorithm no hyperparameter space has been defined yet.')

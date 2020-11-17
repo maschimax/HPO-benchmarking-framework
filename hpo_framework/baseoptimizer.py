@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.ensemble import AdaBoostRegressor, AdaBoostClassifier
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNet
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -172,6 +172,10 @@ class BaseOptimizer(ABC):
             default_model = GaussianNB()
             warmstart_params = default_model.get_params()
 
+        elif self.ml_algorithm == 'ElasticNet':
+            default_model = ElasticNet()
+            warmstart_params = default_model.get_params()
+
         elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
             warmstart_params = warmstart_keras
 
@@ -319,6 +323,13 @@ class BaseOptimizer(ABC):
 
             elif self.ml_algorithm == 'NaiveBayes':
                 model = GaussianNB(**warmstart_config)
+
+                # Train the model and make the prediction
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'ElasticNet':
+                model = ElasticNet(**warmstart_config)
 
                 # Train the model and make the prediction
                 model.fit(x_train_cv, y_train_cv)
@@ -561,7 +572,7 @@ class BaseOptimizer(ABC):
                 self.ml_algorithm == 'LogisticRegression' or self.ml_algorithm == 'NaiveBayes' or \
                 self.ml_algorithm == 'DecisionTreeClassifier' or self.ml_algorithm == 'KNNClassifier' or \
                 self.ml_algorithm == 'AdaBoostClassifier' or self.ml_algorithm == 'MLPClassifier' or \
-                self.ml_algorithm == 'MLPRegressor':
+                self.ml_algorithm == 'MLPRegressor' or self.ml_algorithm == 'ElasticNet':
 
             eval_func = self.train_evaluate_scikit_model
 
@@ -692,8 +703,12 @@ class BaseOptimizer(ABC):
                 model = LogisticRegression(**params, random_state=self.random_seed, n_jobs=self.n_workers)
 
             elif self.ml_algorithm == 'NaiveBayes':
-                # FaussianNB has no random_state and n_jobs parameter
+                # GaussianNB has no random_state and n_jobs parameter
                 model = GaussianNB(**params)
+
+            elif self.ml_algorithm == 'ElasticNet':
+                # ElasticNet has no n_jobs parameter
+                model = ElasticNet(**params, random_state=self.random_seed)
 
             else:
                 raise Exception('Unknown ML-algorithm!')

@@ -7,7 +7,7 @@ import math
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, AdaBoostRegressor, AdaBoostClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNet
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -748,6 +748,11 @@ class Trial:
 
             elif self.ml_algorithm == 'MLPClassifier':
                 model = MLPClassifier(random_state=0)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
+
+            elif self.ml_algorithm == 'ElasticNet':
+                model = ElasticNet(random_state=0)
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
