@@ -1124,6 +1124,7 @@ class BaseOptimizer(ABC):
             # Specify the number of threads (parallelization) and the random seed
             params['num_threads'] = self.n_workers
             params['seed'] = self.random_seed
+            params['verbosity'] = -1
 
             # Create lgb datasets
             train_data = lgb.Dataset(x_train_cv, label=y_train_cv)
