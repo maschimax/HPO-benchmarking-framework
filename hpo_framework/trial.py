@@ -782,13 +782,6 @@ class Trial:
                                            activation=warmstart_keras['hidden_layer2_activation']))
                     model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
 
-                # Add third hidden layer
-                if warmstart_keras['hidden_layer3_size'] > 0:
-                    model.add(
-                        keras.layers.Dense(warmstart_keras['hidden_layer3_size'],
-                                           activation=warmstart_keras['hidden_layer3_activation']))
-                    model.add(keras.layers.Dropout(warmstart_keras['dropout3']))
-
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
 
@@ -847,12 +840,21 @@ class Trial:
 
                 # Determine the learning rate for this iteration and pass it as callback
                 lr = keras.callbacks.LearningRateScheduler(schedule)
-                callbacks_list = [lr]
+
+                # Early stopping callback
+                early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                               min_delta=0,
+                                                               patience=10,
+                                                               verbose=1,
+                                                               mode='auto',
+                                                               restore_best_weights=True)
+
+                callbacks_list = [lr, early_stopping]
 
                 # Train the model
                 model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=warmstart_keras['batch_size'],
                           validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
-                          verbose=1)
+                          verbose=0)
 
                 # Make the prediction
                 y_pred = model.predict(x_val_cv)

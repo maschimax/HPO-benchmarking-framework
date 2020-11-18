@@ -19,7 +19,7 @@ import lightgbm as lgb
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
-from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras, warmstart_dt, warmstart_knn,\
+from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_keras, warmstart_dt, warmstart_knn, \
     warmstart_svm, warmstart_rf_clf, warmstart_rf_reg, warmstart_ada_clf, warmstart_ada_reg
 
 
@@ -359,13 +359,6 @@ class BaseOptimizer(ABC):
                                            activation=warmstart_config['hidden_layer2_activation']))
                     model.add(keras.layers.Dropout(warmstart_config['dropout2']))
 
-                # Add third hidden layer
-                if warmstart_config['hidden_layer3_size'] > 0:
-                    model.add(
-                        keras.layers.Dense(warmstart_config['hidden_layer3_size'],
-                                           activation=warmstart_config['hidden_layer3_activation']))
-                    model.add(keras.layers.Dropout(warmstart_config['dropout3']))
-
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
 
@@ -424,12 +417,21 @@ class BaseOptimizer(ABC):
 
                 # Determine the learning rate for this iteration and pass it as callback
                 lr = keras.callbacks.LearningRateScheduler(schedule)
-                callbacks_list = [lr]
+
+                # Early stopping callback
+                early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                               min_delta=0,
+                                                               patience=10,
+                                                               verbose=1,
+                                                               mode='auto',
+                                                               restore_best_weights=True)
+
+                callbacks_list = [lr, early_stopping]
 
                 # Train the model
                 model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=warmstart_config['batch_size'],
                           validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
-                          verbose=1)
+                          verbose=0)
 
                 # Make the prediction
                 y_pred = model.predict(x_val_cv)
@@ -791,12 +793,17 @@ class BaseOptimizer(ABC):
             else:
                 continue
 
-            if 'hb_budget' in kwargs:
-                # For BOHB and Hyperband select the number of epochs according to the budget of this iteration
+            if 'hb_budget' in kwargs and cv_mode:
+                # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
-                epochs = int(0.1 * hb_budget * full_budget_epochs)
+                n_train = len(x_train_cv)
+                n_budget = int(0.1 * hb_budget * n_train)
+                idx_train = np.random.randint(low=0, high=n_budget, size=n_budget)
+                x_train_cv = x_train_cv.iloc[idx_train]
+                y_train_cv = y_train_cv.iloc[idx_train]
+                epochs = full_budget_epochs
 
-            elif 'fabolas_budget' in kwargs:
+            elif 'fabolas_budget' in kwargs and cv_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
@@ -821,13 +828,9 @@ class BaseOptimizer(ABC):
 
             # Add second hidden layer
             if params['hidden_layer2_size'] > 0:
-                model.add(keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_activation']))
+                model.add(
+                    keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_activation']))
                 model.add(keras.layers.Dropout(params['dropout2']))
-
-            # Add third hidden layer
-            if params['hidden_layer3_size'] > 0:
-                model.add(keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_activation']))
-                model.add(keras.layers.Dropout(params['dropout3']))
 
             # Add output layer
             if self.ml_algorithm == 'KerasRegressor':
@@ -887,12 +890,21 @@ class BaseOptimizer(ABC):
 
             # Determine the learning rate for this iteration and pass it as callback
             lr = keras.callbacks.LearningRateScheduler(schedule)
-            callbacks_list = [lr]
+
+            # Early stopping callback
+            early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                           min_delta=0,
+                                                           patience=10,
+                                                           verbose=1,
+                                                           mode='auto',
+                                                           restore_best_weights=True)
+
+            callbacks_list = [lr, early_stopping]
 
             # Train the model and make the prediction
             model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=params['batch_size'],
                       validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
-                      verbose=1)
+                      verbose=0)
 
             # Make the prediction
             y_pred = model.predict(x_val_cv)
@@ -988,7 +1000,7 @@ class BaseOptimizer(ABC):
             else:
                 continue
 
-            if 'hb_budget' in kwargs:
+            if 'hb_budget' in kwargs and cv_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -997,7 +1009,7 @@ class BaseOptimizer(ABC):
                 x_train_cv = x_train_cv.iloc[idx_train]
                 y_train_cv = y_train_cv.iloc[idx_train]
 
-            elif 'fabolas_budget' in kwargs:
+            elif 'fabolas_budget' in kwargs and cv_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
@@ -1074,7 +1086,7 @@ class BaseOptimizer(ABC):
             else:
                 continue
 
-            if 'hb_budget' in kwargs:
+            if 'hb_budget' in kwargs and cv_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -1083,7 +1095,7 @@ class BaseOptimizer(ABC):
                 x_train_cv = x_train_cv.iloc[idx_train]
                 y_train_cv = y_train_cv.iloc[idx_train]
 
-            elif 'fabolas_budget' in kwargs:
+            elif 'fabolas_budget' in kwargs and cv_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
