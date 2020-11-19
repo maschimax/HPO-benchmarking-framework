@@ -24,15 +24,15 @@ debug = False
 
 if debug:
     # Set parameters manually
-    dataset = 'scania'  # Flag for the ML use case / dataset to be used
-    hp_space = space_lgb
-    ml_algo = 'LGBMClassifier'
-    opt_schedule = [('optuna', 'RandomSearch')]
+    dataset = 'steel'  # Flag for the ML use case / dataset to be used
+    hp_space = space_dt
+    ml_algo = 'DecisionTreeClassifier'
+    opt_schedule = [('skopt', 'GPBO')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 3
-    n_func_evals = 5
+    n_runs = 5
+    n_func_evals = 20
     n_workers = 1
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
@@ -247,7 +247,7 @@ print('------')
 print('Optimization schedule: ', opt_schedule)
 
 if n_func_evals <= 10:
-    warnings.warn('Some HPO-methods expect a budget of at least 10 evaluations. The optimization might fail.')
+    warnings.warn('Some HPO-methods expect a budget of at least 20 evaluations. The optimization might fail.')
 
 if use_gpu == 'No':
     gpu = False

@@ -89,7 +89,7 @@ class SkoptOptimizer(BaseOptimizer):
         try:
             trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
                                           random_state=self.random_seed, acq_func=this_acq_func,
-                                          n_jobs=self.n_workers, verbose=True, **kwargs)
+                                          n_jobs=self.n_workers, verbose=True, n_initial_points=20, **kwargs)
 
             run_successful = True
 
