@@ -650,22 +650,19 @@ class BaseOptimizer(ABC):
                 model = MLPClassifier(**params, random_state=self.random_seed, verbose=True)
 
             elif self.ml_algorithm == 'RandomForestRegressor':
-                model = RandomForestRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+                model = RandomForestRegressor(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'RandomForestClassifier':
-                model = RandomForestClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+                model = RandomForestClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'SVR':
-                # SVR has no random_state and n_jobs parameter
+                # SVR has no random_state parameter
                 model = SVR(**params)
 
             elif self.ml_algorithm == 'SVC':
-                # SVC has no n_jobs parameter
                 model = SVC(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'AdaBoostRegressor':
-                # AdaBoostRegressor has no n_jobs parameter
-
                 # Set the max_depth of the base estimator object
                 max_depth = params.pop('max_depth')
                 params['base_estimator'] = DecisionTreeRegressor(max_depth=max_depth)
@@ -673,8 +670,6 @@ class BaseOptimizer(ABC):
                 model = AdaBoostRegressor(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'AdaBoostClassifier':
-                # AdaBoostClassifier has no n_jobs parameter
-
                 # Set the max_depth of the base estimator object
                 max_depth = params.pop('max_depth')
                 params['base_estimator'] = DecisionTreeClassifier(max_depth=max_depth)
@@ -682,34 +677,31 @@ class BaseOptimizer(ABC):
                 model = AdaBoostClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'DecisionTreeRegressor':
-                # DecisionTreeRegressor has no n_jobs parameter
                 model = DecisionTreeRegressor(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'DecisionTreeClassifier':
-                # DecisionTreeClassifier has no n_jobs parameter
                 model = DecisionTreeClassifier(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'LinearRegression':
                 # LinearRegression has no random_state parameter
-                model = LinearRegression(**params, n_jobs=self.n_workers)
+                model = LinearRegression(**params)
 
             elif self.ml_algorithm == 'KNNRegressor':
                 # KNeighborsRegressor has no random_state parameter
-                model = KNeighborsRegressor(**params, n_jobs=self.n_workers)
+                model = KNeighborsRegressor(**params)
 
             elif self.ml_algorithm == 'KNNClassifier':
                 # KNeighborsRegressor has no random_state parameter
-                model = KNeighborsClassifier(**params, n_jobs=self.n_workers)
+                model = KNeighborsClassifier(**params)
 
             elif self.ml_algorithm == 'LogisticRegression':
-                model = LogisticRegression(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+                model = LogisticRegression(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'NaiveBayes':
-                # GaussianNB has no random_state and n_jobs parameter
+                # GaussianNB has no random_state parameter
                 model = GaussianNB(**params)
 
             elif self.ml_algorithm == 'ElasticNet':
-                # ElasticNet has no n_jobs parameter
                 model = ElasticNet(**params, random_state=self.random_seed)
 
             else:
@@ -1019,11 +1011,11 @@ class BaseOptimizer(ABC):
             # Initialize the model
             if self.ml_algorithm == 'XGBoostRegressor':
 
-                model = XGBRegressor(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+                model = XGBRegressor(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'XGBoostClassifier':
 
-                model = XGBClassifier(**params, random_state=self.random_seed, n_jobs=self.n_workers)
+                model = XGBClassifier(**params, random_state=self.random_seed)
 
             # Train the model and make the prediction
             model.fit(x_train_cv, y_train_cv)
@@ -1121,8 +1113,7 @@ class BaseOptimizer(ABC):
                     params['objective'] = 'multiclass'  # uses Softmax objective function
                     params['num_class'] = num_classes
 
-            # Specify the number of threads (parallelization) and the random seed
-            params['num_threads'] = self.n_workers
+            # Specify random seed
             params['seed'] = self.random_seed
             params['verbosity'] = -1
 

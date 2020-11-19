@@ -886,8 +886,8 @@ class Trial:
 
             elif self.ml_algorithm == 'XGBoostRegressor':
                 model = XGBRegressor(random_state=0)
-                model.fit(self.x_train, self.y_train)
-                y_pred = model.predict(self.x_test)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'XGBoostClassifier':
                 model = XGBClassifier(random_state=0)
