@@ -25,8 +25,8 @@ debug = False
 if debug:
     # Set parameters manually
     dataset = 'scania'  # Flag for the ML use case / dataset to be used
-    hp_space = space_dt
-    ml_algo = 'DecisionTreeClassifier'
+    hp_space = space_xgb
+    ml_algo = 'XGBoostClassifier'
     opt_schedule = [('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
@@ -39,7 +39,7 @@ if debug:
     do_warmstart = 'No'
     plot_learning_curves = 'No'
     use_gpu = 'No'
-    cross_validation = 'Yes'
+    cross_validation = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")

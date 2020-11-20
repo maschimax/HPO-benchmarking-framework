@@ -140,7 +140,7 @@ class Trial:
                 # Check whether a validation baseline has already been calculated
                 if self.val_baseline == 0.0:
                     # Compute a new baseline
-                    val_baseline_loss = self.get_baseline(cv_mode=self.cross_val, test_mode=False)
+                    val_baseline_loss = self.get_baseline(cv_mode=True, test_mode=False)
                     self.val_baseline = val_baseline_loss
                 else:
                     val_baseline_loss = self.val_baseline
@@ -294,7 +294,7 @@ class Trial:
         # Check whether a validation baseline has already been calculated
         if self.val_baseline == 0.0:
             # Compute a new baseline
-            val_baseline_loss = self.get_baseline(cv_mode=True)
+            val_baseline_loss = self.get_baseline(cv_mode=True, test_mode=False)
             self.val_baseline = val_baseline_loss
         else:
             val_baseline_loss = self.val_baseline
@@ -460,7 +460,7 @@ class Trial:
         # Check whether a validation baseline has already been calculated
         if self.val_baseline == 0.0:
             # Compute a new baseline
-            val_baseline = self.get_baseline(cv_mode=True)
+            val_baseline = self.get_baseline(cv_mode=True, test_mode=False)
             self.val_baseline = val_baseline
         else:
             val_baseline = self.val_baseline
@@ -555,7 +555,7 @@ class Trial:
             # Check whether a test baseline has already been calculated
             if self.test_baseline == 0.0:
                 # Compute a new baseline
-                test_baseline_loss = self.get_baseline(cv_mode=False)
+                test_baseline_loss = self.get_baseline(cv_mode=False, test_mode=True)
                 self.test_baseline = test_baseline_loss
             else:
                 test_baseline_loss = self.test_baseline
