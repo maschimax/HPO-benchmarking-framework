@@ -75,12 +75,8 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
         if show_std:
 
             std = np.std(best_losses, axis=1)
-            print(std)
-            print(mean_trace_desc)
             upper = mean_trace_desc + std
-            print(upper)
             lower = mean_trace_desc - std
-            print(lower)
 
         else:
 
