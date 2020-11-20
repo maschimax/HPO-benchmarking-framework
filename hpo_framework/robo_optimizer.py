@@ -102,7 +102,7 @@ class RoboOptimizer(BaseOptimizer):
                     warmstart_dict[this_param] = dict_value
 
                 # Pass the default loss to the according numpy array
-                warmstart_loss[0, 0] = self.get_warmstart_loss(warmstart_dict=warmstart_dict)
+                warmstart_loss[0, 0] = self.get_warmstart_loss(warmstart_dict=warmstart_dict, cv_mode=self.cross_val)
 
                 # Pass the warmstart configuration as a kwargs dict
                 kwargs = {'X_init': warmstart_config,
