@@ -738,7 +738,7 @@ class BaseOptimizer(ABC):
             else:
                 raise Exception('Unknown ML-algorithm!')
 
-            if 'hb_budget' in kwargs and cv_mode:
+            if 'hb_budget' in kwargs and not test_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -747,7 +747,7 @@ class BaseOptimizer(ABC):
                 x_train_cv = x_train_cv.iloc[idx_train]
                 y_train_cv = y_train_cv.iloc[idx_train]
 
-            elif 'fabolas_budget' in kwargs and cv_mode:
+            elif 'fabolas_budget' in kwargs and not test_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
@@ -828,7 +828,7 @@ class BaseOptimizer(ABC):
             else:
                 continue
 
-            if 'hb_budget' in kwargs and cv_mode:
+            if 'hb_budget' in kwargs and not test_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -838,7 +838,7 @@ class BaseOptimizer(ABC):
                 y_train_cv = y_train_cv.iloc[idx_train]
                 epochs = full_budget_epochs
 
-            elif 'fabolas_budget' in kwargs and cv_mode:
+            elif 'fabolas_budget' in kwargs and not test_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
@@ -1058,7 +1058,7 @@ class BaseOptimizer(ABC):
             else:
                 continue
 
-            if 'hb_budget' in kwargs and cv_mode:
+            if 'hb_budget' in kwargs and not test_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -1067,7 +1067,7 @@ class BaseOptimizer(ABC):
                 x_train_cv = x_train_cv.iloc[idx_train]
                 y_train_cv = y_train_cv.iloc[idx_train]
 
-            elif 'fabolas_budget' in kwargs and cv_mode:
+            elif 'fabolas_budget' in kwargs and not test_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
@@ -1156,7 +1156,7 @@ class BaseOptimizer(ABC):
             else:
                 continue
 
-            if 'hb_budget' in kwargs and cv_mode:
+            if 'hb_budget' in kwargs and not test_mode:
                 # For BOHB and Hyperband select the training data according to the budget of this iteration
                 hb_budget = kwargs['hb_budget']
                 n_train = len(x_train_cv)
@@ -1165,7 +1165,7 @@ class BaseOptimizer(ABC):
                 x_train_cv = x_train_cv.iloc[idx_train]
                 y_train_cv = y_train_cv.iloc[idx_train]
 
-            elif 'fabolas_budget' in kwargs and cv_mode:
+            elif 'fabolas_budget' in kwargs and not test_mode:
                 # For Fabolas select the training data according to the budget of this iteration
                 fabolas_budget = kwargs['fabolas_budget']
                 idx_train = np.random.randint(low=0, high=fabolas_budget, size=fabolas_budget)
