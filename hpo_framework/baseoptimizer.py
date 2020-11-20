@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNe
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -26,7 +26,7 @@ from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_kera
 class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
                  x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.Series, y_test: pd.Series,
-                 metric, n_func_evals: int, random_seed: int, n_workers: int):
+                 metric, n_func_evals: int, random_seed: int, n_workers: int, cross_val: bool):
         """
         Superclass for the individual optimizer classes of each HPO-library.
         :param hp_space: list
@@ -62,6 +62,7 @@ class BaseOptimizer(ABC):
         self.n_func_evals = n_func_evals
         self.random_seed = random_seed
         self.n_workers = n_workers
+        self.cross_val = cross_val
 
     @abstractmethod
     def optimize(self) -> TuningResult:
@@ -195,10 +196,12 @@ class BaseOptimizer(ABC):
         # Return the default HPs of the ML-algorithm
         return warmstart_params
 
-    def get_warmstart_loss(self, **kwargs):
+    def get_warmstart_loss(self, cv_mode=True, **kwargs):
         """
         Computes the validation loss of the selected ML-algorithm for the warmstart hyperparameter configuration or any
         valid configuration that has been passed via kwargs
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or simple validation
         :param kwargs: dict
             Possibility to pass any valid HP-configuration for the ML-algorithm. If a argument 'warmstart_dict' is
              passed, this configuration is used to compute the loss.
@@ -208,11 +211,25 @@ class BaseOptimizer(ABC):
         # Create K-Folds cross validator
         kf = KFold(n_splits=5)
         cross_val_losses = []
+        cv_iter = 0
 
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
-            x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
-            y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+
+            # Cross validation
+            if cv_mode:
+
+                x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
+                y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
+
+            # Separate a validation set, but do not perform cross validation
+            elif not cv_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
+                                                                              shuffle=True, random_state=0)
+            # Iteration doesn't make sense for non cross validation
+            else:
+                continue
 
             # Check, whether a warmstart configuration was passed
             if 'warmstart_dict' in kwargs:
@@ -552,7 +569,7 @@ class BaseOptimizer(ABC):
 
         return warmstart_loss_cv
 
-    def train_evaluate_ml_model(self, params, cv_mode=True, **kwargs):
+    def train_evaluate_ml_model(self, params, cv_mode=True, test_mode=False, **kwargs):
         """
         Method serves as superior logic layer for the different train_evalute_<ML-library>_model(...) methods.
         The method selects the selected ML algorithm and initiates the training based on the hyperparameter
@@ -560,7 +577,9 @@ class BaseOptimizer(ABC):
         :param params: dict
             Dictionary of hyperparameters
         :param cv_mode: bool
-            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
+            Flag that indicates, whether to perform cross validation or simple validation
+        :param test_mode: bool
+            Flag that indicates, whether to compute the loss on the test set or not
         :param kwargs: dict
             Further keyword arguments (e.g. hp_budget: share of training set (x_train, y_train))
         :return: loss
@@ -592,16 +611,18 @@ class BaseOptimizer(ABC):
         else:
             raise Exception('Unknown ML-algorithm!')
 
-        loss = eval_func(params=params, cv_mode=cv_mode, **kwargs)
+        loss = eval_func(params=params, cv_mode=cv_mode, test_mode=test_mode, **kwargs)
 
         return loss
 
-    def train_evaluate_scikit_model(self, params: dict, cv_mode=True, **kwargs):
+    def train_evaluate_scikit_model(self, params: dict, cv_mode=True, test_mode=False, **kwargs):
         """
         This method trains a scikit-learn model according to the selected HP-configuration and returns the
         validation loss
         :param cv_mode: bool
-            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
+            Flag that indicates, whether to perform cross validation or simple validation
+        :param test_mode: bool
+            Flag that indicates, whether to compute the loss on the test set or not
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
@@ -627,16 +648,26 @@ class BaseOptimizer(ABC):
             cv_iter = cv_iter + 1
 
             # Cross validation
-            if cv_mode:
+            if cv_mode and not test_mode:
 
                 x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
                 y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
+            # Separate a validation set, but do not perform cross validation
+            elif not cv_mode and not test_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
+                                                                              shuffle=True, random_state=0)
+
             # Training on full training set and evaluation on test set
-            elif not cv_mode and cv_iter < 2:
+            elif not cv_mode and test_mode and cv_iter < 2:
 
                 x_train_cv, x_val_cv = self.x_train, self.x_test
                 y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            elif cv_mode and test_mode:
+
+                raise Exception('Cross validation is not implemented for test mode.')
 
             # Iteration doesn't make sense for non cross validation
             else:
@@ -732,7 +763,7 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        if cv_mode:
+        if not test_mode:
 
             # Measure the finish time of the iteration
             self.times.append(time.time())
@@ -745,14 +776,16 @@ class BaseOptimizer(ABC):
 
         return cv_loss
 
-    def train_evaluate_keras_model(self, params: dict, cv_mode=True, **kwargs):
+    def train_evaluate_keras_model(self, params: dict, cv_mode=True, test_mode=False, **kwargs):
         """
         This method trains a keras model according to the selected HP-configuration and returns the
         validation loss
-        :param cv_mode: bool
-            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
         :param params: dict
             Dictionary of hyperparameters
+        :param cv_mode: bool
+            Flag that indicates, whether to perform cross validation or simple validation
+        :param test_mode: bool
+            Flag that indicates, whether to compute the loss on the test set or not
         :param kwargs: dict
             Further keyword arguments (e.g. hp_budget: share of the total number of epochs for training)
         :return: val_loss: float
@@ -770,16 +803,26 @@ class BaseOptimizer(ABC):
             cv_iter = cv_iter + 1
 
             # Cross validation
-            if cv_mode:
+            if cv_mode and not test_mode:
 
                 x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
                 y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
+            # Separate a validation set, but do not perform cross validation
+            elif not cv_mode and not test_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
+                                                                              shuffle=True, random_state=0)
+
             # Training on full training set and evaluation on test set
-            elif not cv_mode and cv_iter < 2:
+            elif not cv_mode and test_mode and cv_iter < 2:
 
                 x_train_cv, x_val_cv = self.x_train, self.x_test
                 y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            elif cv_mode and test_mode:
+
+                raise Exception('Cross validation is not implemented for test mode.')
 
             # Iteration doesn't make sense for non cross validation
             else:
@@ -855,6 +898,17 @@ class BaseOptimizer(ABC):
                     adam = keras.optimizers.Adam(learning_rate=params['init_lr'])
                     model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
 
+                    # TODO: Add class weights for imbalanced classification problems
+                    # # Calculate class weights
+                    # n_zero = sum(y_train_cv == 0)
+                    # n_one = sum(y_train_cv == 1)
+                    #
+                    # weight_zero = (1/n_zero) * (n_zero + n_one)
+                    # weight_one = (1/n_one) * (n_zero + n_one)
+                    # class_weight = {0: weight_zero, 1: weight_one}
+                    #
+                    # weight_dict = {'class_weight': class_weight}
+
                 # Multiclass classification
                 else:
 
@@ -887,7 +941,7 @@ class BaseOptimizer(ABC):
             early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
                                                            min_delta=0,
                                                            patience=10,
-                                                           verbose=1,
+                                                           verbose=0,
                                                            mode='auto',
                                                            restore_best_weights=True)
 
@@ -931,7 +985,7 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        if cv_mode:
+        if not test_mode:
 
             # Measure the finish time of the iteration
             self.times.append(time.time())
@@ -944,12 +998,14 @@ class BaseOptimizer(ABC):
 
         return cv_loss
 
-    def train_evaluate_xgboost_model(self, params: dict, cv_mode=True, **kwargs):
+    def train_evaluate_xgboost_model(self, params: dict, cv_mode=True, test_mode=False, **kwargs):
         """
         This method trains a XGBoost model according to the selected HP-configuration and returns the
         validation loss
         :param cv_mode: bool
-            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
+            Flag that indicates, whether to perform cross validation or simple validation
+        :param test_mode: bool
+            Flag that indicates, whether to compute the loss on the test set or not
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
@@ -977,16 +1033,26 @@ class BaseOptimizer(ABC):
             cv_iter = cv_iter + 1
 
             # Cross validation
-            if cv_mode:
+            if cv_mode and not test_mode:
 
                 x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
                 y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
+            # Separate a validation set, but do not perform cross validation
+            elif not cv_mode and not test_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
+                                                                              shuffle=True, random_state=0)
+
             # Training on full training set and evaluation on test set
-            elif not cv_mode and cv_iter < 2:
+            elif not cv_mode and test_mode and cv_iter < 2:
 
                 x_train_cv, x_val_cv = self.x_train, self.x_test
                 y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            elif cv_mode and test_mode:
+
+                raise Exception('Cross validation is not implemented for test mode.')
 
             # Iteration doesn't make sense for non cross validation
             else:
@@ -1026,7 +1092,7 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        if cv_mode:
+        if not test_mode:
 
             # Measure the finish time of the iteration
             self.times.append(time.time())
@@ -1039,12 +1105,14 @@ class BaseOptimizer(ABC):
 
         return cv_loss
 
-    def train_evaluate_lightgbm_model(self, params, cv_mode=True, **kwargs):
+    def train_evaluate_lightgbm_model(self, params, cv_mode=True, test_mode=False, **kwargs):
         """
         This method trains a LightGBM model according to the selected HP-configuration and returns the
         validation loss.
         :param cv_mode: bool
-            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
+            Flag that indicates, whether to perform cross validation or simple validation
+        :param test_mode: bool
+            Flag that indicates, whether to compute the loss on the test set or not
         :param params: dict
             Dictionary of hyperparameters
         :param kwargs: dict
@@ -1063,16 +1131,26 @@ class BaseOptimizer(ABC):
             cv_iter = cv_iter + 1
 
             # Cross validation
-            if cv_mode:
+            if cv_mode and not test_mode:
 
                 x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
                 y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
+            # Separate a validation set, but do not perform cross validation
+            elif not cv_mode and not test_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
+                                                                              shuffle=True, random_state=0)
+
             # Training on full training set and evaluation on test set
-            elif not cv_mode and cv_iter < 2:
+            elif not cv_mode and test_mode and cv_iter < 2:
 
                 x_train_cv, x_val_cv = self.x_train, self.x_test
                 y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            elif cv_mode and test_mode:
+
+                raise Exception('Cross validation is not implemented for test mode.')
 
             # Iteration doesn't make sense for non cross validation
             else:
@@ -1152,7 +1230,7 @@ class BaseOptimizer(ABC):
 
             cross_val_losses.append(val_loss)
 
-        if cv_mode:
+        if not test_mode:
 
             # Measure the finish time of the iteration
             self.times.append(time.time())

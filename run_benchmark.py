@@ -24,14 +24,14 @@ debug = False
 
 if debug:
     # Set parameters manually
-    dataset = 'steel'  # Flag for the ML use case / dataset to be used
+    dataset = 'scania'  # Flag for the ML use case / dataset to be used
     hp_space = space_dt
     ml_algo = 'DecisionTreeClassifier'
-    opt_schedule = [('skopt', 'GPBO')]
+    opt_schedule = [('optuna', 'RandomSearch')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 5
+    n_runs = 1
     n_func_evals = 20
     n_workers = 1
     loss_metric = f1_loss
@@ -39,6 +39,7 @@ if debug:
     do_warmstart = 'No'
     plot_learning_curves = 'No'
     use_gpu = 'No'
+    cross_validation = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -81,6 +82,9 @@ else:
     parser.add_argument('--gpu', type=str, help='Use GPU resources if available (yes/no).', default='No',
                         choices=['Yes', 'No'])
 
+    parser.add_argument('--cross_validation', type=str, help='Apply cross validation (yes/no).', default='No',
+                        choices=['Yes', 'No'])
+
     args = parser.parse_args()
 
     # Settings for this trial
@@ -94,6 +98,7 @@ else:
     do_warmstart = args.warmstart
     plot_learning_curves = args.plot_learning_curves
     use_gpu = args.gpu
+    cross_validation = args.cross_validation
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -254,11 +259,16 @@ if use_gpu == 'No':
 else:
     gpu = True
 
+if cross_validation == 'No':
+    cv = False
+else:
+    cv = True
+
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
               x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test, do_warmstart=do_warmstart,
-              gpu=gpu)
+              gpu=gpu, cross_val=cv)
 
 # Run the optimization
 res = trial.run()
