@@ -3,9 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import argparse
 
 
-def plot_aggregated_learning_curves(logs: dict):
+def plot_aggregated_learning_curves(logs: dict, show_std=False):
     # Initialize the plot figure
     fig, ax = plt.subplots()
     mean_lines = []
@@ -71,9 +72,21 @@ def plot_aggregated_learning_curves(logs: dict):
         # Compute the average loss over all runs
         mean_trace_desc = np.nanmean(best_losses, axis=1)
 
-        # 25% and 75% loss quantile for each point (function evaluation)
-        quant25_trace_desc = np.nanquantile(best_losses, q=.25, axis=1)
-        quant75_trace_desc = np.nanquantile(best_losses, q=.75, axis=1)
+        if show_std:
+
+            std = np.std(best_losses, axis=1)
+            print(std)
+            print(mean_trace_desc)
+            upper = mean_trace_desc + std
+            print(upper)
+            lower = mean_trace_desc - std
+            print(lower)
+
+        else:
+
+            # 25% and 75% loss quantile for each point (function evaluation)
+            upper = np.nanquantile(best_losses, q=.25, axis=1)
+            lower = np.nanquantile(best_losses, q=.75, axis=1)
 
         # Compute average timestamps
         mean_timestamps = np.nanmean(timestamps, axis=1)
@@ -86,8 +99,8 @@ def plot_aggregated_learning_curves(logs: dict):
         mean_lines.append(mean_line[0])
 
         # Colored area to visualize the inter-quantile area
-        ax.fill_between(x=mean_timestamps, y1=quant25_trace_desc,
-                        y2=quant75_trace_desc, alpha=0.2)
+        ax.fill_between(x=mean_timestamps, y1=upper,
+                        y2=lower, alpha=0.2)
 
     ml_algorithms = [opt_tuple[2] for opt_tuple in logs.keys()]
     hpo_methods = [opt_tuple[3] for opt_tuple in logs.keys()]
@@ -136,6 +149,18 @@ def plot_aggregated_learning_curves(logs: dict):
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description="Script for creating learning curves from log (.csv) files")
+
+    parser.add_argument('--std', type=str, help='Plot mean +/- standard deviation', default='No',
+                        choices=['Yes', 'No'])
+
+    args = parser.parse_args()
+
+    if args.std == 'Yes':
+        show_std = True
+    else:
+        show_std = False
+
     log_path = './hpo_framework/results/temp'
     log_dict = {}
 
@@ -149,6 +174,6 @@ if __name__ == '__main__':
             log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
 
     # Plot the learning curves
-    curves_fig, curves_str = plot_aggregated_learning_curves(log_dict)
+    curves_fig, curves_str = plot_aggregated_learning_curves(log_dict, show_std=show_std)
     fig_path = os.path.join(log_path, curves_str)
     curves_fig.savefig(fname=fig_path)
