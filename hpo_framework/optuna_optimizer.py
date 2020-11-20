@@ -12,9 +12,9 @@ from hpo_framework import multiproc_target_funcs
 
 class OptunaOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                 random_seed, n_workers, do_warmstart):
+                 random_seed, n_workers, do_warmstart, cross_val):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                         random_seed, n_workers)
+                         random_seed, n_workers, cross_val)
 
         self.do_warmstart = do_warmstart
 
@@ -182,8 +182,8 @@ class OptunaOptimizer(BaseOptimizer):
             # Optuna uses full budgets for its HPO methods
             budget = [100.0] * len(losses)
 
-            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
-            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False, test_mode=True)
 
         # Run not successful (algorithm crashed)
         else:
@@ -230,7 +230,7 @@ class OptunaOptimizer(BaseOptimizer):
                 raise Exception('The skopt HP-space could not be converted correctly!')
 
         # Compute the validation loss
-        val_loss = self.train_evaluate_ml_model(params=dict_params)
+        val_loss = self.train_evaluate_ml_model(params=dict_params, cv_mode=self.cross_val, test_mode=False)
 
         return val_loss
 

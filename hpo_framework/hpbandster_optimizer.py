@@ -15,9 +15,9 @@ from hpo_framework import multiproc_target_funcs
 
 class HpbandsterOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                 random_seed, n_workers, do_warmstart):
+                 random_seed, n_workers, do_warmstart, cross_val):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                         random_seed, n_workers)
+                         random_seed, n_workers, cross_val)
 
         self.do_warmstart = do_warmstart
 
@@ -244,8 +244,8 @@ class HpbandsterOptimizer(BaseOptimizer):
 
                 configurations = configurations + (id2config[this_config]['config'],)
 
-            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
-            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False, test_mode=True)
 
         # Run not successful (algorithm crashed)
         else:

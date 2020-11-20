@@ -121,14 +121,14 @@ def balance_scania(X_train_std_pca, y_train):
     # Oversampling of minority class
     X_train_smoteenn, y_train_smoteenn = sample_SMOTEENN(X_train_std_pca, y_train)
 
-    print('After using over- and undersampling, we have {0} negatives and {1} positives in our Training Data'.format(
-        np.count_nonzero(y_train_smoteenn == 0), np.count_nonzero(y_train_smoteenn == 1)))
-
     df_X_smoteenn = pd.DataFrame(X_train_smoteenn)
     df_y_smoteenn = pd.Series(y_train_smoteenn)
 
     # Undersampling of majority class
     X_train_balanced, y_train_balanced = undersample(df_X_smoteenn, df_y_smoteenn)
+
+    print('After using over- and undersampling, we have {0} negatives and {1} positives in our Training Data'.format(
+        np.count_nonzero(y_train_balanced.values == 0), np.count_nonzero(y_train_balanced.values == 1)))
 
     # Shuffle again
     X_train_balanced, y_train_balanced = shuffle(X_train_balanced, y_train_balanced, random_state=0)

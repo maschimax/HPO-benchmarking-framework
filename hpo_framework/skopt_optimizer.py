@@ -8,9 +8,9 @@ from hpo_framework.results import TuningResult
 
 class SkoptOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                 random_seed, n_workers, do_warmstart):
+                 random_seed, n_workers, do_warmstart, cross_val):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                         random_seed, n_workers)
+                         random_seed, n_workers, cross_val)
 
         self.do_warmstart = do_warmstart
 
@@ -89,7 +89,7 @@ class SkoptOptimizer(BaseOptimizer):
         try:
             trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
                                           random_state=self.random_seed, acq_func=this_acq_func,
-                                          n_jobs=self.n_workers, verbose=True, **kwargs)
+                                          n_jobs=self.n_workers, verbose=True, n_initial_points=20, **kwargs)
 
             run_successful = True
 
@@ -132,8 +132,8 @@ class SkoptOptimizer(BaseOptimizer):
             # Skopt uses full budgets for its HPO methods
             budget = [100.0] * len(losses)
 
-            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
-            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False, test_mode=True)
 
         # Run not successful (algorithm crashed)
         else:
@@ -164,6 +164,6 @@ class SkoptOptimizer(BaseOptimizer):
             dict_params[self.hp_space[i].name] = params[i]
 
         # Compute the validation loss
-        val_loss = self.train_evaluate_ml_model(params=dict_params)
+        val_loss = self.train_evaluate_ml_model(params=dict_params, cv_mode=self.cross_val, test_mode=False)
 
         return val_loss

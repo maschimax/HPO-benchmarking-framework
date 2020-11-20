@@ -16,7 +16,9 @@ class HPBandsterWorker(Worker):
 
         try:
             # Pass the Hyperband budget (hpbandster specific) to the evaluation function
-            val_loss = self.optimizer_object.train_evaluate_ml_model(params=config, hb_budget=budget)
+            val_loss = self.optimizer_object.train_evaluate_ml_model(params=config, hb_budget=budget,
+                                                                     cv_mode=self.optimizer_object.cross_val,
+                                                                     test_mode=False)
             training_successful = True
 
         # If the training fails (algorithm crash)

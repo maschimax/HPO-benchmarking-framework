@@ -57,19 +57,28 @@ warmstart_svm = {'gamma': 2e-15,
 
 # KerasRegressor
 # Based on: https://arxiv.org/pdf/1905.04970.pdf
+# space_keras = [
+#     skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
+#     skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
+#     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
+#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
+#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
+#     skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
+#     skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
+#     skopt.space.Categorical([.0, .3, .6], name='dropout1'),
+#     skopt.space.Categorical([.0, .3, .6], name='dropout2')
+# ]
+
 space_keras = [
-    skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
-    skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
+    skopt.space.Real(low=.0005, high=.1, name='init_lr'),
+    skopt.space.Integer(low=8, high=64, name='batch_size'),
     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-    skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer3_activation'),
-    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
-    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
-    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer3_size'),
-    skopt.space.Categorical([.0, .3, .6], name='dropout1'),
-    skopt.space.Categorical([.0, .3, .6], name='dropout2'),
-    skopt.space.Categorical([.0, .3, .6], name='dropout3'),
+    skopt.space.Integer(low=0, high=512, name='hidden_layer1_size'),
+    skopt.space.Integer(low=0, high=512, name='hidden_layer2_size'),
+    skopt.space.Real(low=.0, high=.6, name='dropout1'),
+    skopt.space.Real(low=.0, high=.6, name='dropout2')
 ]
 
 # HP values for warm starting a Keras model //
@@ -79,13 +88,10 @@ warmstart_keras = {'init_lr': 0.001,
                    'lr_schedule': 'constant',
                    'hidden_layer1_activation': 'relu',
                    'hidden_layer2_activation': 'relu',
-                   'hidden_layer3_activation': 'relu',
                    'hidden_layer1_size': 128,
                    'hidden_layer2_size': 128,
-                   'hidden_layer3_size': 128,
                    'dropout1': 0.0,
-                   'dropout2': 0.0,
-                   'dropout3': 0.0}
+                   'dropout2': 0.0}
 
 # XGBoostModel
 # https://xgboost.readthedocs.io/en/latest/parameter.html

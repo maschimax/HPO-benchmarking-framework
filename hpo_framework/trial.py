@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNe
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -32,7 +32,7 @@ class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
                  x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, val_baseline=0.0,
-                 test_baseline=0.0, do_warmstart='No', optimizer=None, gpu=False):
+                 test_baseline=0.0, do_warmstart='No', optimizer=None, gpu=False, cross_val=False):
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -49,7 +49,7 @@ class Trial:
         self.do_warmstart = do_warmstart
         self.optimizer = optimizer
         self.gpu = gpu
-        # Attribute for CPU / GPU selection required
+        self.cross_val = cross_val  # Apply cross validation (yes / no)
 
     def run(self):
         """
@@ -92,7 +92,8 @@ class Trial:
                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_test=self.x_test,
                                                y_train=self.y_train, y_test=self.y_test, metric=self.metric,
                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
-                                               n_workers=self.n_workers, do_warmstart=self.do_warmstart)
+                                               n_workers=self.n_workers, do_warmstart=self.do_warmstart,
+                                               cross_val=self.cross_val)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -100,7 +101,8 @@ class Trial:
                                                 x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
                                                 metric=self.metric, n_func_evals=self.n_func_evals,
                                                 random_seed=this_seed, n_workers=self.n_workers,
-                                                do_warmstart=self.do_warmstart)
+                                                do_warmstart=self.do_warmstart,
+                                                cross_val=self.cross_val)
 
                 elif this_hpo_library == 'hpbandster':
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -108,21 +110,24 @@ class Trial:
                                                     x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
                                                     random_seed=this_seed, n_workers=self.n_workers,
-                                                    do_warmstart=self.do_warmstart)
+                                                    do_warmstart=self.do_warmstart,
+                                                    cross_val=self.cross_val)
 
                 elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                               ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_test=self.x_test,
                                               y_train=self.y_train, y_test=self.y_test, metric=self.metric,
                                               n_func_evals=self.n_func_evals, random_seed=this_seed,
-                                              n_workers=self.n_workers, do_warmstart=self.do_warmstart)
+                                              n_workers=self.n_workers, do_warmstart=self.do_warmstart,
+                                              cross_val=self.cross_val)
 
                 elif this_hpo_library == 'hyperopt':
                     optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                   ml_algorithm=self.ml_algorithm, x_train=self.x_train,
                                                   x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
                                                   metric=self.metric, n_func_evals=self.n_func_evals,
-                                                  random_seed=this_seed, n_workers=self.n_workers)
+                                                  random_seed=this_seed, n_workers=self.n_workers,
+                                                  cross_val=self.cross_val)
 
                 else:
                     raise Exception('Unknown HPO-library!')
@@ -135,7 +140,7 @@ class Trial:
                 # Check whether a validation baseline has already been calculated
                 if self.val_baseline == 0.0:
                     # Compute a new baseline
-                    val_baseline_loss = self.get_baseline(cv_mode=True)
+                    val_baseline_loss = self.get_baseline(cv_mode=True, test_mode=False)
                     self.val_baseline = val_baseline_loss
                 else:
                     val_baseline_loss = self.val_baseline
@@ -143,7 +148,7 @@ class Trial:
                 # Check whether a test baseline has already been calculated
                 if self.test_baseline == 0.0:
                     # Compute a new baseline
-                    test_baseline_loss = self.get_baseline(cv_mode=False)
+                    test_baseline_loss = self.get_baseline(cv_mode=False, test_mode=True)
                     self.test_baseline = test_baseline_loss
                 else:
                     test_baseline_loss = self.test_baseline
@@ -289,7 +294,7 @@ class Trial:
         # Check whether a validation baseline has already been calculated
         if self.val_baseline == 0.0:
             # Compute a new baseline
-            val_baseline_loss = self.get_baseline(cv_mode=True)
+            val_baseline_loss = self.get_baseline(cv_mode=True, test_mode=False)
             self.val_baseline = val_baseline_loss
         else:
             val_baseline_loss = self.val_baseline
@@ -455,7 +460,7 @@ class Trial:
         # Check whether a validation baseline has already been calculated
         if self.val_baseline == 0.0:
             # Compute a new baseline
-            val_baseline = self.get_baseline(cv_mode=True)
+            val_baseline = self.get_baseline(cv_mode=True, test_mode=False)
             self.val_baseline = val_baseline
         else:
             val_baseline = self.val_baseline
@@ -550,7 +555,7 @@ class Trial:
             # Check whether a test baseline has already been calculated
             if self.test_baseline == 0.0:
                 # Compute a new baseline
-                test_baseline_loss = self.get_baseline(cv_mode=False)
+                test_baseline_loss = self.get_baseline(cv_mode=False, test_mode=True)
                 self.test_baseline = test_baseline_loss
             else:
                 test_baseline_loss = self.test_baseline
@@ -640,12 +645,14 @@ class Trial:
 
         return metrics, metrics_df
 
-    def get_baseline(self, cv_mode=True):
+    def get_baseline(self, cv_mode=True, test_mode=False):
         """
         Computes a loss baseline for the ML-algorithm based on its default hyperparameter configuration
         (either cross validation loss or test loss after full training)
         :param cv_mode: bool
-            Flag that indicates, whether to perform cross validation or to evaluate on the (holdout) test set
+            Flag that indicates, whether to perform cross validation or simple validation
+        :param test_mode: bool
+            Flag that indicates, whether to compute the loss on the test set or not
         :return:
         baseline: float
              Loss of the baseline HP-configuration.
@@ -661,16 +668,26 @@ class Trial:
             cv_iter = cv_iter + 1
 
             # Cross validation
-            if cv_mode:
+            if cv_mode and not test_mode:
 
                 x_train_cv, x_val_cv = self.x_train.iloc[train_index], self.x_train.iloc[val_index]
                 y_train_cv, y_val_cv = self.y_train.iloc[train_index], self.y_train.iloc[val_index]
 
+            # Separate a validation set, but do not perform cross validation
+            elif not cv_mode and not test_mode and cv_iter < 2:
+
+                x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
+                                                                              shuffle=True, random_state=0)
+
             # Training on full training set and evaluation on test set
-            elif not cv_mode and cv_iter < 2:
+            elif not cv_mode and test_mode and cv_iter < 2:
 
                 x_train_cv, x_val_cv = self.x_train, self.x_test
                 y_train_cv, y_val_cv = self.y_train, self.y_test
+
+            elif cv_mode and test_mode:
+
+                raise Exception('Cross validation is not implemented for test mode.')
 
             # Iteration doesn't make sense for non cross validation
             else:
@@ -782,13 +799,6 @@ class Trial:
                                            activation=warmstart_keras['hidden_layer2_activation']))
                     model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
 
-                # Add third hidden layer
-                if warmstart_keras['hidden_layer3_size'] > 0:
-                    model.add(
-                        keras.layers.Dense(warmstart_keras['hidden_layer3_size'],
-                                           activation=warmstart_keras['hidden_layer3_activation']))
-                    model.add(keras.layers.Dropout(warmstart_keras['dropout3']))
-
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
 
@@ -847,12 +857,21 @@ class Trial:
 
                 # Determine the learning rate for this iteration and pass it as callback
                 lr = keras.callbacks.LearningRateScheduler(schedule)
-                callbacks_list = [lr]
+
+                # Early stopping callback
+                early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                               min_delta=0,
+                                                               patience=10,
+                                                               verbose=1,
+                                                               mode='auto',
+                                                               restore_best_weights=True)
+
+                callbacks_list = [lr, early_stopping]
 
                 # Train the model
                 model.fit(x_train_cv, y_train_cv, epochs=epochs, batch_size=warmstart_keras['batch_size'],
                           validation_data=(x_val_cv, y_val_cv), callbacks=callbacks_list,
-                          verbose=1)
+                          verbose=0)
 
                 # Make the prediction
                 y_pred = model.predict(x_val_cv)
@@ -884,8 +903,8 @@ class Trial:
 
             elif self.ml_algorithm == 'XGBoostRegressor':
                 model = XGBRegressor(random_state=0)
-                model.fit(self.x_train, self.y_train)
-                y_pred = model.predict(self.x_test)
+                model.fit(x_train_cv, y_train_cv)
+                y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'XGBoostClassifier':
                 model = XGBClassifier(random_state=0)

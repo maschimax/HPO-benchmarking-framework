@@ -12,9 +12,9 @@ from hpo_framework import multiproc_target_funcs
 
 class HyperoptOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                 random_seed, n_workers):
+                 random_seed, n_workers, cross_val):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                         random_seed, n_workers)
+                         random_seed, n_workers, cross_val)
 
     def optimize(self) -> TuningResult:
         """
@@ -181,8 +181,8 @@ class HyperoptOptimizer(BaseOptimizer):
             # Hyperopt uses full budgets for its HPO methods
             budget = [100.0 * len(losses)]
 
-            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
-            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False, test_mode=True)
 
         # Run not successful (algorithm crashed)
         else:
@@ -209,7 +209,7 @@ class HyperoptOptimizer(BaseOptimizer):
 
         try:
             # Compute the validation loss
-            val_loss = self.train_evaluate_ml_model(params=params)
+            val_loss = self.train_evaluate_ml_model(params=params, cv_mode=self.cross_val, test_mode=False)
             status = STATUS_OK
         except:
             status = STATUS_FAIL

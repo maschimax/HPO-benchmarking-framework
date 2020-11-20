@@ -9,9 +9,9 @@ from hpo_framework.results import TuningResult
 
 class RoboOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                 random_seed, n_workers, do_warmstart):
+                 random_seed, n_workers, do_warmstart, cross_val):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                         random_seed, n_workers)
+                         random_seed, n_workers, cross_val)
 
         self.do_warmstart = do_warmstart
 
@@ -102,7 +102,7 @@ class RoboOptimizer(BaseOptimizer):
                     warmstart_dict[this_param] = dict_value
 
                 # Pass the default loss to the according numpy array
-                warmstart_loss[0, 0] = self.get_warmstart_loss(warmstart_dict=warmstart_dict)
+                warmstart_loss[0, 0] = self.get_warmstart_loss(warmstart_dict=warmstart_dict, cv_mode=self.cross_val)
 
                 # Pass the warmstart configuration as a kwargs dict
                 kwargs = {'X_init': warmstart_config,
@@ -227,8 +227,8 @@ class RoboOptimizer(BaseOptimizer):
                 else:
                     raise Exception('The continuous HP-space could not be converted correctly!')
 
-            # Compute the loss on the test set for the best found configuration (full training -> cv_mode=False)
-            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False)
+            # Compute the loss on the test set for the best found configuration
+            test_loss = self.train_evaluate_ml_model(params=best_configuration, cv_mode=False, test_mode=True)
 
         # Run not successful (algorithm crashed)
         else:
@@ -274,7 +274,8 @@ class RoboOptimizer(BaseOptimizer):
         t_start_eval = time.time()
 
         # Compute the validation loss
-        val_loss = self.train_evaluate_ml_model(params=dict_params, fabolas_budget=s)
+        val_loss = self.train_evaluate_ml_model(params=dict_params, cv_mode=self.cross_val, test_mode=False,
+                                                fabolas_budget=s)
 
         # Cost = optimization time for this HP-configuration
         cost = time.time() - t_start_eval
@@ -309,6 +310,6 @@ class RoboOptimizer(BaseOptimizer):
                 raise Exception('The continuous HP-space could not be converted correctly!')
 
         # Compute the validation loss
-        val_loss = self.train_evaluate_ml_model(params=dict_params)
+        val_loss = self.train_evaluate_ml_model(params=dict_params, cv_mode=self.cross_val, test_mode=False)
 
         return val_loss
