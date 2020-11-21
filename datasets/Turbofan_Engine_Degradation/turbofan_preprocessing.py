@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
 
 
 def load_data(data_path):
@@ -71,6 +72,13 @@ def turbofan_loading_and_preprocessing():
     x_test.reset_index(drop=True, inplace=True)
     x_test.drop(labels=['engine_no'], inplace=True, axis=1)
     y_test = rul['RUL']
+
+    # Join x- and y- data sets in preparation of the split
+    x_data = pd.concat(objs=[x_train, x_test], axis=0, ignore_index=True)
+    y_data = pd.concat(objs=[y_train, y_test], axis=0, ignore_index=True)
+
+    # 80 / 20 split
+    x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.2, random_state=0, shuffle=True)
 
     # Drop NaN columns in training and test set
     nan_cols = identify_nan_cols(x_train)
