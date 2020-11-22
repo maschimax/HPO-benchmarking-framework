@@ -96,15 +96,15 @@ warmstart_keras = {'init_lr': 0.001,
 # XGBoostModel
 # https://xgboost.readthedocs.io/en/latest/parameter.html
 space_xgb = [
-    skopt.space.Real(9.77e-4, 1.0, name='eta'),
+    skopt.space.Real(0, 1.0, name='eta'),
     skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
     skopt.space.Real(0.1, 1.0, name='subsample'),
     skopt.space.Integer(1, 15, name='max_depth'),
     skopt.space.Real(1.0, 128.0, name='min_child_weight'),
     skopt.space.Real(0.0, 1.0, name='colsample_bytree'),
     skopt.space.Real(0.0, 1.0, name='colsample_bylevel'),
-    skopt.space.Real(9.77e-4, 1024, name='lambda'),
-    skopt.space.Real(9.77e-4, 1024, name='alpha')
+    skopt.space.Real(0, 10, name='lambda'),
+    skopt.space.Real(0, 10, name='alpha')
 ]
 
 # Warm start configuration for XGBoost models. Based on: https://arxiv.org/pdf/1802.09596.pdf
