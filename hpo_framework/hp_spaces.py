@@ -15,7 +15,8 @@ space_rf_reg = [
     skopt.space.Categorical(['auto', 'sqrt', 'log2'], name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
-    skopt.space.Categorical(['mse', 'mae'], name='criterion')
+    skopt.space.Categorical(['mse', 'mae'], name='criterion'),
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for Random Forest Regressor (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -23,7 +24,8 @@ warmstart_rf_reg = {'min_samples_leaf': 1,
                     'max_features': 'auto',
                     'bootstrap': True,
                     'min_samples_split': 2,
-                    'criterion': 'mse'}
+                    'criterion': 'mse',
+                    'n_estimators': 100}
 
 # Random Forest Classifier
 space_rf_clf = [
@@ -31,7 +33,8 @@ space_rf_clf = [
     skopt.space.Categorical(['auto', 'sqrt', 'log2'], name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
-    skopt.space.Categorical(['entropy', 'gini'], name='criterion')
+    skopt.space.Categorical(['entropy', 'gini'], name='criterion'),
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for Random Forest Classifier (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -39,7 +42,8 @@ warmstart_rf_clf = {'min_samples_leaf': 1,
                     'max_features': 'auto',
                     'bootstrap': True,
                     'min_samples_split': 2,
-                    'criterion': 'gini'}
+                    'criterion': 'gini',
+                    'n_estimators': 100}
 
 # SVM-Classifier (SVC) & SVM-Regressor (SVR)
 space_svm = [
