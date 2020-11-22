@@ -347,8 +347,10 @@ class Trial:
             # Pandas DataFrame containing the optimization results
             this_df = trial_results_dict[opt_tuple].trial_result_df
 
-            # TODO: include failed opt_tuples in the plot
-            if len(this_df['val_losses'].dropna()) > 0:
+            # Drop NaN rows from crashed runs
+            this_df.dropna(inplace=True)
+
+            if len(this_df['val_losses']) > 0:
                 # Strings used in the plot title
                 ml_algorithm = this_df.iloc[0]['ML-algorithm']
                 hpo_method = opt_tuple[1]
