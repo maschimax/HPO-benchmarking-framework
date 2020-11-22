@@ -369,4 +369,3 @@ for opt_tuple in space_plots.keys():
                 + gpu_str + '_' + warmstart_str + '_' + time_str + '.jpg'
     space_path = os.path.join(res_folder, space_str)
     this_plot.savefig(fname=space_path)
-    
