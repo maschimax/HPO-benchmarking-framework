@@ -449,11 +449,11 @@ class Trial:
 
         metrics = {}
         cols = ['Trial-ID', 'HPO-library', 'HPO-method', 'ML-algorithm', 'Runs', 'Evaluations', 'Workers', 'GPU',
-                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Validation baseline',
-                'Area under curve (AUC)', 'Mean (final test loss)', 'Test loss ratio (default / best)', 'Test baseline',
-                'Interquartile range (final test loss)', 't best configuration [s]',
-                'Evaluations for best configuration', 'Crashes', '# training instances', '# training features',
-                '# test instances', '# test features']
+                'Warmstart', 'Wall clock time [s]', 't outperform default [s]', 'Mean (final validation loss)',
+                'Validation baseline', 'Area under curve (AUC)', 'Mean (final test loss)',
+                'Test loss ratio (default / best)', 'Test baseline', 'Interquartile range (final test loss)',
+                't best configuration [s]', 'Generalization error', 'Evaluations for best configuration',
+                'Crashes', '# training instances', '# training features', '# test instances', '# test features']
 
         metrics_df = pd.DataFrame(columns=cols)
 
@@ -551,6 +551,9 @@ class Trial:
             # 3.2 Mean test loss of the best configuration (full training)
             mean_test_loss = np.mean(best_test_losses)
 
+            # 3.3 Generalization error
+            generalization_err = mean_test_loss - best_mean_val_loss
+
             # 4. Loss ratio (test loss of default config. / test loss of best found config.)
             # Check whether a test baseline has already been calculated
             if self.test_baseline == 0.0:
@@ -620,6 +623,7 @@ class Trial:
                             'Warmstart': did_warmstart,
                             'Wall clock time [s]': wall_clock_time,
                             't outperform default [s]': time_outperform_default,
+                            'Mean (final validation loss)': best_mean_val_loss,
                             'Validation baseline': val_baseline,
                             'Area under curve (AUC)': auc,
                             'Mean (final test loss)': mean_test_loss,
@@ -627,6 +631,7 @@ class Trial:
                             'Test baseline': test_baseline_loss,
                             'Interquartile range (final test loss)': interq_range,
                             't best configuration [s]': time_best_config,
+                            'Generalization error': generalization_err,
                             'Evaluations for best configuration': evals_for_best_config,
                             'Crashes': number_of_crashes_this_algo,
                             '# training instances': len(self.x_train),
