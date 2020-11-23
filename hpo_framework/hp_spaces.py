@@ -127,7 +127,7 @@ space_ada_reg = [
     skopt.space.Integer(1, 10, name='max_depth'),
     skopt.space.Real(low=0.01, high=2.0, name='learning_rate'),
     skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss'),
-    skopt.space.Integer(40, 100, name='n_estimators')
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for AdaBoostRegressor (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -141,7 +141,7 @@ space_ada_clf = [
     skopt.space.Integer(1, 10, name='max_depth'),
     skopt.space.Real(low=0.01, high=2.0, name='learning_rate'),
     skopt.space.Categorical(['SAMME', 'SAMME.R'], name='algorithm'),
-    skopt.space.Integer(40, 100, name='n_estimators')
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for AdaBoostClassifier (based on: https://arxiv.org/pdf/1710.04725.pdf)
