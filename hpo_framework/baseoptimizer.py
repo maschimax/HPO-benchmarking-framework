@@ -269,6 +269,7 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'SVR':
+                warmstart_config['cache_size'] = 500
                 model = SVR(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -276,6 +277,7 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'SVC':
+                warmstart_config['cache_size'] = 500
                 model = SVC(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -688,9 +690,13 @@ class BaseOptimizer(ABC):
 
             elif self.ml_algorithm == 'SVR':
                 # SVR has no random_state parameter
+                # Increase cache size to 500 MB to avoid slow trainings due to cache shortages
+                params['cache_size'] = 500
                 model = SVR(**params)
 
             elif self.ml_algorithm == 'SVC':
+                # Increase cache size to 500 MB to avoid slow trainings due to cache shortages
+                params['cache_size'] = 500
                 model = SVC(**params, random_state=self.random_seed)
 
             elif self.ml_algorithm == 'AdaBoostRegressor':

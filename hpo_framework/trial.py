@@ -711,12 +711,12 @@ class Trial:
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'SVR':
-                model = SVR()
+                model = SVR(cache_size=500)
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'SVC':
-                model = SVC(random_state=0)
+                model = SVC(random_state=0, cache_size=500)
                 model.fit(x_train_cv, y_train_cv)
                 y_pred = model.predict(x_val_cv)
 
