@@ -135,7 +135,7 @@ else:
     elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
         hp_space = space_xgb
 
-    elif ml_algo == 'SVR' or ml_algo == 'SVR':
+    elif ml_algo == 'SVR' or ml_algo == 'SVC':
         hp_space = space_svm
 
     elif ml_algo == 'AdaBoostRegressor':
