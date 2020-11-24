@@ -986,6 +986,10 @@ class BaseOptimizer(ABC):
                             else:
                                 y_pred[row_idx, col_idx] = 0
 
+            # RandomForestRegressor
+            else:
+                y_pred = np.reshape(y_pred, newshape=(-1,))
+
             # Compute the validation loss according to the loss_metric selected
             val_loss = self.metric(y_val_cv, y_pred)
 
