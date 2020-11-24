@@ -883,7 +883,7 @@ class Trial:
                 # Make the prediction
                 y_pred = model.predict(x_val_cv)
 
-                # In case of binary classification round to the neares integer
+                # In case of binary classification round to the nearest integer
                 if self.ml_algorithm == 'KerasClassifier':
 
                     # Binary classification
@@ -907,6 +907,10 @@ class Trial:
                                     y_pred[row_idx, col_idx] = 1
                                 else:
                                     y_pred[row_idx, col_idx] = 0
+
+                # RandomForestRegressor
+                else:
+                    y_pred = np.reshape(y_pred, newshape=(-1,))
 
             elif self.ml_algorithm == 'XGBoostRegressor':
                 model = XGBRegressor(random_state=0)
