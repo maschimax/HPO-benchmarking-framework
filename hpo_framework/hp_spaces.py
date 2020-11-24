@@ -75,7 +75,7 @@ warmstart_svm = {'gamma': 2e-15,
 
 space_keras = [
     skopt.space.Real(low=.0005, high=.1, name='init_lr'),
-    skopt.space.Integer(low=8, high=64, name='batch_size'),
+    skopt.space.Categorical([128, 256, 512], name='batch_size'),
     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
@@ -88,7 +88,7 @@ space_keras = [
 # HP values for warm starting a Keras model //
 # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
 warmstart_keras = {'init_lr': 0.001,
-                   'batch_size': 64,
+                   'batch_size': 128,
                    'lr_schedule': 'constant',
                    'hidden_layer1_activation': 'relu',
                    'hidden_layer2_activation': 'relu',
