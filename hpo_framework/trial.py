@@ -500,7 +500,10 @@ class Trial:
                 this_subframe = this_df.loc[this_df['Run-ID'] == unique_ids[j]]
                 this_subframe = this_subframe.sort_values(by=['eval_count'], ascending=True, inplace=False)
 
-                best_test_losses[0, j] = this_subframe['test_loss [best config.]'][0]
+                try:
+                    best_test_losses[0, j] = this_subframe['test_loss [best config.]'][0]
+                except:
+                    best_test_losses[0, j] = float('nan')
 
                 # Check, whether this run was completed successfully
                 if not all(this_subframe['run_successful']):
@@ -551,7 +554,7 @@ class Trial:
             best_mean_val_loss = min(mean_trace_desc)
 
             # 3.2 Mean test loss of the best configuration (full training)
-            mean_test_loss = np.mean(best_test_losses)
+            mean_test_loss = np.nanmean(best_test_losses)
 
             # 3.3 Generalization error
             generalization_err = mean_test_loss - best_mean_val_loss
@@ -883,7 +886,7 @@ class Trial:
                 # Make the prediction
                 y_pred = model.predict(x_val_cv)
 
-                # In case of binary classification round to the neares integer
+                # In case of binary classification round to the nearest integer
                 if self.ml_algorithm == 'KerasClassifier':
 
                     # Binary classification
@@ -907,6 +910,10 @@ class Trial:
                                     y_pred[row_idx, col_idx] = 1
                                 else:
                                     y_pred[row_idx, col_idx] = 0
+
+                # RandomForestRegressor
+                else:
+                    y_pred = np.reshape(y_pred, newshape=(-1,))
 
             elif self.ml_algorithm == 'XGBoostRegressor':
                 model = XGBRegressor(random_state=0)
