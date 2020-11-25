@@ -24,18 +24,18 @@ debug = False
 
 if debug:
     # Set parameters manually
-    dataset = 'scania'  # Flag for the ML use case / dataset to be used
+    dataset = 'turbofan'  # Flag for the ML use case / dataset to be used
     hp_space = space_xgb
-    ml_algo = 'XGBoostClassifier'
-    opt_schedule = [('optuna', 'RandomSearch')]
+    ml_algo = 'XGBoostRegressor'
+    opt_schedule = [('skopt', 'GPBO')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 1
+    n_runs = 6
     n_func_evals = 20
     n_workers = 1
-    loss_metric = f1_loss
-    loss_metric_str = 'F1-loss'
+    loss_metric = rul_loss_score
+    loss_metric_str = 'RUL-loss'
     do_warmstart = 'No'
     plot_learning_curves = 'No'
     use_gpu = 'No'
@@ -135,7 +135,7 @@ else:
     elif ml_algo == 'XGBoostRegressor' or ml_algo == 'XGBoostClassifier':
         hp_space = space_xgb
 
-    elif ml_algo == 'SVR' or ml_algo == 'SVR':
+    elif ml_algo == 'SVR' or ml_algo == 'SVC':
         hp_space = space_svm
 
     elif ml_algo == 'AdaBoostRegressor':
@@ -343,16 +343,6 @@ if plot_learning_curves == 'Yes':
     curves_path = os.path.join(res_folder, curves_str)
     curves.savefig(fname=curves_path)
 
-# Hyperparameter space
-space_plots = trial.plot_hp_space(res)
-for opt_tuple in space_plots.keys():
-    this_plot = space_plots[opt_tuple]
-    this_hpo_method = opt_tuple[1]
-    space_str = 'hp_space_' + dataset + '_' + ml_algo + '_' + this_hpo_method + '_' + str(n_workers) + 'Workers' + '_'\
-                + gpu_str + '_' + warmstart_str + '_' + time_str + '.jpg'
-    space_path = os.path.join(res_folder, space_str)
-    this_plot.savefig(fname=space_path)
-
 # Metrics
 metrics, metrics_df = trial.get_metrics(res)
 metrics_df['dataset'] = dataset
@@ -369,3 +359,13 @@ metrics_str = 'metrics_' + dataset + '_' + ml_algo + hpo_str + '_' + str(n_worke
               + gpu_str + '_' + warmstart_str + '_' + time_str + '.csv'
 metrics_path = os.path.join(res_folder, metrics_str)
 metrics_df.to_csv(metrics_path)
+
+# Hyperparameter space
+space_plots = trial.plot_hp_space(res)
+for opt_tuple in space_plots.keys():
+    this_plot = space_plots[opt_tuple]
+    this_hpo_method = opt_tuple[1]
+    space_str = 'hp_space_' + dataset + '_' + ml_algo + '_' + this_hpo_method + '_' + str(n_workers) + 'Workers' + '_'\
+                + gpu_str + '_' + warmstart_str + '_' + time_str + '.svg'
+    space_path = os.path.join(res_folder, space_str)
+    this_plot.savefig(fname=space_path)

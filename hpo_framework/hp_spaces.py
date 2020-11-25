@@ -15,7 +15,8 @@ space_rf_reg = [
     skopt.space.Categorical(['auto', 'sqrt', 'log2'], name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
-    skopt.space.Categorical(['mse', 'mae'], name='criterion')
+    skopt.space.Categorical(['mse', 'mae'], name='criterion'),
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for Random Forest Regressor (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -23,7 +24,8 @@ warmstart_rf_reg = {'min_samples_leaf': 1,
                     'max_features': 'auto',
                     'bootstrap': True,
                     'min_samples_split': 2,
-                    'criterion': 'mse'}
+                    'criterion': 'mse',
+                    'n_estimators': 100}
 
 # Random Forest Classifier
 space_rf_clf = [
@@ -31,7 +33,8 @@ space_rf_clf = [
     skopt.space.Categorical(['auto', 'sqrt', 'log2'], name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
-    skopt.space.Categorical(['entropy', 'gini'], name='criterion')
+    skopt.space.Categorical(['entropy', 'gini'], name='criterion'),
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for Random Forest Classifier (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -39,7 +42,8 @@ warmstart_rf_clf = {'min_samples_leaf': 1,
                     'max_features': 'auto',
                     'bootstrap': True,
                     'min_samples_split': 2,
-                    'criterion': 'gini'}
+                    'criterion': 'gini',
+                    'n_estimators': 100}
 
 # SVM-Classifier (SVC) & SVM-Regressor (SVR)
 space_svm = [
@@ -123,7 +127,7 @@ space_ada_reg = [
     skopt.space.Integer(1, 10, name='max_depth'),
     skopt.space.Real(low=0.01, high=2.0, name='learning_rate'),
     skopt.space.Categorical(['linear', 'square', 'exponential'], name='loss'),
-    skopt.space.Integer(40, 100, name='n_estimators')
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for AdaBoostRegressor (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -137,7 +141,7 @@ space_ada_clf = [
     skopt.space.Integer(1, 10, name='max_depth'),
     skopt.space.Real(low=0.01, high=2.0, name='learning_rate'),
     skopt.space.Categorical(['SAMME', 'SAMME.R'], name='algorithm'),
-    skopt.space.Integer(40, 100, name='n_estimators')
+    skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
 # Warm start configuration for AdaBoostClassifier (based on: https://arxiv.org/pdf/1710.04725.pdf)
@@ -151,7 +155,7 @@ warmstart_ada_clf = {'max_depth': 10,
 # A lot more HPs in scikit-learn documentation (e.g. max_features; included in RF HP-space)
 space_dt = [
     skopt.space.Integer(2, 60, name='min_samples_split'),
-    skopt.space.Integer(1, 30, name='max_depth'),
+    skopt.space.Integer(1, 100, name='max_depth'),
     skopt.space.Integer(1, 60, name='min_samples_leaf'),
     skopt.space.Real(0, 1, name='ccp_alpha')
 ]
