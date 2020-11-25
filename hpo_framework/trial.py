@@ -911,7 +911,7 @@ class Trial:
                                 else:
                                     y_pred[row_idx, col_idx] = 0
 
-                # RandomForestRegressor
+                # KerasRegressor
                 else:
                     y_pred = np.reshape(y_pred, newshape=(-1,))
 
