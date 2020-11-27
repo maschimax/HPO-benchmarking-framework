@@ -86,9 +86,14 @@ class HPBandsterWorker(Worker):
 
             elif type(hp_space[i]) == skopt.space.space.Real:
                 # ConfigSpace doesn't accept equal values for the lower and the upper bounds (real HPs)
-                ws_params_list.append(CSH.UniformFloatHyperparameter(this_param,
-                                                                     lower=warmstart_params[this_param],
-                                                                     upper=warmstart_params[this_param] + 0.0001))
+                if warmstart_params[this_param] == hp_space[i].high:
+                    ws_params_list.append(CSH.UniformFloatHyperparameter(this_param,
+                                                                         lower=warmstart_params[this_param] - 0.0001,
+                                                                         upper=warmstart_params[this_param]))
+                else:
+                    ws_params_list.append(CSH.UniformFloatHyperparameter(this_param,
+                                                                         lower=warmstart_params[this_param],
+                                                                         upper=warmstart_params[this_param] + 0.0001))
 
             else:
                 raise Exception("The warmstart configuration space couldn't be created correctly.")
