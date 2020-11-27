@@ -70,9 +70,15 @@ class HPBandsterWorker(Worker):
 
             if type(hp_space[i]) == skopt.space.space.Integer:
                 # ConfigSpace doesn't accept equal values for the lower and the upper bounds (integer HPs)
-                ws_params_list.append(CSH.UniformIntegerHyperparameter(name=this_param,
-                                                                       lower=warmstart_params[this_param],
-                                                                       upper=warmstart_params[this_param] + 1))
+                if warmstart_params[this_param] == hp_space[i].high:
+                    ws_params_list.append(CSH.UniformIntegerHyperparameter(name=this_param,
+                                                                           lower=warmstart_params[this_param] - 1,
+                                                                           upper=warmstart_params[this_param]))
+
+                else:
+                    ws_params_list.append(CSH.UniformIntegerHyperparameter(name=this_param,
+                                                                           lower=warmstart_params[this_param],
+                                                                           upper=warmstart_params[this_param] + 1))
 
             elif type(hp_space[i]) == skopt.space.space.Categorical:
                 ws_params_list.append(CSH.CategoricalHyperparameter(this_param,
