@@ -28,7 +28,7 @@ warmstart_rf_reg = {'min_samples_leaf': 1,
 # Random Forest Classifier
 space_rf_clf = [
     skopt.space.Integer(1, 20, name='min_samples_leaf'),
-    skopt.space.Categorical(0.1, 1.0, name='max_features'),
+    skopt.space.Real(0.1, 1.0, name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
     skopt.space.Integer(2, 20, name='min_samples_split'),
     skopt.space.Categorical(['entropy', 'gini'], name='criterion'),
