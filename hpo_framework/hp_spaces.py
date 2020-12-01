@@ -14,7 +14,7 @@ space_rf_reg = [
     skopt.space.Integer(1, 20, name='min_samples_leaf'),
     skopt.space.Real(0.1, 1.0, name='max_features'),
     skopt.space.Categorical([True, False], name='bootstrap'),
-    skopt.space.Integer(2, 20, name='min_samples_split')
+    skopt.space.Integer(2, 20, name='min_samples_split'),
     skopt.space.Integer(10, 200, name='n_estimators')
 ]
 
