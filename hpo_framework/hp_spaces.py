@@ -52,7 +52,7 @@ space_svm = [
 ]
 
 # Warm start configuration for SVMs (based on: https://arxiv.org/pdf/1710.04725.pdf)
-warmstart_svm = {'gamma': 2**15,
+warmstart_svm = {'gamma': 2**-15,
                  'C': 1,
                  'tol': 1e-3,
                  'kernel': 'rbf'}
