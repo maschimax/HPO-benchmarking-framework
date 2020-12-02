@@ -57,6 +57,13 @@ class SkoptOptimizer(BaseOptimizer):
                     if this_warmstart_value is None and type(self.hp_space[i]) == skopt.space.space.Integer:
                         # Try to impute these values by the mean value
                         warmstart_config.append(int(0.5 * (self.hp_space[i].low + self.hp_space[i].high)))
+
+                    # If the continuous HP is sampled from the log domain,
+                    # transform the warmstart value (log_base**warmstart_value)
+                    elif type(self.hp_space[i]) == skopt.space.space.Real and self.hp_space[i].prior == 'log-uniform':
+
+                        warmstart_config.append(self.hp_space[i].base ** this_warmstart_value)
+
                     else:
                         # Otherwise append the warmstart value (default case)
                         warmstart_config.append(this_warmstart_value)
@@ -84,6 +91,16 @@ class SkoptOptimizer(BaseOptimizer):
         # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
+
+        # Necessary HP space transformation for log sampling to ensure comparability with other HPO libraries
+        for i in range(len(self.hp_space)):
+
+            if type(self.hp_space[i]) == skopt.space.space.Real:
+                # If the continuous HP is sampled from the log domain,
+                # transform the specified lower and upper bounds to the log domain (to keep similar boundaries)
+                if self.hp_space[i].prior == 'log-uniform':
+                    self.hp_space[i].low = self.hp_space[i].base ** self.hp_space[i].low
+                    self.hp_space[i].high = self.hp_space[i].base ** self.hp_space[i].high
 
         # Start the optimization
         try:
