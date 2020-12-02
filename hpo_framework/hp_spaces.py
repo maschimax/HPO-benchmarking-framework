@@ -1,5 +1,4 @@
 import skopt
-from math import log
 
 # Hyperparameter spaces according to skopt
 # MLP
