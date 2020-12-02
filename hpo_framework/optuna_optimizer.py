@@ -188,7 +188,7 @@ class OptunaOptimizer(BaseOptimizer):
         # Run not successful (algorithm crashed)
         else:
             evaluation_ids, timestamps, losses, configurations, best_val_loss, best_configuration, wall_clock_time, \
-                test_loss, budget = self.impute_results_for_crash()
+            test_loss, budget = self.impute_results_for_crash()
 
         # Pass the results to a TuningResult-object
         result = TuningResult(evaluation_ids=evaluation_ids, timestamps=timestamps, losses=losses,
@@ -223,9 +223,19 @@ class OptunaOptimizer(BaseOptimizer):
                                                                                list(self.hp_space[i].categories))
 
             elif type(self.hp_space[i]) == skopt.space.space.Real:
-                dict_params[self.hp_space[i].name] = trial.suggest_float(name=self.hp_space[i].name,
-                                                                         low=self.hp_space[i].low,
-                                                                         high=self.hp_space[i].high)
+
+                # Sample in the log domain
+                if self.hp_space[i].prior == 'log-uniform' and self.hp_space[i].base == 10:
+                    #  Sample from the range [low, high) in the log domain
+                    dict_params[self.hp_space[i].name] = trial.suggest_loguniform(name=self.hp_space[i].name,
+                                                                                  low=self.hp_space[i].low,
+                                                                                  high=self.hp_space[i].high)
+                # Uniform sampling
+                else:
+                    dict_params[self.hp_space[i].name] = trial.suggest_float(name=self.hp_space[i].name,
+                                                                             low=self.hp_space[i].low,
+                                                                             high=self.hp_space[i].high)
+
             else:
                 raise Exception('The skopt HP-space could not be converted correctly!')
 
@@ -233,4 +243,3 @@ class OptunaOptimizer(BaseOptimizer):
         val_loss = self.train_evaluate_ml_model(params=dict_params, cv_mode=self.cross_val, test_mode=False)
 
         return val_loss
-

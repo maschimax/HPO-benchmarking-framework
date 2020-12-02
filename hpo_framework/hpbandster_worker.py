@@ -47,9 +47,18 @@ class HPBandsterWorker(Worker):
                                                                  choices=list(hp_space[i].categories)))
 
             elif type(hp_space[i]) == skopt.space.space.Real:
-                params_list.append(CSH.UniformFloatHyperparameter(hp_space[i].name,
-                                                                  lower=hp_space[i].low,
-                                                                  upper=hp_space[i].high))
+                # Sample in the log domain
+                if hp_space[i].prior == 'log-uniform' and hp_space[i].base == 10:
+                    params_list.append(CSH.UniformFloatHyperparameter(hp_space[i].name,
+                                                                      lower=hp_space[i].low,
+                                                                      upper=hp_space[i].high,
+                                                                      log=True))
+                # Uniform sampling
+                else:
+                    params_list.append(CSH.UniformFloatHyperparameter(hp_space[i].name,
+                                                                      lower=hp_space[i].low,
+                                                                      upper=hp_space[i].high,
+                                                                      log=False))
 
             else:
                 raise Exception('The skopt HP-space could not be converted correctly!')

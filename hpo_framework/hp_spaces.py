@@ -45,10 +45,10 @@ warmstart_rf_clf = {'min_samples_leaf': 1,
 
 # SVM-Classifier (SVC) & SVM-Regressor (SVR)
 space_svm = [
-    skopt.space.Real(low=2**-5, high=2**15, name='C'),
-    skopt.space.Real(low=2**-15, high=2**3, name='gamma'),
+    skopt.space.Real(low=2**-5, high=2**15, name='C', prior='log-uniform', base=10),
+    skopt.space.Real(low=2**-15, high=2**3, name='gamma', prior='log-uniform', base=10),
     skopt.space.Categorical(['sigmoid', 'rbf'], name='kernel'),
-    skopt.space.Real(low=1e-5, high=1e-1, name='tol')
+    skopt.space.Real(low=1e-5, high=1e-1, name='tol', prior='log-uniform', base=10)
 ]
 
 # Warm start configuration for SVMs (based on: https://arxiv.org/pdf/1710.04725.pdf)
