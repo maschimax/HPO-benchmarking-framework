@@ -102,7 +102,7 @@ space_xgb = [
     skopt.space.Categorical(['gbtree', 'gblinear', 'dart'], name='booster'),
     skopt.space.Real(0.1, 1.0, name='subsample'),
     skopt.space.Integer(1, 15, name='max_depth'),
-    skopt.space.Real(1.0, 128.0, name='min_child_weight'),
+    skopt.space.Real(1.0, 128.0, name='min_child_weight', prior='log-uniform', base=10),
     skopt.space.Real(0.0, 1.0, name='colsample_bytree'),
     skopt.space.Real(0.0, 1.0, name='colsample_bylevel'),
     skopt.space.Real(0, 10, name='lambda'),
