@@ -92,16 +92,6 @@ class SkoptOptimizer(BaseOptimizer):
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
-        # Necessary HP space transformation for log sampling to ensure comparability with other HPO libraries
-        for i in range(len(self.hp_space)):
-
-            if type(self.hp_space[i]) == skopt.space.space.Real:
-                # If the continuous HP is sampled from the log domain,
-                # transform the specified lower and upper bounds to the log domain (to keep similar boundaries)
-                if self.hp_space[i].prior == 'log-uniform':
-                    self.hp_space[i].low = self.hp_space[i].base ** self.hp_space[i].low
-                    self.hp_space[i].high = self.hp_space[i].base ** self.hp_space[i].high
-
         # Start the optimization
         try:
             trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
