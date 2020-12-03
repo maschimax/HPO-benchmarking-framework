@@ -16,6 +16,7 @@ from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
 import functools
+import skopt
 
 from hpo_framework.optuna_optimizer import OptunaOptimizer
 from hpo_framework.skopt_optimizer import SkoptOptimizer
@@ -88,6 +89,20 @@ class Trial:
 
                 # Create an optimizer object
                 if this_hpo_library == 'skopt':
+
+                    # Necessary HP space transformation for log sampling to ensure comparability with other
+                    # HPO libraries
+                    if i == 0:
+                        for j in range(len(self.hp_space)):
+
+                            if type(self.hp_space[j]) == skopt.space.space.Real:
+                                # If the continuous HP is sampled from the log domain,
+                                # transform the specified lower and upper bounds to the log domain
+                                # (to keep similar boundaries)
+                                if self.hp_space[j].prior == 'log-uniform':
+                                    self.hp_space[j].low = self.hp_space[j].base ** self.hp_space[j].low
+                                    self.hp_space[j].high = self.hp_space[j].base ** self.hp_space[j].high
+
                     optimizer = SkoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
                                                ml_algorithm=self.ml_algorithm, x_train=self.x_train, x_test=self.x_test,
                                                y_train=self.y_train, y_test=self.y_test, metric=self.metric,
