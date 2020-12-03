@@ -92,13 +92,6 @@ class SkoptOptimizer(BaseOptimizer):
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
 
-        ###
-        trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
-                                      random_state=self.random_seed, acq_func=this_acq_func,
-                                      n_jobs=self.n_workers, verbose=True, n_initial_points=20, **kwargs)
-
-        ###
-
         # Start the optimization
         try:
             trial_result = this_optimizer(self.objective, self.hp_space, n_calls=self.n_func_evals,
