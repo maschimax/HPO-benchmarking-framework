@@ -59,29 +59,29 @@ warmstart_svm = {'gamma': 2**-15,
 
 # KerasRegressor
 # Based on: https://arxiv.org/pdf/1905.04970.pdf
-# space_keras = [
-#     skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
-#     skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
-#     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-#     skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
-#     skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
-#     skopt.space.Categorical([.0, .3, .6], name='dropout1'),
-#     skopt.space.Categorical([.0, .3, .6], name='dropout2')
-# ]
-
 space_keras = [
-    skopt.space.Real(low=.0005, high=.1, name='init_lr'),
-    skopt.space.Categorical([128, 256, 512], name='batch_size'),
+    skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
+    skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-    skopt.space.Integer(low=0, high=512, name='hidden_layer1_size'),
-    skopt.space.Integer(low=0, high=512, name='hidden_layer2_size'),
-    skopt.space.Real(low=.0, high=.6, name='dropout1'),
-    skopt.space.Real(low=.0, high=.6, name='dropout2')
+    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
+    skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
+    skopt.space.Categorical([.0, .3, .6], name='dropout1'),
+    skopt.space.Categorical([.0, .3, .6], name='dropout2')
 ]
+
+# space_keras = [
+#     skopt.space.Real(low=.0005, high=.1, name='init_lr'),
+#     skopt.space.Categorical([128, 256, 512], name='batch_size'),
+#     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
+#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
+#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
+#     skopt.space.Integer(low=0, high=512, name='hidden_layer1_size'),
+#     skopt.space.Integer(low=0, high=512, name='hidden_layer2_size'),
+#     skopt.space.Real(low=.0, high=.6, name='dropout1'),
+#     skopt.space.Real(low=.0, high=.6, name='dropout2')
+# ]
 
 # HP values for warm starting a Keras model //
 # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
