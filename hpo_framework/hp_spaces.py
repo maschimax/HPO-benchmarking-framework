@@ -61,7 +61,7 @@ warmstart_svm = {'gamma': 2**-15,
 # Based on: https://arxiv.org/pdf/1905.04970.pdf
 space_keras = [
     skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
-    skopt.space.Categorical([8, 16, 32, 64], name='batch_size'),
+    skopt.space.Categorical([128, 256, 512], name='batch_size'),
     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
