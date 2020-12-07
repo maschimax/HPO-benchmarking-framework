@@ -4,7 +4,14 @@ from tensorflow.keras import backend as K
 print('TensorFlow version:')
 print(tf.__version__)
 
-print("First GPU's name:", tf.test.gpu_device_name())
+print('-----------------------')
 
-print('Check available GPUs:')
-tf.config.experimental.list_physical_devices(device_type='GPU')
+device_name = tf.test.gpu_device_name()
+if device_name != '/device:GPU:0':
+    print('Could not find any GPU device')
+print('Found GPU at: {}'.format(device_name))
+
+print('-----------------------')
+
+print('List physical devices:')
+print(tf.config.experimental.list_physical_devices(device_type='GPU'))
