@@ -16,6 +16,7 @@ from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
 import functools
+import skopt
 
 from hpo_framework.optuna_optimizer import OptunaOptimizer
 from hpo_framework.skopt_optimizer import SkoptOptimizer

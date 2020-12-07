@@ -26,10 +26,12 @@ class SkoptOptimizer(BaseOptimizer):
             # SMAC expects a budget of at least 10 iterations / calls
             this_optimizer = forest_minimize
             this_acq_func = 'EI'
+            kwargs = {'base_estimator': 'RF'}  # Use a Random Forest Regressor as a surrogate model
 
         elif self.hpo_method == 'GPBO':
             this_optimizer = gp_minimize
             this_acq_func = 'EI'
+            kwargs = {}
 
         else:
             raise Exception('Unknown HPO-method!')
@@ -69,21 +71,19 @@ class SkoptOptimizer(BaseOptimizer):
                         warmstart_config.append(this_warmstart_value)
 
                 # Pass the warmstart configuration as a kwargs dict
-                kwargs = {'x0': warmstart_config}
+                kwargs['x0'] = warmstart_config
 
                 # Set flag to indicate that a warmstart took place
                 did_warmstart = True
 
             except:
                 print('Warmstarting skopt failed!')
-                kwargs = {}
 
                 # Set flag to indicate that NO warmstart took place
                 did_warmstart = False
 
         # No warmstart requested
         else:
-            kwargs = {}
 
             # Set flag to indicate that NO warmstart took place
             did_warmstart = False
@@ -91,16 +91,6 @@ class SkoptOptimizer(BaseOptimizer):
         # Optimize on the predefined n_func_evals and measure the wall clock times
         start_time = time.time()
         self.times = []  # Initialize a list for saving the wall clock times
-
-        # Necessary HP space transformation for log sampling to ensure comparability with other HPO libraries
-        for i in range(len(self.hp_space)):
-
-            if type(self.hp_space[i]) == skopt.space.space.Real:
-                # If the continuous HP is sampled from the log domain,
-                # transform the specified lower and upper bounds to the log domain (to keep similar boundaries)
-                if self.hp_space[i].prior == 'log-uniform':
-                    self.hp_space[i].low = self.hp_space[i].base ** self.hp_space[i].low
-                    self.hp_space[i].high = self.hp_space[i].base ** self.hp_space[i].high
 
         # Start the optimization
         try:
