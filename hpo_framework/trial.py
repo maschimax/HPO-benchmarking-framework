@@ -817,12 +817,12 @@ class Trial:
                                            activation=warmstart_keras['hidden_layer3_activation']))
                     model.add(keras.layers.Dropout(warmstart_keras['dropout3']))
 
-                # Add fourth hidden layer
-                if warmstart_keras['hidden_layer4_size'] > 0:
-                    model.add(
-                        keras.layers.Dense(warmstart_keras['hidden_layer4_size'],
-                                           activation=warmstart_keras['hidden_layer4_activation']))
-                    model.add(keras.layers.Dropout(warmstart_keras['dropout4']))
+                # # Add fourth hidden layer
+                # if warmstart_keras['hidden_layer4_size'] > 0:
+                #     model.add(
+                #         keras.layers.Dense(warmstart_keras['hidden_layer4_size'],
+                #                            activation=warmstart_keras['hidden_layer4_activation']))
+                #     model.add(keras.layers.Dropout(warmstart_keras['dropout4']))
 
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
