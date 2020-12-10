@@ -57,49 +57,8 @@ warmstart_svm = {'gamma': 2 ** -15,
                  'tol': 1e-3,
                  'kernel': 'rbf'}
 
-# KerasRegressor
-# Based on: https://arxiv.org/pdf/1905.04970.pdf
-# space_keras = [
-#     skopt.space.Categorical([.0005, .001, .005, .01, .1], name='init_lr'),
-#     skopt.space.Categorical([128, 256, 512], name='batch_size'),
-#     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-#     skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
-#     skopt.space.Categorical([0, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
-#     skopt.space.Categorical([.0, .3, .6], name='dropout1'),
-#     skopt.space.Categorical([.0, .3, .6], name='dropout2')
-# ]
-
-# space_keras = [
-#     skopt.space.Real(low=.0005, high=.1, name='init_lr'),
-#     skopt.space.Categorical([128, 256, 512], name='batch_size'),
-#     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-#     skopt.space.Integer(low=0, high=512, name='hidden_layer1_size'),
-#     skopt.space.Integer(low=0, high=512, name='hidden_layer2_size'),
-#     skopt.space.Real(low=.0, high=.6, name='dropout1'),
-#     skopt.space.Real(low=.0, high=.6, name='dropout2')
-# ]
-
-# # Keras configuration space with 3 hidden layers
-# space_keras = [
-#     skopt.space.Real(low=.0005, high=.1, name='init_lr'),
-#     skopt.space.Categorical([128, 256, 512], name='batch_size'),
-#     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-#     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer3_activation'),
-#     skopt.space.Integer(low=16, high=512, name='hidden_layer1_size'),
-#     skopt.space.Integer(low=16, high=512, name='hidden_layer2_size'),
-#     skopt.space.Integer(low=16, high=512, name='hidden_layer3_size'),
-#     skopt.space.Real(low=.0, high=.6, name='dropout1'),
-#     skopt.space.Real(low=.0, high=.6, name='dropout2'),
-#     skopt.space.Real(low=.0, high=.6, name='dropout3')
-# ]
-
 # Keras configuration space with 4 hidden layers
+# Based on: https://arxiv.org/pdf/1905.04970.pdf
 space_keras = [
     skopt.space.Real(low=.0005, high=.1, name='init_lr'),
     skopt.space.Categorical([128, 256, 512], name='batch_size'),
@@ -118,34 +77,8 @@ space_keras = [
     skopt.space.Real(low=.0, high=.6, name='dropout4')
 ]
 
-# HP values for warm starting a Keras model //
+# HP values for warm starting a Keras model with 4 hidden layers //
 # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
-# warmstart_keras = {'init_lr': 0.001,
-#                    'batch_size': 128,
-#                    'lr_schedule': 'constant',
-#                    'hidden_layer1_activation': 'relu',
-#                    'hidden_layer2_activation': 'relu',
-#                    'hidden_layer1_size': 128,
-#                    'hidden_layer2_size': 128,
-#                    'dropout1': 0.0,
-#                    'dropout2': 0.0}
-
-# # 3 hidden layers
-# warmstart_keras = {'init_lr': 0.001,
-#                    'batch_size': 128,
-#                    'lr_schedule': 'constant',
-#                    'hidden_layer1_activation': 'relu',
-#                    'hidden_layer2_activation': 'relu',
-#                    'hidden_layer3_activation': 'relu',
-#                    'hidden_layer1_size': 128,
-#                    'hidden_layer2_size': 128,
-#                    'hidden_layer3_size': 128,
-#                    'dropout1': 0.0,
-#                    'dropout2': 0.0,
-#                    'dropout3': 0.0,
-#                    }
-
-# 4 hidden layers
 warmstart_keras = {'init_lr': 0.001,
                    'batch_size': 128,
                    'lr_schedule': 'constant',

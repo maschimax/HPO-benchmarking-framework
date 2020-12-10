@@ -14,6 +14,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.model_selection import KFold, train_test_split
 from tensorflow import keras
+from tensorflow.random import set_seed
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
 
@@ -357,6 +358,9 @@ class BaseOptimizer(ABC):
             elif self.ml_algorithm == 'KerasRegressor' or self.ml_algorithm == 'KerasClassifier':
 
                 epochs = 100
+
+                # Set the (global) random seed for TensorFlow
+                set_seed(self.random_seed)
 
                 # Initialize the neural network
                 model = keras.Sequential()
@@ -872,6 +876,9 @@ class BaseOptimizer(ABC):
 
             else:
                 epochs = full_budget_epochs  # train on the full budget
+
+            # Set the (global) random seed for TensorFlow
+            set_seed(self.random_seed)
 
             # Initialize the neural network
             model = keras.Sequential()
