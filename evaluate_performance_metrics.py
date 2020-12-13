@@ -86,7 +86,7 @@ plt.savefig(fig_name2, bbox_inches='tight')
 
 plt.show()
 
-# TODO: Save results in table format
+c
 
 ########################################################################################################################
 # 2. Robustness
@@ -147,7 +147,19 @@ plt.savefig(fig_name2, bbox_inches='tight')
 
 plt.show()
 
+# TODO: Save results in table format
+
 ########################################################################################################################
 # 2. Final Performance
 
 # 2.1 Single worker, no warm start
+
+# Iterate over ML algorithms
+for this_algo in ml_algorithms:
+
+    # Perform ranking of HPO methods for single worker, no warm start setup
+    bla = 0
+    sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 1) &
+                               (metrics_df['Warmstart'] == False), :]
+
+    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rank.html
