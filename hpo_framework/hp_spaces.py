@@ -67,7 +67,7 @@ space_keras = [
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer3_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer4_activation'),
-    skopt.space.Integer(0, 4, 'n_hidden_layers'),
+    skopt.space.Integer(low=0, high=4, name='n_hidden_layers'),
     skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer1_size'),
     skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer2_size'),
     skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer3_size'),
