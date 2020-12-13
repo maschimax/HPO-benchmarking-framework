@@ -86,8 +86,6 @@ plt.savefig(fig_name2, bbox_inches='tight')
 
 plt.show()
 
-c
-
 ########################################################################################################################
 # 2. Robustness
 
@@ -150,16 +148,176 @@ plt.show()
 # TODO: Save results in table format
 
 ########################################################################################################################
-# 2. Final Performance
+# 3. Final Performance
 
-# 2.1 Single worker, no warm start
+# Setup tuples (n_workers, warm_start(Yes/No)
+setups = [(1, False), (8, False), (1, True)]
 
-# Iterate over ML algorithms
-for this_algo in ml_algorithms:
+# Iterate over setup variants
+for setup_tuple in setups:
 
-    # Perform ranking of HPO methods for single worker, no warm start setup
-    bla = 0
-    sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 1) &
-                               (metrics_df['Warmstart'] == False), :]
+    # Setup for this iteration
+    n_workers = setup_tuple[0]
+    do_warm_start = setup_tuple[1]
 
-    # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rank.html
+    hpo_list = []
+    ml_list = []
+    rank_list = []
+
+    # Iterate over ML algorithms
+    for this_algo in ml_algorithms:
+
+        # Filter according to the ML algorithm and the setup variables
+        sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == n_workers) &
+                                   (metrics_df['Warmstart'] == do_warm_start), :]
+
+        # Rank the HPO techniques according to the mean (final test loss)
+        sub_frame['final_rank'] = sub_frame.loc[:, 'Mean (final test loss)'].rank(axis=0, method='average',
+                                                                                  na_option='bottom',
+                                                                                  ascending=True)
+
+        for this_tech in sub_frame['HPO-method'].unique():
+            this_rank = sub_frame.loc[(sub_frame['HPO-method'] == this_tech), 'final_rank'].values[0]
+
+            hpo_list.append(this_tech)
+            ml_list.append(this_algo)
+            rank_list.append(this_rank)
+
+    # Create a pandas DataFrame to store the results
+    rank_df = pd.DataFrame({'HPO-method': hpo_list,
+                            'ML-algorithm': ml_list,
+                            'Final Performance Rank': rank_list})
+
+    # Compute the average rank for each HPO technique
+    rank_dict = {}
+    for this_tech in rank_df['HPO-method'].unique():
+        this_rank = np.nanmean(rank_df.loc[rank_df['HPO-method'] == this_tech, 'Final Performance Rank'].values)
+        rank_dict[this_tech] = this_rank
+
+    # Sort the dictionary according to the rank achieved (descending)
+    sorted_rank_dict = dict(sorted(rank_dict.items(), key=lambda item: item[1], reverse=False))
+
+    # Bar plot to visualize the results
+    fig, ax = plt.subplots(figsize=(11, 9))
+    plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#5cbaa4')
+
+    # Formatting
+    ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
+    ax.set_ylabel('Average Rank (Final Performance)', fontweight='semibold', fontsize='large', color='#969696')
+    ax.spines['bottom'].set_color('#969696')
+    ax.spines['top'].set_color('#969696')
+    ax.spines['right'].set_color('#969696')
+    ax.spines['left'].set_color('#969696')
+    ax.tick_params(axis='x', colors='#969696')
+    ax.tick_params(axis='y', colors='#969696')
+
+    # Display the values in each bar
+    for idx, val in enumerate(sorted_rank_dict.values()):
+        ax.text(list(sorted_rank_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
+                fontweight='semibold', fontsize='large')
+
+    if do_warm_start:
+        warm_str = 'WarmStart'
+    else:
+        warm_str = 'NoWarmStart'
+
+    fig_str = '_FinalPerformance_' + str(n_workers) + 'Workers_' + warm_str
+
+    fig_name1 = './hpo_framework/results/' + dataset + '/' + dataset + fig_str + '.jpg'
+    fig_name2 = './hpo_framework/results/' + dataset + '/' + dataset + fig_str + '.svg'
+    plt.savefig(fig_name1, bbox_inches='tight')
+    plt.savefig(fig_name2, bbox_inches='tight')
+
+    plt.show()
+
+    # TODO: Save results in table format
+
+    # TODO: Bar plot for over-fitting
+
+########################################################################################################################
+# 4. Anytime Performance
+
+# Setup tuples (n_workers, warm_start(Yes/No)
+setups = [(1, False), (8, False), (1, True)]
+
+# Iterate over setup variants
+for setup_tuple in setups:
+
+    # Setup for this iteration
+    n_workers = setup_tuple[0]
+    do_warm_start = setup_tuple[1]
+
+    hpo_list = []
+    ml_list = []
+    rank_list = []
+
+    # Iterate over ML algorithms
+    for this_algo in ml_algorithms:
+
+        # Filter according to the ML algorithm and the setup variables
+        sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == n_workers) &
+                                   (metrics_df['Warmstart'] == do_warm_start), :]
+
+        # Rank the HPO techniques according to the wall-clock-time, that was necessary to outperform the baseline
+        sub_frame['anytime_rank'] = sub_frame.loc[:, 't outperform default [s]'].rank(axis=0, method='average',
+                                                                                      na_option='bottom',
+                                                                                      ascending=True)
+
+        for this_tech in sub_frame['HPO-method'].unique():
+            this_rank = sub_frame.loc[(sub_frame['HPO-method'] == this_tech), 'anytime_rank'].values[0]
+
+            hpo_list.append(this_tech)
+            ml_list.append(this_algo)
+            rank_list.append(this_rank)
+
+    # Create a pandas DataFrame to store the results
+    rank_df = pd.DataFrame({'HPO-method': hpo_list,
+                            'ML-algorithm': ml_list,
+                            'Anytime Performance Rank': rank_list})
+
+    # Compute the average rank for each HPO technique
+    rank_dict = {}
+    for this_tech in rank_df['HPO-method'].unique():
+        this_rank = np.nanmean(rank_df.loc[rank_df['HPO-method'] == this_tech, 'Anytime Performance Rank'].values)
+        rank_dict[this_tech] = this_rank
+
+    # Sort the dictionary according to the rank achieved (descending)
+    sorted_rank_dict = dict(sorted(rank_dict.items(), key=lambda item: item[1], reverse=False))
+
+    # Bar plot to visualize the results
+    fig, ax = plt.subplots(figsize=(11, 9))
+    plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#5cbaa4')
+
+    # Formatting
+    ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
+    ax.set_ylabel('Average Rank (Anytime Performance)', fontweight='semibold', fontsize='large', color='#969696')
+    ax.spines['bottom'].set_color('#969696')
+    ax.spines['top'].set_color('#969696')
+    ax.spines['right'].set_color('#969696')
+    ax.spines['left'].set_color('#969696')
+    ax.tick_params(axis='x', colors='#969696')
+    ax.tick_params(axis='y', colors='#969696')
+
+    # Display the values in each bar
+    for idx, val in enumerate(sorted_rank_dict.values()):
+        ax.text(list(sorted_rank_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
+                fontweight='semibold', fontsize='large')
+
+    if do_warm_start:
+        warm_str = 'WarmStart'
+    else:
+        warm_str = 'NoWarmStart'
+
+    fig_str = '_AnytimePerformance_' + str(n_workers) + 'Workers_' + warm_str
+
+    fig_name1 = './hpo_framework/results/' + dataset + '/' + dataset + fig_str + '.jpg'
+    fig_name2 = './hpo_framework/results/' + dataset + '/' + dataset + fig_str + '.svg'
+    plt.savefig(fig_name1, bbox_inches='tight')
+    plt.savefig(fig_name2, bbox_inches='tight')
+
+    plt.show()
+
+    # TODO: Save results in table format
+
+########################################################################################################################
+# 5. Scalability
