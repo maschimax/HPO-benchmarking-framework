@@ -65,8 +65,8 @@ space_keras = [
     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-    skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer1_size'),
-    skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer2_size'),
+    skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='hidden_layer1_size'),
+    skopt.space.Categorical([16, 32, 64, 128, 256, 512], name='hidden_layer2_size'),
     skopt.space.Real(low=.0, high=.6, name='dropout1'),
     skopt.space.Real(low=.0, high=.6, name='dropout2')
 ]
