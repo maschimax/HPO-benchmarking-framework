@@ -11,6 +11,9 @@ metrics_df = pd.read_csv(metrics_path, index_col=0)
 hpo_techniques = metrics_df['HPO-method'].unique()
 ml_algorithms = metrics_df['ML-algorithm'].unique()
 
+# Plot params
+bar_width = 0.6
+
 ########################################################################################################################
 # 1. Effective use of parallel resources
 hpo_list = []
@@ -63,7 +66,7 @@ sorted_avg_speed_up_dict = dict(sorted(avg_speed_up_dict.items(), key=lambda ite
 
 # Bar plot to visualize the results
 fig, ax = plt.subplots(figsize=(11, 9))
-plt.bar(x=sorted_avg_speed_up_dict.keys(), height=sorted_avg_speed_up_dict.values(), color='#179c7d')
+plt.bar(x=sorted_avg_speed_up_dict.keys(), height=sorted_avg_speed_up_dict.values(), color='#179c7d', width=bar_width)
 
 # Formatting
 ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
@@ -123,7 +126,7 @@ for this_tech in crash_df['HPO-method'].unique():
 sorted_crash_dict = dict(sorted(crash_dict.items(), key=lambda item: item[1], reverse=True))
 
 fig, ax = plt.subplots(figsize=(11, 9))
-plt.bar(x=sorted_crash_dict.keys(), height=sorted_crash_dict.values(), color='#179c7d')
+plt.bar(x=sorted_crash_dict.keys(), height=sorted_crash_dict.values(), color='#179c7d', width=bar_width)
 
 # Formatting
 ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
@@ -202,7 +205,7 @@ for setup_tuple in setups:
 
     # Bar plot to visualize the results
     fig, ax = plt.subplots(figsize=(11, 9))
-    plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d')
+    plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d', width=bar_width)
 
     # Formatting
     ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
@@ -290,7 +293,7 @@ for setup_tuple in setups:
 
     # Bar plot to visualize the results
     fig, ax = plt.subplots(figsize=(11, 9))
-    plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d')
+    plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d', width=bar_width)
 
     # Formatting
     ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
@@ -417,7 +420,7 @@ for dim_class in dim_classes:
     # Bar plots to visualize the results
     for i in range(len(list_of_dicts)):
         fig, ax = plt.subplots(figsize=(11, 9))
-        plt.bar(x=list_of_dicts[i].keys(), height=list_of_dicts[i].values(), color=bar_colors[i])
+        plt.bar(x=list_of_dicts[i].keys(), height=list_of_dicts[i].values(), color=bar_colors[i], width=bar_width)
 
         # Formatting
         ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
@@ -526,7 +529,7 @@ for cplx_class in complexity_classes:
     # Bar plots to visualize the results
     for i in range(len(list_of_dicts)):
         fig, ax = plt.subplots(figsize=(11, 9))
-        plt.bar(x=list_of_dicts[i].keys(), height=list_of_dicts[i].values(), color=bar_colors[i])
+        plt.bar(x=list_of_dicts[i].keys(), height=list_of_dicts[i].values(), color=bar_colors[i], width=bar_width)
 
         # Formatting
         ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
