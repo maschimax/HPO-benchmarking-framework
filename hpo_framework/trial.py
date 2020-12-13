@@ -808,21 +808,21 @@ class Trial:
                     model.add(keras.layers.Dropout(warmstart_keras['dropout1']))
 
                 # Add second hidden layer
-                if warmstart_keras['hidden_layer2_size'] > 1:
+                if warmstart_keras['hidden_layer2_size'] > 0:
                     model.add(
                         keras.layers.Dense(warmstart_keras['hidden_layer2_size'],
                                            activation=warmstart_keras['hidden_layer2_activation']))
                     model.add(keras.layers.Dropout(warmstart_keras['dropout2']))
 
                 # Add third hidden layer
-                if warmstart_keras['hidden_layer3_size'] > 2:
+                if warmstart_keras['hidden_layer3_size'] > 0:
                     model.add(
                         keras.layers.Dense(warmstart_keras['hidden_layer3_size'],
                                            activation=warmstart_keras['hidden_layer3_activation']))
                     model.add(keras.layers.Dropout(warmstart_keras['dropout3']))
 
                 # Add fourth hidden layer
-                if warmstart_keras['hidden_layer4_size'] > 3:
+                if warmstart_keras['hidden_layer4_size'] > 0:
                     model.add(
                         keras.layers.Dense(warmstart_keras['hidden_layer4_size'],
                                            activation=warmstart_keras['hidden_layer4_activation']))
