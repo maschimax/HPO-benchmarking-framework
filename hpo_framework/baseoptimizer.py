@@ -369,28 +369,28 @@ class BaseOptimizer(ABC):
                 model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
                 # Add first hidden layer
-                if warmstart_config['hidden_layer1_size'] > 0:
+                if warmstart_config['n_hidden_layers'] > 0:
                     model.add(
                         keras.layers.Dense(warmstart_config['hidden_layer1_size'],
                                            activation=warmstart_config['hidden_layer1_activation']))
                     model.add(keras.layers.Dropout(warmstart_config['dropout1']))
 
                 # Add second hidden layer
-                if warmstart_config['hidden_layer2_size'] > 0:
+                if warmstart_config['n_hidden_layers'] > 1:
                     model.add(
                         keras.layers.Dense(warmstart_config['hidden_layer2_size'],
                                            activation=warmstart_config['hidden_layer2_activation']))
                     model.add(keras.layers.Dropout(warmstart_config['dropout2']))
 
                 # Add third hidden layer
-                if warmstart_config['hidden_layer3_size'] > 0:
+                if warmstart_config['n_hidden_layers'] > 2:
                     model.add(
                         keras.layers.Dense(warmstart_config['hidden_layer3_size'],
                                            activation=warmstart_config['hidden_layer3_activation']))
                     model.add(keras.layers.Dropout(warmstart_config['dropout3']))
 
                 # Add fourth hidden layer
-                if warmstart_config['hidden_layer4_size'] > 0:
+                if warmstart_config['n_hidden_layers'] > 3:
                     model.add(
                         keras.layers.Dense(warmstart_config['hidden_layer4_size'],
                                            activation=warmstart_config['hidden_layer4_activation']))
@@ -887,25 +887,25 @@ class BaseOptimizer(ABC):
             model.add(keras.layers.InputLayer(input_shape=len(x_train_cv.keys())))
 
             # Add first hidden layer
-            if params['hidden_layer1_size'] > 0:
+            if params['n_hidden_layers'] > 0:
                 model.add(
                     keras.layers.Dense(params['hidden_layer1_size'], activation=params['hidden_layer1_activation']))
                 model.add(keras.layers.Dropout(params['dropout1']))
 
             # Add second hidden layer
-            if params['hidden_layer2_size'] > 0:
+            if params['n_hidden_layers'] > 1:
                 model.add(
                     keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_activation']))
                 model.add(keras.layers.Dropout(params['dropout2']))
 
             # Add third hidden layer
-            if params['hidden_layer3_size'] > 0:
+            if params['n_hidden_layers'] > 2:
                 model.add(
                     keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_activation']))
                 model.add(keras.layers.Dropout(params['dropout3']))
 
             # Add fourth hidden layer
-            if params['hidden_layer4_size'] > 0:
+            if params['n_hidden_layers'] > 3:
                 model.add(
                     keras.layers.Dense(params['hidden_layer4_size'], activation=params['hidden_layer4_activation']))
                 model.add(keras.layers.Dropout(params['dropout4']))
