@@ -65,16 +65,10 @@ space_keras = [
     skopt.space.Categorical(['cosine', 'constant'], name='lr_schedule'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer1_activation'),
     skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer2_activation'),
-    skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer3_activation'),
-    skopt.space.Categorical(['relu', 'tanh'], name='hidden_layer4_activation'),
     skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer1_size'),
     skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer2_size'),
-    skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer3_size'),
-    skopt.space.Categorical([16, 32, 64, 128, 512], name='hidden_layer4_size'),
     skopt.space.Real(low=.0, high=.6, name='dropout1'),
-    skopt.space.Real(low=.0, high=.6, name='dropout2'),
-    skopt.space.Real(low=.0, high=.6, name='dropout3'),
-    skopt.space.Real(low=.0, high=.6, name='dropout4')
+    skopt.space.Real(low=.0, high=.6, name='dropout2')
 ]
 
 # HP values for warm starting a Keras model with 4 hidden layers //
@@ -84,16 +78,10 @@ warmstart_keras = {'init_lr': 0.001,
                    'lr_schedule': 'constant',
                    'hidden_layer1_activation': 'relu',
                    'hidden_layer2_activation': 'relu',
-                   'hidden_layer3_activation': 'relu',
-                   'hidden_layer4_activation': 'relu',
                    'hidden_layer1_size': 128,
                    'hidden_layer2_size': 128,
-                   'hidden_layer3_size': 128,
-                   'hidden_layer4_size': 128,
                    'dropout1': 0.0,
-                   'dropout2': 0.0,
-                   'dropout3': 0.0,
-                   'dropout4': 0.0,
+                   'dropout2': 0.0
                    }
 
 # XGBoostModel

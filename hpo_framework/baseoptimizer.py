@@ -382,19 +382,19 @@ class BaseOptimizer(ABC):
                                            activation=warmstart_config['hidden_layer2_activation']))
                     model.add(keras.layers.Dropout(warmstart_config['dropout2']))
 
-                # Add third hidden layer
-                if warmstart_config['hidden_layer3_size'] > 0:
-                    model.add(
-                        keras.layers.Dense(warmstart_config['hidden_layer3_size'],
-                                           activation=warmstart_config['hidden_layer3_activation']))
-                    model.add(keras.layers.Dropout(warmstart_config['dropout3']))
-
-                # Add fourth hidden layer
-                if warmstart_config['hidden_layer4_size'] > 0:
-                    model.add(
-                        keras.layers.Dense(warmstart_config['hidden_layer4_size'],
-                                           activation=warmstart_config['hidden_layer4_activation']))
-                    model.add(keras.layers.Dropout(warmstart_config['dropout4']))
+                # # Add third hidden layer
+                # if warmstart_config['hidden_layer3_size'] > 0:
+                #     model.add(
+                #         keras.layers.Dense(warmstart_config['hidden_layer3_size'],
+                #                            activation=warmstart_config['hidden_layer3_activation']))
+                #     model.add(keras.layers.Dropout(warmstart_config['dropout3']))
+                #
+                # # Add fourth hidden layer
+                # if warmstart_config['hidden_layer4_size'] > 0:
+                #     model.add(
+                #         keras.layers.Dense(warmstart_config['hidden_layer4_size'],
+                #                            activation=warmstart_config['hidden_layer4_activation']))
+                #     model.add(keras.layers.Dropout(warmstart_config['dropout4']))
 
                 # Add output layer
                 if self.ml_algorithm == 'KerasRegressor':
@@ -898,17 +898,17 @@ class BaseOptimizer(ABC):
                     keras.layers.Dense(params['hidden_layer2_size'], activation=params['hidden_layer2_activation']))
                 model.add(keras.layers.Dropout(params['dropout2']))
 
-            # Add third hidden layer
-            if params['hidden_layer3_size'] > 0:
-                model.add(
-                    keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_activation']))
-                model.add(keras.layers.Dropout(params['dropout3']))
-
-            # Add fourth hidden layer
-            if params['hidden_layer4_size'] > 0:
-                model.add(
-                    keras.layers.Dense(params['hidden_layer4_size'], activation=params['hidden_layer4_activation']))
-                model.add(keras.layers.Dropout(params['dropout4']))
+            # # Add third hidden layer
+            # if params['hidden_layer3_size'] > 0:
+            #     model.add(
+            #         keras.layers.Dense(params['hidden_layer3_size'], activation=params['hidden_layer3_activation']))
+            #     model.add(keras.layers.Dropout(params['dropout3']))
+            #
+            # # Add fourth hidden layer
+            # if params['hidden_layer4_size'] > 0:
+            #     model.add(
+            #         keras.layers.Dense(params['hidden_layer4_size'], activation=params['hidden_layer4_activation']))
+            #     model.add(keras.layers.Dropout(params['dropout4']))
 
             # Add output layer
             if self.ml_algorithm == 'KerasRegressor':
