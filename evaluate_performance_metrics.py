@@ -13,12 +13,18 @@ ml_algorithms = metrics_df['ML-algorithm'].unique()
 
 # Plot params
 bar_width = 0.6
+font_name = 'Arial'
+font_size = 10
+large_fig_size = (7, 4)
+small_fig_size = (3, 2)
+xtick_rotation = 90
 
 ########################################################################################################################
 # 1. Effective use of parallel resources
 hpo_list = []
 ml_list = []
 speed_up_list = []
+time_per_eval_list = []
 
 # Iterate over ML algorithms
 for this_algo in ml_algorithms:
@@ -42,6 +48,10 @@ for this_algo in ml_algorithms:
         single_worker_time = sub_frame.loc[sub_frame['Workers'] == 1, 'Wall clock time [s]'].values
         multiple_worker_time = sub_frame.loc[sub_frame['Workers'] == 8, 'Wall clock time [s]'].values
 
+        # Calculate the average time per evaluation for the single worker setup
+        single_worker_avg_time_per_eval = float(sub_frame.loc[sub_frame['Workers'] == 1, 'Wall clock time [s]'].values /
+                                                sub_frame.loc[sub_frame['Workers'] == 1, 'Evaluations'].values)
+
         # Calculate the speed up
         speed_up_factor = float(single_worker_time / multiple_worker_time)
 
@@ -49,11 +59,13 @@ for this_algo in ml_algorithms:
         hpo_list.append(this_tech)
         ml_list.append(this_algo)
         speed_up_list.append(speed_up_factor)
+        time_per_eval_list.append(single_worker_avg_time_per_eval)
 
 # Create a pandas DataFrame to store the results
 speed_up_df = pd.DataFrame({'HPO-method': hpo_list,
                             'ML-algorithm': ml_list,
-                            'Speed-up': speed_up_list})
+                            'Speed-up': speed_up_list,
+                            'Avg. time per evaluation [s]': time_per_eval_list})
 
 # Compute the average speed up, that each HPO technique achieves due to parallelization
 avg_speed_up_dict = {}
@@ -65,12 +77,73 @@ for this_tech in speed_up_df['HPO-method'].unique():
 sorted_avg_speed_up_dict = dict(sorted(avg_speed_up_dict.items(), key=lambda item: item[1], reverse=True))
 
 # Bar plot to visualize the results
-fig, ax = plt.subplots(figsize=(11, 9))
+fig, ax = plt.subplots(figsize=large_fig_size)
 plt.bar(x=sorted_avg_speed_up_dict.keys(), height=sorted_avg_speed_up_dict.values(), color='#179c7d', width=bar_width)
 
 # Formatting
-ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-ax.set_ylabel('Speed up factor', fontweight='semibold', fontsize='large', color='#969696')
+ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size, color='#969696', fontname=font_name)
+ax.set_ylabel('Average speed up factor', fontweight='semibold', fontsize=font_size, color='#969696', fontname=font_name)
+
+ax.spines['bottom'].set_color('#969696')
+ax.spines['top'].set_color('#969696')
+ax.spines['right'].set_color('#969696')
+ax.spines['left'].set_color('#969696')
+ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation)
+ax.tick_params(axis='y', colors='#969696')
+
+# Display the values in each bar
+for idx, val in enumerate(sorted_avg_speed_up_dict.values()):
+    ax.text(list(sorted_avg_speed_up_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
+            fontname=font_name, fontsize=font_size - 1)
+
+if not os.path.isdir('./hpo_framework/results/' + dataset + '/Parallelization/'):
+    os.mkdir('./hpo_framework/results/' + dataset + '/Parallelization/')
+
+fig_name1 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_parallelization.jpg'
+fig_name2 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_parallelization.svg'
+plt.savefig(fig_name1, bbox_inches='tight')
+plt.savefig(fig_name2, bbox_inches='tight')
+
+# Create new column, that stores the maximum speed up achieved for each HPO technique
+for this_tech in speed_up_df['HPO-method'].unique():
+    # Index of row, where this_tech achieved the maximum speed up
+    max_idx = speed_up_df.loc[speed_up_df['HPO-method'] == this_tech, 'Speed-up'].idxmax(axis=0, skipna=True)
+
+    # Maximum speed up factor of this_tech
+    max_speed_up = speed_up_df.loc[speed_up_df['HPO-method'] == this_tech, 'Speed-up'].max(axis=0, skipna=True)
+
+    # ML algorithm, where this_tech achieved the maximum speed up
+    max_algo = speed_up_df.loc[max_idx, 'ML-algorithm']
+
+    speed_up_df.loc[speed_up_df['HPO-method'] == this_tech, 'Max speed-up ML algorithm per HPO technique'] = max_algo
+    speed_up_df.loc[speed_up_df['HPO-method'] == this_tech, 'Max speed-up per HPO technique'] = max_speed_up
+
+# Save the table in .csv format
+table_name = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_speed_up_table.csv'
+speed_up_df.to_csv(table_name)
+
+# Scatter plot to visualize how the speed up depends on the avg. time per evaluation
+fig, ax = plt.subplots(figsize=large_fig_size)
+
+# Focus on optuna methods
+tpe_df = speed_up_df.loc[(speed_up_df['HPO-method'] == 'TPE'), :]
+rs_df = speed_up_df.loc[(speed_up_df['HPO-method'] == 'RandomSearch'), :]
+cma_df = speed_up_df.loc[(speed_up_df['HPO-method'] == 'CMA-ES'), :]
+
+tpe_scatter = ax.scatter(x=tpe_df['Avg. time per evaluation [s]'], y=tpe_df['Speed-up'], c='#179c7d')
+rs_scatter = ax.scatter(x=rs_df['Avg. time per evaluation [s]'], y=rs_df['Speed-up'], c='#ff6600')
+cma_scatter = ax.scatter(x=cma_df['Avg. time per evaluation [s]'], y=cma_df['Speed-up'], c='#0062a5')
+
+max_time = max(tpe_df['Avg. time per evaluation [s]'].max(), rs_df['Avg. time per evaluation [s]'].max(),
+               cma_df['Avg. time per evaluation [s]'].max())
+
+ax.hlines(y=1.0, xmin=0.0, xmax=max_time, linestyles='dashed', colors='deepskyblue')
+
+# Formatting
+ax.set_xlabel('Average time per function evaluation [s]', fontweight='semibold', fontsize=font_size, color='#969696',
+              fontname=font_name)
+ax.set_ylabel('Speed up factor', fontweight='semibold', fontsize=font_size, color='#969696', fontname=font_name)
+
 ax.spines['bottom'].set_color('#969696')
 ax.spines['top'].set_color('#969696')
 ax.spines['right'].set_color('#969696')
@@ -78,16 +151,11 @@ ax.spines['left'].set_color('#969696')
 ax.tick_params(axis='x', colors='#969696')
 ax.tick_params(axis='y', colors='#969696')
 
-# Display the values in each bar
-for idx, val in enumerate(sorted_avg_speed_up_dict.values()):
-    ax.text(list(sorted_avg_speed_up_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-            fontweight='semibold', fontsize='large')
+ax.legend((tpe_scatter, rs_scatter, cma_scatter), ('TPE', 'RandomSearch', 'CMA-ES'))
+plt.xscale('log')
 
-if not os.path.isdir('./hpo_framework/results/' + dataset + '/Parallelization/'):
-    os.mkdir('./hpo_framework/results/' + dataset + '/Parallelization/')
-
-fig_name1 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_parallelization.jpg'
-fig_name2 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_parallelization.svg'
+fig_name1 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_speed_vs_avg_time.jpg'
+fig_name2 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_speed_vs_avg_time.svg'
 plt.savefig(fig_name1, bbox_inches='tight')
 plt.savefig(fig_name2, bbox_inches='tight')
 
@@ -125,23 +193,31 @@ for this_tech in crash_df['HPO-method'].unique():
 
 sorted_crash_dict = dict(sorted(crash_dict.items(), key=lambda item: item[1], reverse=True))
 
-fig, ax = plt.subplots(figsize=(11, 9))
+# # Remove HPO techniques without crashes
+# non_empty_crash_dict = sorted_crash_dict.copy()
+# for this_tech in sorted_crash_dict.keys():
+#     if sorted_crash_dict[this_tech] == 0.0:
+#         del non_empty_crash_dict[this_tech]
+
+fig, ax = plt.subplots(figsize=(7, 4))
 plt.bar(x=sorted_crash_dict.keys(), height=sorted_crash_dict.values(), color='#179c7d', width=bar_width)
 
 # Formatting
-ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-ax.set_ylabel('Share of crashed runs [%]', fontweight='semibold', fontsize='large', color='#969696')
+ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size, color='#969696', fontname=font_name)
+ax.set_ylabel('Share of crashed runs [%]', fontweight='semibold', fontsize=font_size, color='#969696',
+              fontname=font_name)
+
 ax.spines['bottom'].set_color('#969696')
 ax.spines['top'].set_color('#969696')
 ax.spines['right'].set_color('#969696')
 ax.spines['left'].set_color('#969696')
-ax.tick_params(axis='x', colors='#969696')
+ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation)
 ax.tick_params(axis='y', colors='#969696')
 
 # Display the values in each bar
 for idx, val in enumerate(sorted_crash_dict.values()):
     ax.text(list(sorted_crash_dict.keys())[idx], .8, round(float(val), 2), color='white', ha='center',
-            fontweight='semibold', fontsize='large')
+            fontname=font_name, fontsize=font_size - 1)
 
 if not os.path.isdir('./hpo_framework/results/' + dataset + '/Robustness/'):
     os.mkdir('./hpo_framework/results/' + dataset + '/Robustness/')
@@ -204,23 +280,24 @@ for setup_tuple in setups:
     sorted_rank_dict = dict(sorted(rank_dict.items(), key=lambda item: item[1], reverse=False))
 
     # Bar plot to visualize the results
-    fig, ax = plt.subplots(figsize=(11, 9))
+    fig, ax = plt.subplots(figsize=small_fig_size)
     plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d', width=bar_width)
 
     # Formatting
-    ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-    ax.set_ylabel('Average Rank (Final Performance)', fontweight='semibold', fontsize='large', color='#969696')
+    # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size, color='#969696', fontname=font_name)
+    ax.set_ylabel('Average Rank', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+                  fontname=font_name)
     ax.spines['bottom'].set_color('#969696')
     ax.spines['top'].set_color('#969696')
     ax.spines['right'].set_color('#969696')
     ax.spines['left'].set_color('#969696')
-    ax.tick_params(axis='x', colors='#969696')
-    ax.tick_params(axis='y', colors='#969696')
+    ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation, labelsize=font_size - 1)
+    ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
     # Display the values in each bar
     for idx, val in enumerate(sorted_rank_dict.values()):
-        ax.text(list(sorted_rank_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                fontweight='semibold', fontsize='large')
+        ax.text(list(sorted_rank_dict.keys())[idx], 0.25, round(float(val), 2), color='white', ha='center', va='bottom',
+                fontname=font_name, fontsize=font_size - 1, rotation=90)
 
     if do_warm_start:
         warm_str = 'WarmStart'
@@ -237,9 +314,38 @@ for setup_tuple in setups:
     plt.savefig(fig_name1, bbox_inches='tight')
     plt.savefig(fig_name2, bbox_inches='tight')
 
-    # TODO: Save results in table format
+# Final Performance Table
+hpo_list = []
+loss_list = []
+algo_list = []
+worker_list = []
+warm_start_list = []
 
-    # TODO: Bar plot for over-fitting
+for this_tech in metrics_df['HPO-method'].unique():
+    best_idx = metrics_df.loc[metrics_df['HPO-method'] == this_tech, 'Mean (final test loss)'].idxmin(axis=0,
+                                                                                                      skipna=True)
+    best_loss = metrics_df.loc[best_idx, 'Mean (final test loss)']
+    best_algo = metrics_df.loc[best_idx, 'ML-algorithm']
+    n_workers = metrics_df.loc[best_idx, 'Workers']
+    do_warm_start = metrics_df.loc[best_idx, 'Warmstart']
+
+    hpo_list.append(this_tech)
+    loss_list.append(best_loss)
+    algo_list.append(best_algo)
+    worker_list.append(n_workers)
+    warm_start_list.append(do_warm_start)
+
+best_loss_df = pd.DataFrame({'HPO-method': hpo_list,
+                             'ML-algorithm': algo_list,
+                             'Best Test Loss:': loss_list,
+                             'Workers': worker_list,
+                             'Warmstart': warm_start_list})
+
+# Save the table in .csv format
+table_name = './hpo_framework/results/' + dataset + '/FinalPerformance/' + dataset + '_best_loss_table.csv'
+best_loss_df.to_csv(table_name)
+
+# TODO: Save results in table format
 
 ########################################################################################################################
 # 4. Anytime Performance
@@ -302,13 +408,13 @@ for setup_tuple in setups:
     ax.spines['top'].set_color('#969696')
     ax.spines['right'].set_color('#969696')
     ax.spines['left'].set_color('#969696')
-    ax.tick_params(axis='x', colors='#969696')
-    ax.tick_params(axis='y', colors='#969696')
+    ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1)
+    ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
     # Display the values in each bar
     for idx, val in enumerate(sorted_rank_dict.values()):
         ax.text(list(sorted_rank_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                fontweight='semibold', fontsize='large')
+                fontweight='normal', fontsize=font_size - 1, fontname=font_name)
 
     if do_warm_start:
         warm_str = 'WarmStart'
@@ -429,13 +535,13 @@ for dim_class in dim_classes:
         ax.spines['top'].set_color('#969696')
         ax.spines['right'].set_color('#969696')
         ax.spines['left'].set_color('#969696')
-        ax.tick_params(axis='x', colors='#969696')
-        ax.tick_params(axis='y', colors='#969696')
+        ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1)
+        ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
         # Display the values in each bar
         for idx, val in enumerate(list_of_dicts[i].values()):
             ax.text(list(list_of_dicts[i].keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                    fontweight='semibold', fontsize='large')
+                    fontweight='normal', fontsize=font_size - 1, fontname=font_name)
 
         fig_str = 'Scalability_' + dim_class + '_' + performance_str[i]
 
@@ -538,13 +644,13 @@ for cplx_class in complexity_classes:
         ax.spines['top'].set_color('#969696')
         ax.spines['right'].set_color('#969696')
         ax.spines['left'].set_color('#969696')
-        ax.tick_params(axis='x', colors='#969696')
-        ax.tick_params(axis='y', colors='#969696')
+        ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1)
+        ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
         # Display the values in each bar
         for idx, val in enumerate(list_of_dicts[i].values()):
             ax.text(list(list_of_dicts[i].keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                    fontweight='semibold', fontsize='large')
+                    fontweight='normal', fontsize=font_size - 1, fontname=font_name)
 
         fig_str = 'Flexibility' + str(cplx_class) + '_' + performance_str[i]
 
@@ -557,3 +663,66 @@ for cplx_class in complexity_classes:
         plt.savefig(fig_name2, bbox_inches='tight')
 
         # TODO: Save results in table format
+
+########################################################################################################################
+# 2. Over-fitting
+
+hpo_list = []
+avg_overfit_list = []
+
+# Iterate over HPO techniques
+for this_tech in hpo_techniques:
+    # Filter for HPO-technique
+
+    # # TODO: Integrate Fabolas again (extreme Overfitting on turbofan (SVR))
+    # if this_tech == 'Fabolas':
+    #     continue
+
+    sub_frame = metrics_df.loc[(metrics_df['HPO-method'] == this_tech), :]
+
+    sub_frame.loc[:, 'Overfitting [%]'] = sub_frame.loc[:, 'Generalization error'] / \
+                                          sub_frame.loc[:, 'Mean (final validation loss)'] * 100
+
+    avg_over_fit = sub_frame.loc[:, 'Overfitting [%]'].mean(axis=0, skipna=True)
+    avg_overfit_list.append(avg_over_fit)
+    hpo_list.append(this_tech)
+
+# Create a pandas DataFrame to store the results
+overfit_df = pd.DataFrame({'HPO-method': hpo_list,
+                           'Average Overfitting [%]': avg_overfit_list
+                           })
+
+overfit_df.sort_values(by='Average Overfitting [%]', axis=0, ascending=False, na_position='last', inplace=True)
+
+# Bar plot to visualize the results
+fig, ax = plt.subplots(figsize=small_fig_size)
+# plt.barh(y=overfit_df['HPO-method'], width=overfit_df['Average Overfitting [%]'], color='#0062a5', height=bar_width)
+plt.bar(x=overfit_df['HPO-method'], height=overfit_df['Average Overfitting [%]'], color='#0062a5', width=bar_width)
+
+# Formatting
+# ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
+ax.set_ylabel('Average Overfitting [%]', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+              fontname=font_name)
+ax.spines['bottom'].set_color('#969696')
+ax.spines['top'].set_color('#969696')
+ax.spines['right'].set_color('#969696')
+ax.spines['left'].set_color('#969696')
+ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation, labelsize=font_size - 1)
+ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
+
+plt.yscale('log')
+
+# # Display the values in each bar
+# for idx, val in enumerate(overfit_df['Average Overfitting [%]']):
+#     ax.text(val, list(overfit_df['HPO-method'])[idx], round(float(val), 2), color='#969696', ha='right', va='center',
+#             fontweight='normal', fontsize=font_size-1, fontname=font_name)
+
+if not os.path.isdir('./hpo_framework/results/' + dataset + '/FinalPerformance/'):
+    os.mkdir('./hpo_framework/results/' + dataset + '/FinalPerformance/')
+
+fig_name1 = './hpo_framework/results/' + dataset + '/FinalPerformance/' + dataset + '_overfitting.jpg'
+fig_name2 = './hpo_framework/results/' + dataset + '/FinalPerformance/' + dataset + '_overfitting.svg'
+plt.savefig(fig_name1, bbox_inches='tight')
+plt.savefig(fig_name2, bbox_inches='tight')
+
+# TODO: Save results in table format
