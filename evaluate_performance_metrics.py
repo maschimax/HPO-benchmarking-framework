@@ -30,13 +30,13 @@ time_per_eval_list = []
 for this_algo in ml_algorithms:
 
     # TODO: How to deal with Keras (no parallel setup)
-    if this_algo == 'KerasRegressor':
+    if this_algo == 'KerasRegressor' or this_algo == 'KerasClassifier':
         continue
 
     # Iterate over HPO techniques
     for this_tech in hpo_techniques:
 
-        # TODO: Add 8 WORKER METRICS FOR FABOLAS
+        # TODO: Add 8 worker metrics for Fabolas and Bohamiann
         if this_tech == 'Fabolas' or this_tech == 'Bohamiann':
             continue
 
@@ -284,14 +284,14 @@ for setup_tuple in setups:
     plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d', width=bar_width)
 
     # Formatting
-    # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size, color='#969696', fontname=font_name)
+    # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size -1, color='#969696', fontname=font_name)
     ax.set_ylabel('Average Rank', fontweight='semibold', fontsize=font_size - 1, color='#969696',
                   fontname=font_name)
     ax.spines['bottom'].set_color('#969696')
     ax.spines['top'].set_color('#969696')
     ax.spines['right'].set_color('#969696')
     ax.spines['left'].set_color('#969696')
-    ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation, labelsize=font_size - 1)
+    ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1, rotation=xtick_rotation)
     ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
     # Display the values in each bar
@@ -398,23 +398,25 @@ for setup_tuple in setups:
     sorted_rank_dict = dict(sorted(rank_dict.items(), key=lambda item: item[1], reverse=False))
 
     # Bar plot to visualize the results
-    fig, ax = plt.subplots(figsize=(11, 9))
+    fig, ax = plt.subplots(figsize=small_fig_size)
     plt.bar(x=sorted_rank_dict.keys(), height=sorted_rank_dict.values(), color='#179c7d', width=bar_width)
 
     # Formatting
-    ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-    ax.set_ylabel('Average Rank (Anytime Performance)', fontweight='semibold', fontsize='large', color='#969696')
+    # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+    #               fontname=font_name)
+    ax.set_ylabel('Average Rank', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+                  fontname=font_name)
     ax.spines['bottom'].set_color('#969696')
     ax.spines['top'].set_color('#969696')
     ax.spines['right'].set_color('#969696')
     ax.spines['left'].set_color('#969696')
-    ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1)
+    ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation, labelsize=font_size - 1)
     ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
     # Display the values in each bar
     for idx, val in enumerate(sorted_rank_dict.values()):
-        ax.text(list(sorted_rank_dict.keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                fontweight='normal', fontsize=font_size - 1, fontname=font_name)
+        ax.text(list(sorted_rank_dict.keys())[idx], 0.25, round(float(val), 2), color='white', ha='center', va='bottom',
+                fontsize=font_size - 1, fontname=font_name, rotation=90)
 
     if do_warm_start:
         warm_str = 'WarmStart'
@@ -520,28 +522,29 @@ for dim_class in dim_classes:
 
     list_of_dicts = [sorted_final_rank_dict, sorted_anytime_rank_dict]
     bar_colors = ['#179c7d', '#0062a5']
-    y_labels = ['Average Rank (Final Performance)', 'Average Rank (Anytime Performance)']
+    y_labels = ['Average Rank', 'Average Rank']
     performance_str = ['FinalPerformance', 'AnytimePerformance']
 
     # Bar plots to visualize the results
     for i in range(len(list_of_dicts)):
-        fig, ax = plt.subplots(figsize=(11, 9))
+        fig, ax = plt.subplots(figsize=small_fig_size)
         plt.bar(x=list_of_dicts[i].keys(), height=list_of_dicts[i].values(), color=bar_colors[i], width=bar_width)
 
         # Formatting
-        ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-        ax.set_ylabel(y_labels[i], fontweight='semibold', fontsize='large', color='#969696')
+        # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+        #               fontname=font_name)
+        ax.set_ylabel(y_labels[i], fontweight='semibold', fontsize=font_size - 1, color='#969696', fontname=font_name)
         ax.spines['bottom'].set_color('#969696')
         ax.spines['top'].set_color('#969696')
         ax.spines['right'].set_color('#969696')
         ax.spines['left'].set_color('#969696')
-        ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1)
+        ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1, rotation=xtick_rotation)
         ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
         # Display the values in each bar
         for idx, val in enumerate(list_of_dicts[i].values()):
-            ax.text(list(list_of_dicts[i].keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                    fontweight='normal', fontsize=font_size - 1, fontname=font_name)
+            ax.text(list(list_of_dicts[i].keys())[idx], 0.25, round(float(val), 2), color='white', ha='center',
+                    va='bottom', fontsize=font_size - 1, fontname=font_name, rotation=90)
 
         fig_str = 'Scalability_' + dim_class + '_' + performance_str[i]
 
@@ -629,28 +632,29 @@ for cplx_class in complexity_classes:
 
     list_of_dicts = [sorted_final_rank_dict, sorted_anytime_rank_dict]
     bar_colors = ['#179c7d', '#0062a5']
-    y_labels = ['Average Rank (Final Performance)', 'Average Rank (Anytime Performance)']
+    y_labels = ['Average Rank', 'Average Rank']
     performance_str = ['FinalPerformance', 'AnytimePerformance']
 
     # Bar plots to visualize the results
     for i in range(len(list_of_dicts)):
-        fig, ax = plt.subplots(figsize=(11, 9))
+        fig, ax = plt.subplots(figsize=small_fig_size)
         plt.bar(x=list_of_dicts[i].keys(), height=list_of_dicts[i].values(), color=bar_colors[i], width=bar_width)
 
         # Formatting
-        ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-        ax.set_ylabel(y_labels[i], fontweight='semibold', fontsize='large', color='#969696')
+        # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+        #               fontname=font_name)
+        ax.set_ylabel(y_labels[i], fontweight='semibold', fontsize=font_size - 1, color='#969696', fontname=font_name)
         ax.spines['bottom'].set_color('#969696')
         ax.spines['top'].set_color('#969696')
         ax.spines['right'].set_color('#969696')
         ax.spines['left'].set_color('#969696')
-        ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1)
+        ax.tick_params(axis='x', colors='#969696', labelsize=font_size - 1, rotation=xtick_rotation)
         ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
         # Display the values in each bar
         for idx, val in enumerate(list_of_dicts[i].values()):
-            ax.text(list(list_of_dicts[i].keys())[idx], 0.1, round(float(val), 2), color='white', ha='center',
-                    fontweight='normal', fontsize=font_size - 1, fontname=font_name)
+            ax.text(list(list_of_dicts[i].keys())[idx], 0.25, round(float(val), 2), color='white', ha='center',
+                    va='bottom', fontsize=font_size - 1, fontname=font_name, rotation=90)
 
         fig_str = 'Flexibility' + str(cplx_class) + '_' + performance_str[i]
 
@@ -665,7 +669,7 @@ for cplx_class in complexity_classes:
         # TODO: Save results in table format
 
 ########################################################################################################################
-# 2. Over-fitting
+# 2.1 Over-fitting
 
 hpo_list = []
 avg_overfit_list = []
@@ -726,3 +730,245 @@ plt.savefig(fig_name1, bbox_inches='tight')
 plt.savefig(fig_name2, bbox_inches='tight')
 
 # TODO: Save results in table format
+
+########################################################################################################################
+# Create overview table
+
+ml_algo_list = []
+final_list = []
+anytime_list = []
+dim_list = []
+cplx_list = []
+
+for ml_algo in metrics_df['ML-algorithm'].unique():
+
+    # Filter for ML algorithm
+    sub_frame = metrics_df.loc[metrics_df['ML-algorithm'] == ml_algo, :]
+
+    # Best HPO technique and setup regarding final performance
+    best_final_idx = sub_frame['Mean (final test loss)'].idxmin(axis=0, skipna=True)
+    best_final_tech = sub_frame.loc[best_final_idx, 'HPO-method']
+    best_final_worker = sub_frame.loc[best_final_idx, 'Workers']
+    best_final_wst = sub_frame.loc[best_final_idx, 'Warmstart']
+    best_final_loss = sub_frame.loc[best_final_idx, 'Mean (final test loss)']
+
+    # Best HPO technique and setup regarding anytime performance
+    best_anytime_idx = sub_frame['t outperform default [s]'].idxmin(axis=0, skipna=True)
+    best_anytime_tech = sub_frame.loc[best_anytime_idx, 'HPO-method']
+    best_anytime_worker = sub_frame.loc[best_anytime_idx, 'Workers']
+    best_anytime_wst = sub_frame.loc[best_anytime_idx, 'Warmstart']
+    best_anytime_wall = sub_frame.loc[best_anytime_idx, 't outperform default [s]']
+
+    # Determine complexity class and dimensionality of the configuration space
+    num_cont_hps = list(sub_frame.loc[:, '# cont. HPs'])[0]
+    num_int_hps = list(sub_frame.loc[:, '# int. HPs'])[0]
+    num_cat_hps = list(sub_frame.loc[:, '# cat. HPs'])[0]
+
+    # Check dimensionality
+    n_hps = num_cont_hps + num_int_hps + num_cat_hps  # total number of Hyperparameters
+    if n_hps <= dim_threshold:
+        this_dim = 'LowDimensional'
+    else:
+        this_dim = 'HighDimensional'
+
+    # Check complexity class
+    if num_cat_hps > 0:
+        cplx_class = 3
+    elif num_int_hps > 0:
+        cplx_class = 2
+    else:
+        cplx_class = 1
+
+    # Append results to the lists
+    ml_algo_list.append(ml_algo)
+    final_list.append((best_final_loss, best_final_tech, best_final_worker, best_final_wst))
+    anytime_list.append((best_anytime_wall, best_anytime_tech, best_anytime_worker, best_anytime_wst))
+    dim_list.append(this_dim)
+    cplx_list.append(cplx_class)
+
+# create pd.DataFrame to store the results
+overview_df = pd.DataFrame({
+    'ML-algorithm': ml_algo_list,
+    'Final Performance': final_list,
+    'Anytime Performance': anytime_list,
+    'Dimensionality': dim_list,
+    'Complexity Class': cplx_list
+})
+
+if not os.path.isdir('./hpo_framework/results/' + dataset + '/Overview/'):
+    os.mkdir('./hpo_framework/results/' + dataset + '/Overview/')
+
+# Save DataFrame to .csv File
+table_name = './hpo_framework/results/' + dataset + '/Overview/' + dataset + '_overview_table.csv'
+overview_df.to_csv(table_name)
+
+########################################################################################################################
+# Assess the effects of parallelization and warm start on final and anytime performance
+
+algo_list = []
+hpo_list = []
+effect_final_parallel_lst = []
+effect_any_parallel_lst = []
+effect_final_wst_lst = []
+effect_any_wst_lst = []
+
+# Iterate over ML algorithms
+for this_algo in metrics_df['ML-algorithm'].unique():
+
+    # TODO: How to deal with Keras (no parallel setup)
+    if this_algo == 'KerasRegressor' or this_algo == 'KerasClassifier':
+        continue
+
+    # Iterate over HPO techniques
+    for this_tech in metrics_df['HPO-method'].unique():
+
+        # TODO: Add 8 worker metrics for Fabolas and Bohamiann
+        if this_tech == 'Fabolas' or this_tech == 'Bohamiann':
+            continue
+
+        # Filter for ML algorithm and HPO technique
+        sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) &
+                                   (metrics_df['HPO-method'] == this_tech), :]
+
+        # Setup 1: single worker, no warm start
+        final_single_nowst = sub_frame.loc[(sub_frame['Workers'] == 1) & (sub_frame['Warmstart'] == False),
+                                           'Mean (final test loss)'].values[0]
+
+        anytime_single_nowst = sub_frame.loc[(sub_frame['Workers'] == 1) & (sub_frame['Warmstart'] == False),
+                                             't outperform default [s]'].values[0]
+
+        # Setup 2: 8 parallel workers, no warm start
+        final_parallel_nowst = sub_frame.loc[(sub_frame['Workers'] == 8) & (sub_frame['Warmstart'] == False),
+                                             'Mean (final test loss)'].values[0]
+
+        anytime_parallel_nowst = sub_frame.loc[(sub_frame['Workers'] == 8) & (sub_frame['Warmstart'] == False),
+                                               't outperform default [s]'].values[0]
+
+        # Setup 3: single worker, warm start
+        final_single_wst = sub_frame.loc[(sub_frame['Workers'] == 1) & (sub_frame['Warmstart'] == True),
+                                         'Mean (final test loss)'].values[0]
+
+        anytime_single_wst = sub_frame.loc[(sub_frame['Workers'] == 1) & (sub_frame['Warmstart'] == True),
+                                           't outperform default [s]'].values[0]
+
+        # Calculate the effects of parallelization and warm start on final and anytime performance
+
+        # 1. Relative effect of parallelization on final performance (decrease is good)
+        para_final_effect = 100 * (final_parallel_nowst - final_single_nowst) / final_single_nowst
+
+        # 2. Relative effect of parallelization on anytime performance (decrease is good)
+        para_any_effect = 100 * (anytime_parallel_nowst - anytime_single_nowst) / anytime_single_nowst
+
+        # 3. Relative effect of warm start on final performance (decrease is good)
+        wst_final_effect = 100 * (final_single_wst - final_single_nowst) / final_single_nowst
+
+        # 4. Relative effect of warm start on anytime performance (decrease is good)
+        wst_any_effect = 100 * (anytime_single_wst - anytime_single_nowst) / anytime_single_nowst
+
+        # Append results
+        algo_list.append(this_algo)
+        hpo_list.append(this_tech)
+        effect_final_parallel_lst.append(para_final_effect)
+        effect_any_parallel_lst.append(para_any_effect)
+        effect_final_wst_lst.append(wst_final_effect)
+        effect_any_wst_lst.append(wst_any_effect)
+
+para_wst_effect_df = pd.DataFrame({
+    'ML-algorithm': algo_list,
+    'HPO-method': hpo_list,
+    'Effect Parallelization (Final Performance)': effect_final_parallel_lst,
+    'Effect Parallelization (Anytime Performance)': effect_any_parallel_lst,
+    'Effect Warm Start (Final Performance)': effect_final_wst_lst,
+    'Effect Warm Start (Anytime Performance)': effect_any_wst_lst
+})
+
+# Compute the average effects for each HPO technique
+avg_effect_final_parallel_lst = []
+avg_effect_any_parallel_lst = []
+avg_effect_final_wst_lst = []
+avg_effect_any_wst_lst = []
+for this_tech in hpo_list:
+    # Compute the average effects
+    avg_final_parallel = para_wst_effect_df.loc[para_wst_effect_df['HPO-method'] == this_tech,
+                                                'Effect Parallelization (Final Performance)'].mean(axis=0, skipna=True)
+    avg_any_parallel = para_wst_effect_df.loc[para_wst_effect_df['HPO-method'] == this_tech,
+                                              'Effect Parallelization (Anytime Performance)'].mean(axis=0, skipna=True)
+    avg_final_wst = para_wst_effect_df.loc[para_wst_effect_df['HPO-method'] == this_tech,
+                                           'Effect Warm Start (Final Performance)'].mean(axis=0, skipna=True)
+    avg_any_wst = para_wst_effect_df.loc[para_wst_effect_df['HPO-method'] == this_tech,
+                                         'Effect Warm Start (Anytime Performance)'].mean(axis=0, skipna=True)
+
+    # Append the results
+    avg_effect_final_parallel_lst.append(avg_final_parallel)
+    avg_effect_any_parallel_lst.append(avg_any_parallel)
+    avg_effect_final_wst_lst.append(avg_final_wst)
+    avg_effect_any_wst_lst.append(avg_any_wst)
+
+# Create pd.DataFrame for plotting
+plot_df = pd.DataFrame({
+    'HPO-method': hpo_list,
+    'Avg. Effect Parallelization (Final Performance)': avg_effect_final_parallel_lst,
+    'Avg. Effect Parallelization (Anytime Performance)': avg_effect_any_parallel_lst,
+    'Avg. Effect Warm Start (Final Performance)': avg_effect_final_wst_lst,
+    'Avg. Effect Warm Start (Anytime Performance)': avg_effect_any_wst_lst
+})
+
+# Scatter plots
+final_fig, final_ax = plt.subplots(figsize=large_fig_size)
+any_fig, any_ax = plt.subplots(figsize=large_fig_size)
+
+final_para_sct = final_ax.scatter(x=plot_df['HPO-method'],
+                                  y=plot_df['Avg. Effect Parallelization (Final Performance)'],
+                                  c='#179c7d')
+
+final_wst_sct = final_ax.scatter(x=plot_df['HPO-method'],
+                                 y=plot_df['Avg. Effect Warm Start (Final Performance)'],
+                                 c='#ff6600')
+
+any_para_sct = any_ax.scatter(x=plot_df['HPO-method'],
+                              y=plot_df['Avg. Effect Parallelization (Anytime Performance)'],
+                              c='#179c7d')
+
+any_wst_sct = any_ax.scatter(x=plot_df['HPO-method'],
+                             y=plot_df['Avg. Effect Warm Start (Anytime Performance)'],
+                             c='#ff6600')
+
+# Formatting
+# X labels
+final_ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size, color='#969696',
+                    fontname=font_name)
+any_ax.set_xlabel('HPO technique', fontweight='semibold', fontsize=font_size, color='#969696',
+                  fontname=font_name)
+
+# Y labels
+final_ax.set_ylabel('Relative effect on final test loss [%]', fontweight='semibold', fontsize=font_size,
+                    color='#969696', fontname=font_name)
+
+any_ax.set_ylabel('Relative effect on required time to outperform default [%]', fontweight='semibold',
+                  fontsize=font_size,
+                  color='#969696', fontname=font_name)
+
+# Tick params
+for ax in [final_ax, any_ax]:
+    ax.spines['bottom'].set_color('#969696')
+    ax.spines['top'].set_color('#969696')
+    ax.spines['right'].set_color('#969696')
+    ax.spines['left'].set_color('#969696')
+    ax.tick_params(axis='x', colors='#969696', rotation=45)
+    ax.tick_params(axis='y', colors='#969696')
+
+# Add legend
+legend_labels = ('Parallelization (1 vs. 8 workers)', 'Warm start')
+final_ax.legend((final_para_sct, final_wst_sct), legend_labels)
+any_ax.legend((any_para_sct, any_wst_sct), legend_labels)
+
+# Save figures
+fig_name_final1 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + '_para_wst_final_performance.jpg'
+fig_name_final2 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + '_para_wst_final_performance.svg'
+final_fig.savefig(fig_name_final1, bbox_inches='tight')
+final_fig.savefig(fig_name_final2, bbox_inches='tight')
+
+fig_name_any1 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + '_para_wst_anytime_performance.jpg'
+fig_name_any2 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + '_para_wst_anytime_performance.svg'
+any_fig.savefig(fig_name_any1, bbox_inches='tight')
+any_fig.savefig(fig_name_any2, bbox_inches='tight')
