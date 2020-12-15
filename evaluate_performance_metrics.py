@@ -130,6 +130,11 @@ tpe_df = speed_up_df.loc[(speed_up_df['HPO-method'] == 'TPE'), :]
 rs_df = speed_up_df.loc[(speed_up_df['HPO-method'] == 'RandomSearch'), :]
 cma_df = speed_up_df.loc[(speed_up_df['HPO-method'] == 'CMA-ES'), :]
 
+# Compute Pearon correlation coefficient
+tpe_corr = tpe_df.loc[:, ['Avg. time per evaluation [s]', 'Speed-up']].corr(method='pearson')
+rs_corr = rs_df.loc[:, ['Avg. time per evaluation [s]', 'Speed-up']].corr(method='pearson')
+cma_corr = cma_df.loc[:, ['Avg. time per evaluation [s]', 'Speed-up']].corr(method='pearson')
+
 tpe_scatter = ax.scatter(x=tpe_df['Avg. time per evaluation [s]'], y=tpe_df['Speed-up'], c='#179c7d')
 rs_scatter = ax.scatter(x=rs_df['Avg. time per evaluation [s]'], y=rs_df['Speed-up'], c='#ff6600')
 cma_scatter = ax.scatter(x=cma_df['Avg. time per evaluation [s]'], y=cma_df['Speed-up'], c='#0062a5')
@@ -672,7 +677,7 @@ for cplx_class in complexity_classes:
 # 2.1 Over-fitting
 
 hpo_list = []
-avg_overfit_list = []
+med_overfit_list = []
 
 # Iterate over HPO techniques
 for this_tech in hpo_techniques:
@@ -687,25 +692,25 @@ for this_tech in hpo_techniques:
     sub_frame.loc[:, 'Overfitting [%]'] = sub_frame.loc[:, 'Generalization error'] / \
                                           sub_frame.loc[:, 'Mean (final validation loss)'] * 100
 
-    avg_over_fit = sub_frame.loc[:, 'Overfitting [%]'].mean(axis=0, skipna=True)
-    avg_overfit_list.append(avg_over_fit)
+    med_over_fit = sub_frame.loc[:, 'Overfitting [%]'].median(axis=0, skipna=True)
+    med_overfit_list.append(med_over_fit)
     hpo_list.append(this_tech)
 
 # Create a pandas DataFrame to store the results
 overfit_df = pd.DataFrame({'HPO-method': hpo_list,
-                           'Average Overfitting [%]': avg_overfit_list
+                           'Median of Overfitting [%]': med_overfit_list
                            })
 
-overfit_df.sort_values(by='Average Overfitting [%]', axis=0, ascending=False, na_position='last', inplace=True)
+overfit_df.sort_values(by='Median of Overfitting [%]', axis=0, ascending=False, na_position='last', inplace=True)
 
 # Bar plot to visualize the results
 fig, ax = plt.subplots(figsize=small_fig_size)
-# plt.barh(y=overfit_df['HPO-method'], width=overfit_df['Average Overfitting [%]'], color='#0062a5', height=bar_width)
-plt.bar(x=overfit_df['HPO-method'], height=overfit_df['Average Overfitting [%]'], color='#0062a5', width=bar_width)
+# plt.barh(y=overfit_df['HPO-method'], width=overfit_df['Median of Overfitting [%]'], color='#0062a5', height=bar_width)
+plt.bar(x=overfit_df['HPO-method'], height=overfit_df['Median of Overfitting [%]'], color='#0062a5', width=bar_width)
 
 # Formatting
 # ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
-ax.set_ylabel('Average Overfitting [%]', fontweight='semibold', fontsize=font_size - 1, color='#969696',
+ax.set_ylabel('Median of Overfitting [%]', fontweight='semibold', fontsize=font_size - 1, color='#969696',
               fontname=font_name)
 ax.spines['bottom'].set_color('#969696')
 ax.spines['top'].set_color('#969696')
@@ -714,7 +719,7 @@ ax.spines['left'].set_color('#969696')
 ax.tick_params(axis='x', colors='#969696', rotation=xtick_rotation, labelsize=font_size - 1)
 ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
-plt.yscale('log')
+# plt.yscale('log')
 
 # # Display the values in each bar
 # for idx, val in enumerate(overfit_df['Average Overfitting [%]']):
