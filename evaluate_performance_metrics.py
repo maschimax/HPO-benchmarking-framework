@@ -20,6 +20,96 @@ small_fig_size = (3, 2)
 xtick_rotation = 90
 
 ########################################################################################################################
+# Summary table for each setup variant
+setup_variants = [(1, False), (8, False), (1, True)]
+
+# Iterate over setup variants
+for this_setup in setup_variants:
+
+    algo_list = []
+
+    final_perf_rank = []
+    final_perf_tech = []
+    final_perf_val = []
+
+    any_perf_rank = []
+    any_perf_tech = []
+    any_perf_val = []
+
+    avg_time_per_eval_list = []
+    dim_list = []
+    cpl_class_list = []
+
+    # Iterate over ML algorithms
+    for this_algo in ml_algorithms:
+
+        if (this_algo == 'KerasRegressor' or this_algo == 'KerasClassifier') and (this_setup[0] > 1 or this_setup[1]):
+            continue
+
+        # Filter for setup variant and ML algorithm
+        sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == this_setup[0])
+                                   & (metrics_df['Warmstart'] == this_setup[1]), :]
+
+        final_df_sorted = sub_frame.sort_values(by='Mean (final test loss)', axis=0, inplace=False, ascending=True,
+                                                na_position='last')
+
+        any_df_sorted = sub_frame.sort_values(by='t outperform default [s]', axis=0, inplace=False, ascending=True,
+                                              na_position='last')
+
+        algo_list += ([this_algo] * len(sub_frame['HPO-method']))
+
+        final_perf_rank += (list(range(1, len(final_df_sorted['HPO-method']) + 1)))
+        final_perf_tech += (list(final_df_sorted['HPO-method']))
+        final_perf_val += (list(final_df_sorted['Mean (final test loss)']))
+
+        any_perf_rank += (list(range(1, len(any_df_sorted['HPO-method']) + 1)))
+        any_perf_tech += (list(any_df_sorted['HPO-method']))
+        any_perf_val += (list(any_df_sorted['t outperform default [s]']))
+
+        wall_cl_time_rs = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Wall clock time [s]'].to_numpy()[0]
+        n_evals = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
+        avg_time_per_eval = round(wall_cl_time_rs / n_evals, 2)
+        avg_time_per_eval_list += ([avg_time_per_eval] * len(sub_frame['HPO-method']))
+
+        num_cont_hps = sub_frame.loc[:, '# cont. HPs'].to_numpy()[0]
+        num_int_hps = sub_frame.loc[:, '# int. HPs'].to_numpy()[0]
+        num_cat_hps = sub_frame.loc[:, '# cat. HPs'].to_numpy()[0]
+
+        dim_list += ([num_cont_hps + num_int_hps + num_cat_hps] * len(sub_frame['HPO-method']))
+
+        # Check complexity class
+        if num_cat_hps > 0:
+            cplx_class = 3
+        elif num_int_hps > 0:
+            cplx_class = 2
+        else:
+            cplx_class = 1
+
+        cpl_class_list += ([cplx_class] * len(sub_frame['HPO-method']))
+
+    # Create DataFrame for this setup variant
+    summary_df = pd.DataFrame({'ML-algorithm': algo_list,
+                               'FP Rank': final_perf_rank,
+                               'FP HPO-method': final_perf_tech,
+                               'FP value': final_perf_val,
+                               'AP Rank': any_perf_rank,
+                               'AP HPO-method': any_perf_tech,
+                               'AP value': any_perf_val,
+                               'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
+                               'Number of HPs': dim_list,
+                               'HP complexity': cpl_class_list})
+
+    if not os.path.isdir('./hpo_framework/results/' + dataset + '/Summary/'):
+        os.mkdir('./hpo_framework/results/' + dataset + '/Summary/')
+
+    # Save DataFrame to .csv File
+    table_name = './hpo_framework/results/' + dataset + '/Summary/' + dataset + '_summary_' + str(this_setup[0]) +\
+                 'Workers_Warmstart' + str(this_setup[1]) + '.csv'
+
+    summary_df.to_csv(table_name)
+
+
+########################################################################################################################
 # 1. Effective use of parallel resources
 hpo_list = []
 ml_list = []
@@ -704,12 +794,12 @@ overfit_df = pd.DataFrame({'HPO-method': hpo_list,
 overfit_df.sort_values(by='Median of Overfitting [%]', axis=0, ascending=False, na_position='last', inplace=True)
 
 # Bar plot to visualize the results
-fig, ax = plt.subplots(figsize=small_fig_size)
+fig, ax = plt.subplots(figsize=large_fig_size)
 # plt.barh(y=overfit_df['HPO-method'], width=overfit_df['Median of Overfitting [%]'], color='#0062a5', height=bar_width)
 plt.bar(x=overfit_df['HPO-method'], height=overfit_df['Median of Overfitting [%]'], color='#0062a5', width=bar_width)
 
 # Formatting
-# ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
+ax.set_xlabel('HPO technique', fontweight='semibold', fontsize='large', color='#969696')
 ax.set_ylabel('Median of Overfitting [%]', fontweight='semibold', fontsize=font_size - 1, color='#969696',
               fontname=font_name)
 ax.spines['bottom'].set_color('#969696')
@@ -721,10 +811,10 @@ ax.tick_params(axis='y', colors='#969696', labelsize=font_size - 1)
 
 # plt.yscale('log')
 
-# # Display the values in each bar
-# for idx, val in enumerate(overfit_df['Average Overfitting [%]']):
-#     ax.text(val, list(overfit_df['HPO-method'])[idx], round(float(val), 2), color='#969696', ha='right', va='center',
-#             fontweight='normal', fontsize=font_size-1, fontname=font_name)
+# Display the values in each bar
+for idx, val in enumerate(overfit_df['Median of Overfitting [%]']):
+    ax.text(list(overfit_df['HPO-method'])[idx], 0.1, round(float(val), 2), color='white', ha='center', va='bottom',
+            fontweight='normal', fontsize=font_size - 1, fontname=font_name)
 
 if not os.path.isdir('./hpo_framework/results/' + dataset + '/FinalPerformance/'):
     os.mkdir('./hpo_framework/results/' + dataset + '/FinalPerformance/')
@@ -977,3 +1067,52 @@ fig_name_any1 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + 
 fig_name_any2 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + '_para_wst_anytime_performance.svg'
 any_fig.savefig(fig_name_any1, bbox_inches='tight')
 any_fig.savefig(fig_name_any2, bbox_inches='tight')
+
+# Boxplots
+box_plots = ['Effect Parallelization (Final Performance)', 'Effect Parallelization (Anytime Performance)',
+             'Effect Warm Start (Final Performance)', 'Effect Warm Start (Anytime Performance)']
+
+y_labels = ['Impact on final test loss [%]',
+            'Impact on time to outperform baseline [%]',
+            'Impact on final test loss [%]',
+            'Impact on time to outperform baseline [%]']
+
+fig_names = ['_box_para_final',
+             '_box_para_any',
+             '_box_wst_final',
+             '_box_wst_any']
+
+for i in range(len(box_plots)):
+
+    this_plot = box_plots[i]
+    this_label = y_labels[i]
+
+    box_label_list = []
+    y_list = []
+    for j in range(len(para_wst_effect_df['HPO-method'].unique())):
+        this_tech = list(para_wst_effect_df['HPO-method'].unique())[j]
+        box_label_list.append(this_tech)
+
+        values = para_wst_effect_df.loc[para_wst_effect_df['HPO-method'] == this_tech,
+                                        this_plot].values
+        values = values[~np.isnan(values)]
+        y_list.append(values)
+
+    box_fig, box_ax = plt.subplots(figsize=small_fig_size)
+    box_ax.boxplot(x=y_list, labels=box_label_list, showfliers=False)
+    box_ax.hlines(y=0.0, xmin=1, xmax=len(box_label_list), linestyles='dashed', colors='deepskyblue')
+
+    box_ax.set_ylabel(this_label, fontweight='semibold', fontsize=font_size,
+                      color='#969696', fontname=font_name)
+
+    box_ax.spines['bottom'].set_color('#969696')
+    box_ax.spines['top'].set_color('#969696')
+    box_ax.spines['right'].set_color('#969696')
+    box_ax.spines['left'].set_color('#969696')
+    box_ax.tick_params(axis='x', colors='#969696', rotation=90)
+    box_ax.tick_params(axis='y', colors='#969696')
+
+    fig_name1 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + fig_names[i] + '.jpg'
+    fig_name2 = './hpo_framework/results/' + dataset + '/Overview/' + dataset + fig_names[i] + '.svg'
+    box_fig.savefig(fig_name1, bbox_inches='tight')
+    box_fig.savefig(fig_name2, bbox_inches='tight')
