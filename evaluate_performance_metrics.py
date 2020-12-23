@@ -31,10 +31,12 @@ for this_setup in setup_variants:
     final_perf_rank = []
     final_perf_tech = []
     final_perf_val = []
+    final_perf_rel = []
 
     any_perf_rank = []
     any_perf_tech = []
     any_perf_val = []
+    any_perf_rel = []
 
     avg_time_per_eval_list = []
     dim_list = []
@@ -61,10 +63,21 @@ for this_setup in setup_variants:
         final_perf_rank += (list(range(1, len(final_df_sorted['HPO-method']) + 1)))
         final_perf_tech += (list(final_df_sorted['HPO-method']))
         final_perf_val += (list(final_df_sorted['Mean (final test loss)']))
+        min_loss = min(list(final_df_sorted['Mean (final test loss)']))
+        rel_loss_deviation = [(this_loss - min_loss)/min_loss * 100 for this_loss
+                              in list(final_df_sorted['Mean (final test loss)'])]
+        final_perf_rel += rel_loss_deviation
 
         any_perf_rank += (list(range(1, len(any_df_sorted['HPO-method']) + 1)))
         any_perf_tech += (list(any_df_sorted['HPO-method']))
         any_perf_val += (list(any_df_sorted['t outperform default [s]']))
+        min_time = min(list(any_df_sorted['t outperform default [s]']))
+        if min_time > 0.0:
+            rel_time_deviation = [(this_time - min_time)/min_time * 100 for this_time
+                                  in any_df_sorted['t outperform default [s]']]
+        else:
+            rel_time_deviation = [np.float('nan')] * len(any_df_sorted['t outperform default [s]'])
+        any_perf_rel += rel_time_deviation
 
         wall_cl_time_rs = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Wall clock time [s]'].to_numpy()[0]
         n_evals = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
@@ -92,9 +105,11 @@ for this_setup in setup_variants:
                                'FP Rank': final_perf_rank,
                                'FP HPO-method': final_perf_tech,
                                'FP value': final_perf_val,
+                               'FP deviation [%]': final_perf_rel,
                                'AP Rank': any_perf_rank,
                                'AP HPO-method': any_perf_tech,
                                'AP value': any_perf_val,
+                               'AP deviation [%]': any_perf_rel,
                                'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
                                'Number of HPs': dim_list,
                                'HP complexity': cpl_class_list})
