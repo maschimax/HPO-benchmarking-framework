@@ -4,6 +4,9 @@ from pathlib import Path
 import argparse
 import skopt
 import warnings
+from sklearn.preprocessing import OneHotEncoder
+import pandas as pd
+import numpy as np
 
 from hpo_framework.hp_spaces import space_keras, space_rf_reg, space_rf_clf, \
     space_svm, space_xgb, space_ada_reg, space_ada_clf, space_dt, \
@@ -27,16 +30,16 @@ if debug:
     # Set parameters manually
     dataset = 'sensor'  # Flag for the ML use case / dataset to be used
     hp_space = space_xgb
-    ml_algo = 'XGBoostRegressor'
-    opt_schedule = [('skopt', 'GPBO')]
+    ml_algo = 'XGBoostClassifier'
+    opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 6
-    n_func_evals = 20
+    n_runs = 2
+    n_func_evals = 200
     n_workers = 1
-    loss_metric = rul_loss_score
-    loss_metric_str = 'RUL-loss'
+    loss_metric = f1_loss
+    loss_metric_str = 'F1-loss'
     do_warmstart = 'No'
     plot_learning_curves = 'No'
     use_gpu = 'No'
@@ -216,6 +219,18 @@ elif dataset == 'turbofan':
 elif dataset == 'sensor':
 
     X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
+
+    # For Keras models, apply one-hot-encoding (multiclass-classification problem)
+    if ml_algo == 'KerasClassifier' or ml_algo == 'KerasRegressor':
+
+        # Apply scikit-learn's OneHotEncoder
+        oh_enc = OneHotEncoder(sparse=False, handle_unknown='error')
+        y_train_oh = oh_enc.fit_transform(np.array(y_train).reshape(-1, 1))
+        y_test_oh = oh_enc.transform(np.array(y_test).reshape(-1, 1))
+
+        # Transform numpy arrays to pandas DataFrames
+        y_train = pd.DataFrame(y_train_oh)
+        y_test = pd.DataFrame(y_test_oh)
 
 elif dataset == 'mining':
 
