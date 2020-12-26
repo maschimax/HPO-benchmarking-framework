@@ -14,6 +14,7 @@ from hpo_framework.trial import Trial
 import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
+from datasets.Sensor_System_Production.sensor_loading_and_balancing import sensor_loading_and_preprocessing
 from datasets.Mining_Process.mining_preprocessing import mining_loading_and_preprocessing
 from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_preprocessing
 
@@ -24,7 +25,7 @@ debug = False
 
 if debug:
     # Set parameters manually
-    dataset = 'turbofan'  # Flag for the ML use case / dataset to be used
+    dataset = 'sensor'  # Flag for the ML use case / dataset to be used
     hp_space = space_xgb
     ml_algo = 'XGBoostRegressor'
     opt_schedule = [('skopt', 'GPBO')]
@@ -58,7 +59,7 @@ else:
                                  'Bohamiann'])
 
     parser.add_argument('--dataset', type=str, help='Dataset / use case.', default='scania',
-                        choices=['scania', 'turbofan', 'mining', 'steel', 'dummy'])
+                        choices=['scania', 'turbofan', 'mining', 'steel', 'sensor', 'dummy'])
 
     parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
 
@@ -211,6 +212,10 @@ elif dataset == 'scania':
 elif dataset == 'turbofan':
 
     X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+
+elif dataset == 'sensor':
+
+    X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
 
 elif dataset == 'mining':
 

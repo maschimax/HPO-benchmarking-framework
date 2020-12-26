@@ -55,8 +55,3 @@ def sensor_loading_and_preprocessing():
     X_train, y_train = sensor_balancing(X_train, y_train)
 
     return X_train, X_test, y_train, y_test
-
-
-X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
-
-
