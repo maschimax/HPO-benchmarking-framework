@@ -103,13 +103,27 @@ def turbofan_loading_and_preprocessing():
 
     # Create histogram for the label
     fig, ax = plt.subplots(figsize=(11, 9))
-
     sns.set_theme(style="white")
-
     sns.histplot(y_train, stat='count', shrink=0.8, kde=True, color='#179c7d')
-
     plt.savefig('turbofan_label_histplot.jpg', bbox_inches='tight')
     plt.savefig('turbofan_label_histplot.svg', bbox_inches='tight')
+
+    # # Visualize features with NaN-values
+    # fig, ax = plt.subplots(figsize=(11, 9))
+    # nan_cols = []
+    # nan_shares = []
+    # for col in x_train.columns:
+    #     num_nan = x_train[col].isna().sum()
+    #     if num_nan > 0:
+    #         nan_percentage = num_nan / len(x_train[col]) * 100
+    #         nan_cols.append(col)
+    #         nan_shares.append(nan_percentage)
+    #
+    # sns.set_theme(style='white')
+    # sns.barplot(x=nan_cols, y=nan_shares, color='#179c7d', saturation=0.8)
+    # ax.set_ylabel('Share of missing values [%]')
+    # plt.savefig('turbofan_nan_barplot.jpg')
+    # plt.savefig('turbofan_nan_barplot.svg')
 
     # Drop NaN columns in training and test set
     nan_cols = identify_nan_cols(x_train)
