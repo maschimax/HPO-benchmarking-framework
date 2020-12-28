@@ -241,6 +241,39 @@ for this_tech in speed_up_df['HPO-method'].unique():
     this_avg = np.nanmean(speed_up_df.loc[speed_up_df['HPO-method'] == this_tech, 'Speed-up'].values)
     avg_speed_up_dict[this_tech] = this_avg
 
+# Boxplots to visualize the distribution of speed up factors for each HPO technique
+box_labels = []
+box_vec = []
+for this_tech in speed_up_df['HPO-method'].unique():
+    box_labels.append(this_tech)
+    speed_up_factors = speed_up_df.loc[speed_up_df['HPO-method'] == this_tech, 'Speed-up'].values
+    speed_up_factors = speed_up_factors[~np.isnan(speed_up_factors)]
+    box_vec.append(list(speed_up_factors))
+
+box_fig, box_ax = plt.subplots(figsize=large_fig_size)
+
+box_ax.boxplot(x=box_vec, labels=box_labels, showfliers=True)
+box_ax.hlines(y=1.0, xmin=1, xmax=len(box_labels), linestyles='dashed', colors='deepskyblue')
+
+box_ax.set_ylabel('Speed up factor', fontweight='semibold', fontsize=font_size,
+                  color='#969696', fontname=font_name)
+
+box_ax.spines['bottom'].set_color('#969696')
+box_ax.spines['top'].set_color('#969696')
+box_ax.spines['right'].set_color('#969696')
+box_ax.spines['left'].set_color('#969696')
+box_ax.tick_params(axis='x', colors='#969696', rotation=90)
+box_ax.tick_params(axis='y', colors='#969696')
+
+if not os.path.isdir('./hpo_framework/results/' + dataset + '/Parallelization/'):
+    os.mkdir('./hpo_framework/results/' + dataset + '/Parallelization/')
+
+fig_name1 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_speed_up_box' + '.jpg'
+fig_name2 = './hpo_framework/results/' + dataset + '/Parallelization/' + dataset + '_speed_up_box' + '.svg'
+box_fig.savefig(fig_name1, bbox_inches='tight')
+box_fig.savefig(fig_name2, bbox_inches='tight')
+
+
 # Sort the dictionary according to the speed up achieved (descending)
 sorted_avg_speed_up_dict = dict(sorted(avg_speed_up_dict.items(), key=lambda item: item[1], reverse=True))
 
