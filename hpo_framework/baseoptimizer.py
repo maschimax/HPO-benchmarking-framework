@@ -216,6 +216,8 @@ class BaseOptimizer(ABC):
         # Iterate over the cross validation splits
         for train_index, val_index in kf.split(X=self.x_train):
 
+            cv_iter = cv_iter + 1
+
             # Cross validation
             if cv_mode:
 
@@ -285,6 +287,10 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'AdaBoostRegressor':
+                # Set the max_depth of the base estimator object
+                max_depth = warmstart_config.pop('max_depth')
+                warmstart_config['base_estimator'] = DecisionTreeRegressor(max_depth=max_depth)
+
                 model = AdaBoostRegressor(**warmstart_config)
 
                 # Train the model and make the prediction
@@ -292,6 +298,10 @@ class BaseOptimizer(ABC):
                 y_pred = model.predict(x_val_cv)
 
             elif self.ml_algorithm == 'AdaBoostClassifier':
+                # Set the max_depth of the base estimator object
+                max_depth = warmstart_config.pop('max_depth')
+                warmstart_config['base_estimator'] = DecisionTreeClassifier(max_depth=max_depth)
+
                 model = AdaBoostClassifier(**warmstart_config)
 
                 # Train the model and make the prediction
