@@ -42,6 +42,12 @@ for this_setup in setup_variants:
     dim_list = []
     cpl_class_list = []
 
+    if this_setup[0] == 8:
+        para_list_rank = []
+        para_list_tech = []
+        para_list_val = []
+        para_list_rel = []
+
     # Iterate over ML algorithms
     for this_algo in ml_algorithms:
 
@@ -64,7 +70,7 @@ for this_setup in setup_variants:
         final_perf_tech += (list(final_df_sorted['HPO-method']))
         final_perf_val += (list(final_df_sorted['Mean (final test loss)']))
         min_loss = min(list(final_df_sorted['Mean (final test loss)']))
-        rel_loss_deviation = [(this_loss - min_loss)/min_loss * 100 for this_loss
+        rel_loss_deviation = [(this_loss - min_loss) / min_loss * 100 for this_loss
                               in list(final_df_sorted['Mean (final test loss)'])]
         final_perf_rel += rel_loss_deviation
 
@@ -73,7 +79,7 @@ for this_setup in setup_variants:
         any_perf_val += (list(any_df_sorted['t outperform default [s]']))
         min_time = min(list(any_df_sorted['t outperform default [s]']))
         if min_time > 0.0:
-            rel_time_deviation = [(this_time - min_time)/min_time * 100 for this_time
+            rel_time_deviation = [(this_time - min_time) / min_time * 100 for this_time
                                   in any_df_sorted['t outperform default [s]']]
         else:
             rel_time_deviation = [np.float('nan')] * len(any_df_sorted['t outperform default [s]'])
@@ -100,29 +106,86 @@ for this_setup in setup_variants:
 
         cpl_class_list += ([cplx_class] * len(sub_frame['HPO-method']))
 
+        # For parallelized setup -> compute speed up factor due to parallelization
+        if this_setup[0] == 8:
+
+            # Filter for single worker, no warm start setup
+            single_sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 1)
+                                              & (metrics_df['Warmstart'] == False), :]
+
+            # Filter for 8 parallel workers, no warm start setup
+            para_sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 8)
+                                            & (metrics_df['Warmstart'] == False), :]
+
+            # Iterate over HPO-techniques
+            for this_tech in para_sub_frame['HPO-method'].unique():
+
+                # Wall clock time on single worker setup
+                single_wc_time = single_sub_frame.loc[single_sub_frame['HPO-method'] == this_tech,
+                                                      'Wall clock time [s]'].values[0]
+
+                # Wall clock time on setup with 8 parallel workers
+                para_wc_time = para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech,
+                                                  'Wall clock time [s]'].values[0]
+
+                # Speed up factor
+                this_speed_up = round(single_wc_time / para_wc_time, 2)
+
+                para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech, 'Speed up factor'] = this_speed_up
+
+            para_sub_frame.sort_values(by='Speed up factor', axis=0, inplace=True, ascending=False, na_position='last')
+
+            para_list_rank += (list(range(1, len(para_sub_frame['HPO-method']) + 1)))
+            para_list_tech += (list(para_sub_frame['HPO-method']))
+            para_list_val += (list(para_sub_frame['Speed up factor']))
+            max_speed_up = max(list(para_sub_frame['Speed up factor']))
+            para_list_rel += [(max_speed_up - this_speed_up) / max_speed_up * 100 for this_speed_up in
+                              list(para_sub_frame['Speed up factor'])]
+
     # Create DataFrame for this setup variant
-    summary_df = pd.DataFrame({'ML-algorithm': algo_list,
-                               'FP Rank': final_perf_rank,
-                               'FP HPO-method': final_perf_tech,
-                               'FP value': final_perf_val,
-                               'FP deviation [%]': final_perf_rel,
-                               'AP Rank': any_perf_rank,
-                               'AP HPO-method': any_perf_tech,
-                               'AP value': any_perf_val,
-                               'AP deviation [%]': any_perf_rel,
-                               'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
-                               'Number of HPs': dim_list,
-                               'HP complexity': cpl_class_list})
+
+    # Single worker setup
+    if this_setup[0] == 1:
+        summary_df = pd.DataFrame({'ML-algorithm': algo_list,
+                                   'FP Rank': final_perf_rank,
+                                   'FP HPO-method': final_perf_tech,
+                                   'FP value': final_perf_val,
+                                   'FP deviation [%]': final_perf_rel,
+                                   'AP Rank': any_perf_rank,
+                                   'AP HPO-method': any_perf_tech,
+                                   'AP value': any_perf_val,
+                                   'AP deviation [%]': any_perf_rel,
+                                   'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
+                                   'Number of HPs': dim_list,
+                                   'HP complexity': cpl_class_list})
+
+    # Setup with 8 parallel workers
+    else:
+        summary_df = pd.DataFrame({'ML-algorithm': algo_list,
+                                   'FP Rank': final_perf_rank,
+                                   'FP HPO-method': final_perf_tech,
+                                   'FP value': final_perf_val,
+                                   'FP deviation [%]': final_perf_rel,
+                                   'AP Rank': any_perf_rank,
+                                   'AP HPO-method': any_perf_tech,
+                                   'AP value': any_perf_val,
+                                   'AP deviation [%]': any_perf_rel,
+                                   'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
+                                   'Para. Rank': para_list_rank,
+                                   'Para. HPO-method': para_list_tech,
+                                   'Para. value': para_list_val,
+                                   'Para. deviation [%]': para_list_rel,
+                                   'Number of HPs': dim_list,
+                                   'HP complexity': cpl_class_list})
 
     if not os.path.isdir('./hpo_framework/results/' + dataset + '/Summary/'):
         os.mkdir('./hpo_framework/results/' + dataset + '/Summary/')
 
     # Save DataFrame to .csv File
-    table_name = './hpo_framework/results/' + dataset + '/Summary/' + dataset + '_summary_' + str(this_setup[0]) +\
+    table_name = './hpo_framework/results/' + dataset + '/Summary/' + dataset + '_summary_' + str(this_setup[0]) + \
                  'Workers_Warmstart' + str(this_setup[1]) + '.csv'
 
     summary_df.to_csv(table_name)
-
 
 ########################################################################################################################
 # 1. Effective use of parallel resources
