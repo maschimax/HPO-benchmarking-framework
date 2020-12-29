@@ -5,7 +5,7 @@ import time
 
 def blisk_loading_and_preprocessing():
 
-    file_path = 'C:/Users/Max/Desktop/Blisk/SL_S7_B2_KB1_prepared.csv'
+    file_path = '.datasets/Blisk/SL_S7_B2_KB1_prepared.csv'
 
     start_loading = time.time()
     X_data = pd.read_csv(file_path, sep='\t', index_col=0)
