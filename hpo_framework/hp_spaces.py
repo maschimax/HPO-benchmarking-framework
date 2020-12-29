@@ -57,7 +57,7 @@ warmstart_svm = {'gamma': 2 ** -15,
                  'tol': 1e-3,
                  'kernel': 'rbf'}
 
-# Keras configuration space with 4 hidden layers
+# Keras configuration space with 2 hidden layers
 # Based on: https://arxiv.org/pdf/1905.04970.pdf
 space_keras = [
     skopt.space.Real(low=.0005, high=.1, name='init_lr'),
@@ -71,7 +71,7 @@ space_keras = [
     skopt.space.Real(low=.0, high=.6, name='dropout2')
 ]
 
-# HP values for warm starting a Keras model with 4 hidden layers //
+# HP values for warm starting a Keras model with 2 hidden layers //
 # https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
 warmstart_keras = {'init_lr': 0.001,
                    'batch_size': 128,
