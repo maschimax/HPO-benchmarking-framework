@@ -18,6 +18,7 @@ import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
 from datasets.Sensor_System_Production.sensor_loading_and_balancing import sensor_loading_and_preprocessing
+from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from datasets.Mining_Process.mining_preprocessing import mining_loading_and_preprocessing
 from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_preprocessing
 
@@ -29,15 +30,15 @@ debug = False
 if debug:
     # Set parameters manually
     dataset = 'sensor'  # Flag for the ML use case / dataset to be used
-    hp_space = space_xgb
-    ml_algo = 'XGBoostClassifier'
+    hp_space = space_keras
+    ml_algo = 'KerasClassifier'
     opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
+    n_runs = 1
     n_func_evals = 200
-    n_workers = 1
+    n_workers = 4
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
     do_warmstart = 'No'
@@ -62,7 +63,7 @@ else:
                                  'Bohamiann'])
 
     parser.add_argument('--dataset', type=str, help='Dataset / use case.', default='scania',
-                        choices=['scania', 'turbofan', 'mining', 'steel', 'sensor', 'dummy'])
+                        choices=['scania', 'turbofan', 'mining', 'steel', 'sensor', 'blisk', 'dummy'])
 
     parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
 
@@ -231,6 +232,10 @@ elif dataset == 'sensor':
         # Transform numpy arrays to pandas DataFrames
         y_train = pd.DataFrame(y_train_oh)
         y_test = pd.DataFrame(y_test_oh)
+
+elif dataset == 'blisk':
+
+    X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
 
 elif dataset == 'mining':
 
