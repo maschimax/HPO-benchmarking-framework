@@ -18,6 +18,7 @@ import datasets.dummy.preprocessing as pp
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
 from datasets.Sensor_System_Production.sensor_loading_and_balancing import sensor_loading_and_preprocessing
+from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from datasets.Mining_Process.mining_preprocessing import mining_loading_and_preprocessing
 from datasets.Faulty_Steel_Plates.steel_preprocessing import steel_loading_and_preprocessing
 
@@ -29,21 +30,22 @@ debug = False
 if debug:
     # Set parameters manually
     dataset = 'sensor'  # Flag for the ML use case / dataset to be used
-    hp_space = space_xgb
-    ml_algo = 'XGBoostClassifier'
+    hp_space = space_keras
+    ml_algo = 'KerasClassifier'
     opt_schedule = [('optuna', 'TPE')]
     # Possible schedule combinations [('optuna', 'CMA-ES'), ('optuna', 'RandomSearch'),
     # ('skopt', 'SMAC'), ('skopt', 'GPBO'), ('hpbandster', 'BOHB'), ('hpbandster', 'Hyperband'), ('robo', 'Fabolas'),
     # ('robo', 'Bohamiann'), ('optuna', 'TPE')]
-    n_runs = 2
+    n_runs = 1
     n_func_evals = 200
-    n_workers = 1
+    n_workers = 4
     loss_metric = f1_loss
     loss_metric_str = 'F1-loss'
     do_warmstart = 'No'
     plot_learning_curves = 'No'
     use_gpu = 'No'
     cross_validation = 'No'
+    shuffle = 'Yes'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -62,7 +64,7 @@ else:
                                  'Bohamiann'])
 
     parser.add_argument('--dataset', type=str, help='Dataset / use case.', default='scania',
-                        choices=['scania', 'turbofan', 'mining', 'steel', 'sensor', 'dummy'])
+                        choices=['scania', 'turbofan', 'mining', 'steel', 'sensor', 'blisk', 'dummy'])
 
     parser.add_argument('--n_func_evals', type=int, help='Number of function evaluations in each run.', default=15)
 
@@ -89,6 +91,9 @@ else:
     parser.add_argument('--cross_validation', type=str, help='Apply cross validation (yes/no).', default='No',
                         choices=['Yes', 'No'])
 
+    parser.add_argument('--shuffle', type=str, help='Shuffle training data (yes/no)', default='Yes',
+                        choices=['Yes', 'No'])
+
     args = parser.parse_args()
 
     # Settings for this trial
@@ -103,6 +108,7 @@ else:
     plot_learning_curves = args.plot_learning_curves
     use_gpu = args.gpu
     cross_validation = args.cross_validation
+    shuffle = args.shuffle
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -232,6 +238,10 @@ elif dataset == 'sensor':
         y_train = pd.DataFrame(y_train_oh)
         y_test = pd.DataFrame(y_test_oh)
 
+elif dataset == 'blisk':
+
+    X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
+
 elif dataset == 'mining':
 
     X_train, X_test, y_train, y_test = mining_loading_and_preprocessing()
@@ -284,11 +294,16 @@ if cross_validation == 'No':
 else:
     cv = True
 
+if shuffle == 'Yes':
+    shuffle_data = True
+else:
+    shuffle_data = False
+
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
               x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test, do_warmstart=do_warmstart,
-              gpu=gpu, cross_val=cv)
+              gpu=gpu, cross_val=cv, shuffle=shuffle_data)
 
 # Run the optimization
 res = trial.run()
