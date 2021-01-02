@@ -68,34 +68,34 @@ def surface_crack_loading_and_preprocessing():
 
 
 ########################################################################################################################
-X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing()
-
-# Modeling
-
-# from tensorflow import keras
+# X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing()
 #
-# model = keras.Sequential()
+# # Modeling
 #
-# model.add(keras.layers.InputLayer(len(X_train.keys())))
-# model.add(keras.layers.Dense(512, activation='relu'))
-# model.add(keras.layers.Dense(512, activation='relu'))
-# model.add(keras.layers.Dense(256, activation='relu'))
-# model.add(keras.layers.Dense(1, activation='sigmoid'))
+# # from tensorflow import keras
+# #
+# # model = keras.Sequential()
+# #
+# # model.add(keras.layers.InputLayer(len(X_train.keys())))
+# # model.add(keras.layers.Dense(512, activation='relu'))
+# # model.add(keras.layers.Dense(512, activation='relu'))
+# # model.add(keras.layers.Dense(256, activation='relu'))
+# # model.add(keras.layers.Dense(1, activation='sigmoid'))
+# #
+# # adam = keras.optimizers.Adam(learning_rate=0.0001)
+# # model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+# #
+# # model.fit(X_train, y_train, epochs=100, batch_size=256, validation_split=0.2, shuffle=True, verbose=1)
+# #
+# # y_pred = model.predict(X_test)
+# #
+# # y_pred = np.rint(y_pred)
 #
-# adam = keras.optimizers.Adam(learning_rate=0.0001)
-# model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+# from sklearn.tree import DecisionTreeClassifier
+# clf = DecisionTreeClassifier(random_state=0)
+# clf.fit(X_train, y_train)
+# y_pred = clf.predict(X_test)
 #
-# model.fit(X_train, y_train, epochs=100, batch_size=256, validation_split=0.2, shuffle=True, verbose=1)
+# accuracy = accuracy_score(y_test, y_pred)
 #
-# y_pred = model.predict(X_test)
-#
-# y_pred = np.rint(y_pred)
-
-from sklearn.tree import DecisionTreeClassifier
-clf = DecisionTreeClassifier(random_state=0)
-clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
-
-accuracy = accuracy_score(y_test, y_pred)
-
-print('Accuracy: ', accuracy)
+# print('Accuracy: ', accuracy)
