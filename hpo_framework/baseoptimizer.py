@@ -71,7 +71,6 @@ class BaseOptimizer(ABC):
         self.cross_val = cross_val
         self.shuffle = shuffle
 
-    @abstractmethod
     def optimize(self) -> TuningResult:
 
         raise NotImplementedError
