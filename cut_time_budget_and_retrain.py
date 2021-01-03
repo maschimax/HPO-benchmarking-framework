@@ -107,6 +107,17 @@ time_budget_df.to_csv(tb_path)
 ########################################################################################################################
 # PART 2: Retrain the ML algorithms
 
+trial_id_list = []
+algo_list = []
+hpo_tech_list = []
+worker_list = []
+warm_start_list = []
+budget_list = []
+tbloss_list = []
+fast_tech_list = []
+
+turbofan_is_loaded = False
+
 # Iterate over setup variants
 for this_setup in setup_vars:
 
@@ -124,6 +135,11 @@ for this_setup in setup_vars:
                                          (time_budget_df['Workers'] == this_setup[0]) &
                                          (time_budget_df['Warm start'] == this_setup[1]), 'Time budget [s]'].values[0]
 
+        this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
+                                         (time_budget_df['Workers'] == this_setup[0]) &
+                                         (time_budget_df['Warm start'] == this_setup[1]),
+                                               'Fastest HPO-technique'].values[0]
+
         # Filter by ML algorithm -> use case
         use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
 
@@ -138,6 +154,8 @@ for this_setup in setup_vars:
             # Run IDs
             runs = list(hpo_df['Run-ID'].unique())
 
+            test_loss_list = []
+
             # Iterate over runs per HPO-technique
             for this_run in runs:
 
@@ -150,22 +168,53 @@ for this_setup in setup_vars:
                     continue
 
                 # Index of minimum validation loss achieved within the time budget
-                min_val_loss_idx = run_df.loc[run_df['timestamps'] <= this_budget, 'val_losses'].idxmin(axis=0)
+                min_val_loss_idx = run_df.loc[run_df['timestamps'] <= this_budget,
+                                              'val_losses'].idxmin(axis=0, skipna=True)
 
                 # Best found HP configuration within the time budget
-                best_config_dict = ast.literal_eval(run_df.loc[min_val_loss_idx, 'configurations'])
+                try:
+                    best_config_dict = ast.literal_eval(run_df.loc[min_val_loss_idx, 'configurations'])
+                except:  # Very messy error handling
+                    print('-----------------------------------------------------')
+                    print('Cleaning wrong HP representation in log file!')
+
+                    if this_algo == 'AdaBoostRegressor' or this_algo == 'AdaBoostClassifier':
+                        config_str = run_df.loc[min_val_loss_idx, 'configurations']
+                        mem_dict = dict((x.strip('{'), y.strip('}')) for x, y in (element.split(':') for element
+                                                                                  in config_str.split(', ')))
+
+                        clean_dict = {}
+                        for old_key in mem_dict.keys():
+                            new_key = old_key.strip("'")
+                            clean_dict[new_key] = mem_dict[old_key]
+
+                        clean_dict['n_estimators'] = int(clean_dict['n_estimators'])
+                        clean_dict['learning_rate'] = float(clean_dict['learning_rate'])
+                        clean_dict['loss'] = clean_dict['loss'].strip().strip("'")
+
+                        _, max_depth = clean_dict['base_estimator'].split('=')
+                        max_depth = max_depth.strip().strip(')')
+                        del clean_dict['base_estimator']
+                        clean_dict['max_depth'] = int(max_depth)
+
+                        print('Cleaned HP representation: ', clean_dict)
+
+                        best_config_dict = clean_dict
+                    else:
+                        raise Exception('Error handling required!')
 
                 # Retrain the ML algorithm for this hyperparameter configuration and calculate the test loss
                 loss_metric = run_df['loss_metric'].unique()[0]
                 this_seed = run_df['random_seed'].unique()[0]
 
-                if dataset == 'turbofan':
+                if dataset == 'turbofan' and not turbofan_is_loaded:
 
                     do_shuffle = True
                     X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+                    turbofan_is_loaded = True  # Avoid reloading of the same data set
 
-                else:
-                    raise Exception('Please specify the data sets and the shuffling procedure for this data set!')
+                # else:
+                #     raise Exception('Please specify the data sets and the shuffling procedure for this data set!')
 
                 if loss_metric == 'RUL-loss':
 
@@ -180,25 +229,44 @@ for this_setup in setup_vars:
                                                 random_seed=this_seed, n_workers=this_setup[0], cross_val=False,
                                                 shuffle=do_shuffle)
 
+                print('-----------------------------------------------------')
+                print('Retrain ' + this_algo + ' on ' + dataset + ' data set.')
                 test_loss = dummy_optimizer.train_evaluate_ml_model(params=best_config_dict, cv_mode=False,
                                                                     test_mode=True)
 
-                # Save test loss values and best configs somewhere
+                print('Test loss: ', test_loss)
 
-                # Compute mean of test losses and save to metrics .csv file
+                test_loss_list.append(test_loss)
 
+            # Calculate the mean test loss over all runs of this HPO-technique
+            test_loss_arr = np.array(test_loss_list)
+            mean_test_loss = np.nanmean(test_loss_arr)
 
-# For each use case
+            # Append results
+            trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+            algo_list.append(this_algo)
+            hpo_tech_list.append(this_tech)
+            worker_list.append(this_setup[0])
+            warm_start_list.append(this_setup[1])
+            budget_list.append(this_budget)
+            tbloss_list.append(mean_test_loss)
+            fast_tech_list.append(this_fastest_tech)
 
-    # Find the fastest HPO technique and determine the time budget
+# Create a pd.DataFrame to store the results
+tb_loss_df = pd.DataFrame({
+    'Trial-ID': trial_id_list,
+    'ML-algorithm': algo_list,
+    'HPO-method': hpo_tech_list,
+    'Workers': worker_list,
+    'Warm start': warm_start_list,
+    'Time Budget [s]': budget_list,
+    'Min. test loss in time budget': tbloss_list,
+    'Fastest HPO-technique': fast_tech_list
+})
 
-    # For each HPO technique
+# Write results to .csv-file
+tb_loss_path = './hpo_framework/results/' + dataset + '/min_losses_in_time_budget_' + dataset + '.csv'
+tb_loss_df.to_csv(tb_loss_path)
 
-        # For each run
-
-        # Find the best HP-configuration (based on the validation loss) until the time budget was consumed
-
-        # Retrain the ML algorithm for this configuration
-
-        # Write the time budget, the fastest HPO Technique, the validation loss and the test loss (both mean)
-        # into the corresponding metrics file
+# TODO: Write the results into the corresponding metrics file
+# TODO: Verify procedure and results
