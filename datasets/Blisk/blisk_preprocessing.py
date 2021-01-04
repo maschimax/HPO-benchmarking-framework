@@ -3,8 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import time
 
-
-def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=34):
+def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=68):
 
     file_path = './datasets/Blisk/SL_S7_B2_KB1_prepared.csv'
 
@@ -16,7 +15,6 @@ def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=34):
 
     # Sample the original time series with the sampling rate to reduce the data set size
     if sample_data:
-
         sample_idx = list(range(0, len(X_data), sampling_rate))
         X_data = X_data.iloc[sample_idx, :]
 
