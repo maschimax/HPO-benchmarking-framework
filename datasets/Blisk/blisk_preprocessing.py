@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 
 
-def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=100):
+def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=200):
 
     file_path = './datasets/Blisk/SL_S7_B2_KB1_prepared.csv'
 
@@ -24,6 +24,17 @@ def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=100):
     # ax.plot(X_data.index, X_data['vibration[t+1]'])
     # plt.show()
 
+    X_data.reset_index(drop=True, inplace=True)
+
+    # Reshift the Features -> Necessary, because sampling has been applied
+    X_data['vibration[t-1]'] = X_data['vibration[t]'].shift(+1)
+    X_data['vibration[t-2]'] = X_data['vibration[t]'].shift(+2)
+
+    # Reshift the prediction horizon (original horizon was 9434 time steps)
+    X_data['vibration[t+1]'] = X_data['vibration[t]'].shift(-int(9434 / sampling_rate))
+
+    # Drop rows, that contain NaN values due to the shifting
+    X_data.dropna(axis=0, inplace=True)
     X_data.reset_index(drop=True, inplace=True)
 
     # Separate labels
