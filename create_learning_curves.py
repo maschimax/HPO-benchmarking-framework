@@ -25,7 +25,11 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
         unique_ids = this_df['Run-ID'].unique()  # Unique id of each optimization run
 
         this_algo = opt_tuple[2]
-        baseline_dict[this_algo] = this_df['val_baseline'][0]
+
+        if this_algo in baseline_dict.keys():
+            baseline_dict[this_algo].append(this_df['val_baseline'][0])
+        else:
+            baseline_dict[this_algo] = [this_df['val_baseline'][0]]
 
         # Add legend label (ML-algorithm - HPO-technique)
         legend_labels.append(opt_tuple[2] + ' - ' + opt_tuple[3])
@@ -106,7 +110,7 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
 
         for i in range(len(baseline_dict.keys())):
             algo = list(baseline_dict.keys())[i]
-            this_val_baseline_loss = baseline_dict[algo]
+            this_val_baseline_loss = np.nanmean(baseline_dict[algo])
             this_val_baseline = ax.hlines(y=this_val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
                                           colors='deepskyblue')
             mean_lines.append(this_val_baseline)

@@ -24,6 +24,8 @@ def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=34):
     # ax.plot(X_data.index, X_data['vibration[t+1]'])
     # plt.show()
 
+    X_data.reset_index(drop=True, inplace=True)
+
     # Separate labels
     y_data = X_data.pop('vibration[t+1]')
 

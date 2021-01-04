@@ -12,9 +12,9 @@ from hpo_framework import multiproc_target_funcs
 
 class OptunaOptimizer(BaseOptimizer):
     def __init__(self, hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                 random_seed, n_workers, do_warmstart, cross_val, shuffle):
+                 random_seed, n_workers, do_warmstart, cross_val, shuffle, is_time_series):
         super().__init__(hp_space, hpo_method, ml_algorithm, x_train, x_test, y_train, y_test, metric, n_func_evals,
-                         random_seed, n_workers, cross_val, shuffle)
+                         random_seed, n_workers, cross_val, shuffle, is_time_series)
 
         self.do_warmstart = do_warmstart
 
