@@ -23,6 +23,10 @@ xtick_rotation = 90
 # Summary table for each setup variant
 setup_variants = [(1, False), (8, False), (1, True)]
 
+# Flag indicating, whether the Final Performance should be assessed based on a time budget restriction or a
+# restriction of the number of function evaluations
+time_budget_restriction = True
+
 # Iterate over setup variants
 for this_setup in setup_variants:
 
@@ -73,7 +77,8 @@ for this_setup in setup_variants:
                        'Mean (final validation loss)': default_validation_loss,
                        'Mean (final test loss)': default_test_loss,
                        'Validation baseline': default_validation_loss,
-                       'Test baseline': default_test_loss}
+                       'Test baseline': default_test_loss,
+                       'Min. avg. test loss in time budget': default_test_loss}
 
         default_df = pd.DataFrame(default_row, index=[len(sub_frame)])
 
@@ -81,7 +86,12 @@ for this_setup in setup_variants:
         sub_frame = pd.concat(objs=[sub_frame, default_df], axis=0, ignore_index=True)
 
         # Sort DataFrame according to the final performance
-        final_df_sorted = sub_frame.sort_values(by='Mean (final test loss)', axis=0, inplace=False, ascending=True,
+        if time_budget_restriction:
+            test_loss_str = 'Min. avg. test loss in time budget'
+        else:
+            test_loss_str = 'Mean (final test loss)'
+
+        final_df_sorted = sub_frame.sort_values(by=test_loss_str, axis=0, inplace=False, ascending=True,
                                                 na_position='last')
 
         # Sort DataFrame according to the anytime performance
@@ -94,16 +104,16 @@ for this_setup in setup_variants:
         # Assess the final performance of the HPO techniques for this ML algorithm and this setup variant
         final_perf_rank += (list(range(1, len(final_df_sorted['HPO-method']) + 1)))
         final_perf_tech += (list(final_df_sorted['HPO-method']))
-        final_perf_val += (list(final_df_sorted['Mean (final test loss)']))
         final_wc_times += (list(final_df_sorted['Wall clock time [s]']))
+        final_perf_val += (list(final_df_sorted[test_loss_str]))
 
         # Compute the deviation from the minimum loss scaled between 0 and 1
-        loss_arr = final_df_sorted['Mean (final test loss)'].to_numpy()
+        loss_arr = final_df_sorted[test_loss_str].to_numpy()
         min_loss = np.nanmin(loss_arr)
         max_loss = np.nanmax(loss_arr[loss_arr != np.inf])
 
         scaled_loss_deviation = [(this_loss - min_loss) / (max_loss - min_loss) for this_loss
-                                 in list(final_df_sorted['Mean (final test loss)'])]
+                                 in list(final_df_sorted[test_loss_str])]
 
         final_perf_rel += scaled_loss_deviation
 
@@ -192,6 +202,7 @@ for this_setup in setup_variants:
                            'Mean (final test loss)': default_test_loss,
                            'Validation baseline': default_validation_loss,
                            'Test baseline': default_test_loss,
+                           'Min.avg.test loss in time budget': default_test_loss,
                            'Speed up factor': 1.0}
 
             default_df = pd.DataFrame(default_row, index=[len(para_sub_frame)])

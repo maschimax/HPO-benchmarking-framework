@@ -7,7 +7,7 @@ from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan
 from hpo_framework import hpo_metrics
 
 dataset = 'turbofan'
-find_budget_and_retrain = True
+find_budget_and_retrain = False
 write_to_metrics = True
 
 # Setup variants (# workers, warm start (Yes / No))
@@ -302,8 +302,12 @@ if write_to_metrics:
         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Min. avg. test loss in time budget'] = min_test_loss
         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Fastest HPO-Technique'] = fast_tech
 
+        print(str(col_count) + ' - Modified Trial: ' + trial_id)
         col_count += 1
 
     print(str(col_count) + ' of ' + str(len(metrics_df)) + ' total lines have been modified!')
+
+    # Save modified metrics .csv-file
+    metrics_df.to_csv(metrics_path)
 
 # TODO: Verify procedure and results
