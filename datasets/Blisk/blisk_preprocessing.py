@@ -2,10 +2,13 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import time
+import matplotlib.pyplot as plt
 
-def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=68):
 
+def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=100):
     file_path = './datasets/Blisk/SL_S7_B2_KB1_prepared.csv'
+
+    # file_path = './SL_S7_B2_KB1_prepared.csv'
 
     # Load the data set
     start_loading = time.time()
@@ -17,7 +20,7 @@ def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=68):
     if sample_data:
         sample_idx = list(range(0, len(X_data), sampling_rate))
         X_data = X_data.iloc[sample_idx, :]
-
+    #
     # fig, ax = plt.subplots()
     # ax.plot(X_data.index, X_data['vibration[t+1]'])
     # plt.show()
@@ -36,3 +39,28 @@ def blisk_loading_and_preprocessing(sample_data=True, sampling_rate=68):
     X_test = pd.DataFrame(scaler.transform(X_test))
 
     return X_train, X_test, y_train, y_test
+
+
+# X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing(sampling_rate=100)
+#
+# from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+# from sklearn.tree import DecisionTreeRegressor
+# from sklearn.svm import SVR
+# from xgboost import XGBRegressor
+# from sklearn.metrics import mean_squared_error
+# from math import sqrt
+# import time
+#
+# model = RandomForestRegressor(random_state=0)
+#
+# print('Training starts ...')
+#
+# t_start = time.time()
+# model.fit(X_train, y_train)
+# t_training = time.time() - t_start
+#
+# y_pred = model.predict(X_test)
+# loss = sqrt(mean_squared_error(y_test, y_pred))
+#
+# print('Training duration: ', t_training)
+# print('Test loss: ', loss)
