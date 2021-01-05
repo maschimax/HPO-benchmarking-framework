@@ -4,11 +4,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 import argparse
+from matplotlib import rcParams
 
+def plot_aggregated_learning_curves(logs: dict, show_std=False, single_mode=False):
 
-def plot_aggregated_learning_curves(logs: dict, show_std=False):
+    # IPT-colors
+    colors = {'default': '#969696',  # grau
+              'BOHB': '#179c7d',  # dunkelgrün
+              'CMA-ES': '#ff6600',  # dunkelorange
+              'RandomSearch': '#771c2d',  # bordeaux
+              'Hyperband': '#438cd4',  # hellblau
+              'TPE': '#00346b',  # dunkelblau
+              'GPBO': '#b1c800',  # kaktus
+              'SMAC': '#25b9e2',  # kaugummi
+              'Fabolas': '#ffcc99',  # hellorange
+              'Bohamiann': '#000000'}  # schwarz
+
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.sans-serif'] = 'Arial'
+    rcParams.update({'font.size': 10})
+
     # Initialize the plot figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(7, 4))
     mean_lines = []
     max_time = 0  # necessary to limit the length of the baseline curve (default configuration)
 
@@ -32,7 +49,10 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
             baseline_dict[this_algo] = [this_df['val_baseline'][0]]
 
         # Add legend label (ML-algorithm - HPO-technique)
-        legend_labels.append(opt_tuple[2] + ' - ' + opt_tuple[3])
+        if single_mode:
+            legend_labels.append(opt_tuple[3])
+        else:
+            legend_labels.append(opt_tuple[2] + ' - ' + opt_tuple[3])
 
         n_cols = len(unique_ids)
         n_rows = 0
@@ -95,12 +115,12 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
             max_time = max(mean_timestamps)
 
         # Plot the mean loss over time
-        mean_line = ax.plot(mean_timestamps, mean_trace_desc)
+        mean_line = ax.plot(mean_timestamps, mean_trace_desc, c=colors[opt_tuple[3]])
         mean_lines.append(mean_line[0])
 
         # Colored area to visualize the inter-quantile area
         ax.fill_between(x=mean_timestamps, y1=upper,
-                        y2=lower, alpha=0.2)
+                        y2=lower, color=colors[opt_tuple[3]], alpha=0.2)
 
     ml_algorithms = [opt_tuple[2] for opt_tuple in logs.keys()]
     hpo_methods = [opt_tuple[3] for opt_tuple in logs.keys()]
@@ -112,13 +132,17 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
             algo = list(baseline_dict.keys())[i]
             this_val_baseline_loss = np.nanmean(baseline_dict[algo])
             this_val_baseline = ax.hlines(y=this_val_baseline_loss, xmin=0, xmax=max_time, linestyles='dashed',
-                                          colors='deepskyblue')
+                                          colors=colors['default'])
             mean_lines.append(this_val_baseline)
-            legend_labels.append(algo + ' - Default HPs')
+
+            if single_mode:
+                legend_labels.append('Default HPs')
+            else:
+                legend_labels.append(algo + ' - Default HPs')
 
     # Formatting of the plot
-    plt.xlabel('Wall clock time [s]')
-    plt.ylabel('Validation loss')
+    ax.set_xlabel('Wall clock time [s]', fontweight='semibold', fontsize=10, fontname='Arial')
+    ax.set_ylabel('Validation loss', fontweight='semibold', fontsize=10, fontname='Arial')
     plt.yscale('log')
     plt.xscale('log')
 
@@ -127,7 +151,7 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
 
     # Add a title
     font = {'weight': 'semibold',
-            'size': 'large'}
+            'size': 11}
 
     title_label = 'Learning curves'
     plt.title(label=title_label, fontdict=font, loc='center')
@@ -142,9 +166,10 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False):
     for hpo in set(hpo_methods):
         hpo_str = hpo_str + hpo
 
-    fig_str = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '_' + time_str + '.jpg'
+    fig_str_jpg = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '_' + time_str + '.jpg'
+    fig_str_svg = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '_' + time_str + '.svg'
 
-    return fig, fig_str
+    return fig, fig_str_jpg, fig_str_svg
 
 
 if __name__ == '__main__':
@@ -154,12 +179,20 @@ if __name__ == '__main__':
     parser.add_argument('--std', type=str, help='Plot mean +/- standard deviation', default='No',
                         choices=['Yes', 'No'])
 
+    parser.add_argument('--single_algo_mode', type=str, help='Single ML algorithm (Yes/No)', default='No',
+                        choices=['Yes', 'No'])
+
     args = parser.parse_args()
 
     if args.std == 'Yes':
         show_std = True
     else:
         show_std = False
+
+    if args.single_algo_mode == 'Yes':
+        single_mode = True
+    else:
+        single_mode = False
 
     log_path = './hpo_framework/results/temp'
     log_dict = {}
@@ -174,6 +207,9 @@ if __name__ == '__main__':
             log_dict[(trial_id, dataset, ml_algo, hpo_method)] = log_df
 
     # Plot the learning curves
-    curves_fig, curves_str = plot_aggregated_learning_curves(log_dict, show_std=show_std)
-    fig_path = os.path.join(log_path, curves_str)
-    curves_fig.savefig(fname=fig_path)
+    curves_fig, curves_str_jpg, curves_str_svg = plot_aggregated_learning_curves(log_dict, show_std=show_std,
+                                                                                 single_mode=single_mode)
+    fig_path_jpg = os.path.join(log_path, curves_str_jpg)
+    fig_path_svg = os.path.join(log_path, curves_str_svg)
+    curves_fig.savefig(fname=fig_path_jpg, bbox_inches='tight')
+    curves_fig.savefig(fname=fig_path_svg, bbox_inches='tight')

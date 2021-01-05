@@ -10,7 +10,7 @@ from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from hpo_framework import hpo_metrics
 
 dataset = 'turbofan'
-find_budget_and_retrain = True
+find_budget_and_retrain = False
 write_to_metrics = True
 
 # Setup variants (# workers, warm start (Yes / No))

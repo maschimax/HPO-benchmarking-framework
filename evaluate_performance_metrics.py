@@ -36,6 +36,8 @@ for this_setup in setup_variants:
     final_perf_tech = []
     final_perf_val = []
     final_perf_rel = []
+    final_perf_tb = []
+    final_perf_fast_tech = []
     final_wc_times = []
 
     any_perf_rank = []
@@ -65,6 +67,11 @@ for this_setup in setup_variants:
         # Filter for setup variant and ML algorithm
         sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == this_setup[0])
                                    & (metrics_df['Warmstart'] == this_setup[1]), :]
+
+        # Correct negative anytime performance values (negative values may occur on the warm start setup)
+        for idx, row_series in sub_frame.iterrows():
+            if row_series['t outperform default [s]'] < 0.0:
+                sub_frame.loc[idx, 't outperform default [s]'] = 0.0
 
         # Add row for HPO-technique: Default HPs
         default_validation_loss = np.nanmean(sub_frame.loc[:, 'Validation baseline'].to_numpy())
@@ -106,6 +113,8 @@ for this_setup in setup_variants:
         final_perf_tech += (list(final_df_sorted['HPO-method']))
         final_wc_times += (list(final_df_sorted['Wall clock time [s]']))
         final_perf_val += (list(final_df_sorted[test_loss_str]))
+        final_perf_tb += (list(final_df_sorted['Time Budget [s]']))
+        final_perf_fast_tech += (list(final_df_sorted['Fastest HPO-Technique']))
 
         # Compute the deviation from the minimum loss scaled between 0 and 1
         loss_arr = final_df_sorted[test_loss_str].to_numpy()
@@ -235,6 +244,8 @@ for this_setup in setup_variants:
                                    'FP value': final_perf_val,
                                    'FP deviation [0-1]': final_perf_rel,
                                    'FP wall clock time [s]': final_wc_times,
+                                   'FP time budget [s]': final_perf_tb,
+                                   'FP fastest HPO-tech': final_perf_fast_tech,
                                    'AP Rank': any_perf_rank,
                                    'AP HPO-method': any_perf_tech,
                                    'AP value': any_perf_val,
@@ -252,6 +263,8 @@ for this_setup in setup_variants:
                                    'FP value': final_perf_val,
                                    'FP deviation [0-1]': final_perf_rel,
                                    'FP wall clock time [s]': final_wc_times,
+                                   'FP time budget [s]': final_perf_tb,
+                                   'FP fastest HPO-tech': final_perf_fast_tech,
                                    'AP Rank': any_perf_rank,
                                    'AP HPO-method': any_perf_tech,
                                    'AP value': any_perf_val,
