@@ -67,8 +67,8 @@ for this_setup in setup_variants:
                                    & (metrics_df['Warmstart'] == this_setup[1]), :]
 
         # Add row for HPO-technique: Default HPs
-        default_validation_loss = sub_frame.loc[:, 'Validation baseline'].to_numpy().mean()
-        default_test_loss = sub_frame.loc[:, 'Test baseline'].to_numpy().mean()
+        default_validation_loss = np.nanmean(sub_frame.loc[:, 'Validation baseline'].to_numpy())
+        default_test_loss = np.nanmean(sub_frame.loc[:, 'Test baseline'].to_numpy())
 
         default_row = {'HPO-method': 'Default',
                        'ML-algorithm': this_algo,
@@ -135,7 +135,7 @@ for this_setup in setup_variants:
 
         # Avoid division by zero
         else:
-            scaled_time_deviation = [np.float('nan')] * len(any_df_sorted['t outperform default [s]'])
+            scaled_time_deviation = [np.float('inf')] * len(any_df_sorted['t outperform default [s]'])
         any_perf_rel += scaled_time_deviation
 
         # Compute the average time per evaluation for Random Search
@@ -180,10 +180,6 @@ for this_setup in setup_variants:
                 single_wc_time = single_sub_frame.loc[single_sub_frame['HPO-method'] == this_tech,
                                                       'Wall clock time [s]'].values[0]
 
-                # Default baselines on single worker setup
-                single_validation_baseline = np.nanmean(single_sub_frame.loc[:, 'Validation baseline'].to_numpy())
-                single_test_baseline = np.nanmean(single_sub_frame.loc[:, 'Test baseline'].to_numpy())
-
                 # Wall clock time on setup with 8 parallel workers
                 para_wc_time = para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech,
                                                   'Wall clock time [s]'].values[0]
@@ -193,22 +189,26 @@ for this_setup in setup_variants:
 
                 para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech, 'Speed up factor'] = this_speed_up
 
-            # Add row for Default HPs
-            default_row = {'HPO-method': 'Default',
-                           'ML-algorithm': this_algo,
-                           'Workers': this_setup[0],
-                           'Warmstart': this_setup[1],
-                           'Mean (final validation loss)': default_validation_loss,
-                           'Mean (final test loss)': default_test_loss,
-                           'Validation baseline': default_validation_loss,
-                           'Test baseline': default_test_loss,
-                           'Min.avg.test loss in time budget': default_test_loss,
-                           'Speed up factor': 1.0}
+            # Default baselines on single worker setup
+            single_validation_baseline = np.nanmean(single_sub_frame.loc[:, 'Validation baseline'].to_numpy())
+            single_test_baseline = np.nanmean(single_sub_frame.loc[:, 'Test baseline'].to_numpy())
 
-            default_df = pd.DataFrame(default_row, index=[len(para_sub_frame)])
+            # Add row for Default HPs
+            para_default_row = {'HPO-method': 'Default',
+                                'ML-algorithm': this_algo,
+                                'Workers': this_setup[0],
+                                'Warmstart': this_setup[1],
+                                'Mean (final validation loss)': single_validation_baseline,
+                                'Mean (final test loss)': single_test_baseline,
+                                'Validation baseline': single_validation_baseline,
+                                'Test baseline': single_test_baseline,
+                                'Min.avg.test loss in time budget': single_test_baseline,
+                                'Speed up factor': 1.0}
+
+            para_default_df = pd.DataFrame(para_default_row, index=[len(para_sub_frame)])
 
             # Append new row to DataFrame
-            para_sub_frame = pd.concat(objs=[para_sub_frame, default_df], axis=0, ignore_index=True)
+            para_sub_frame = pd.concat(objs=[para_sub_frame, para_default_df], axis=0, ignore_index=True)
 
             para_sub_frame.sort_values(by='Speed up factor', axis=0, inplace=True, ascending=False, na_position='last')
 

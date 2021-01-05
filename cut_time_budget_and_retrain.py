@@ -4,10 +4,13 @@ import ast
 
 from hpo_framework.baseoptimizer import BaseOptimizer
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
+from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
+from datasets.Sensor_System_Production.sensor_loading_and_balancing import sensor_loading_and_preprocessing
+from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from hpo_framework import hpo_metrics
 
 dataset = 'turbofan'
-find_budget_and_retrain = False
+find_budget_and_retrain = True
 write_to_metrics = True
 
 # Setup variants (# workers, warm start (Yes / No))
@@ -121,7 +124,7 @@ if find_budget_and_retrain:
     tbloss_list = []
     fast_tech_list = []
 
-    turbofan_is_loaded = False
+    data_is_loaded = False
 
     # Iterate over setup variants
     for this_setup in setup_vars:
@@ -138,11 +141,12 @@ if find_budget_and_retrain:
             # Time budget for this use case
             this_budget = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
                                              (time_budget_df['Workers'] == this_setup[0]) &
-                                             (time_budget_df['Warm start'] == this_setup[1]), 'Time budget [s]'].values[0]
+                                             (time_budget_df['Warm start'] == this_setup[1]),
+                                             'Time budget [s]'].values[0]
 
             this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
-                                             (time_budget_df['Workers'] == this_setup[0]) &
-                                             (time_budget_df['Warm start'] == this_setup[1]),
+                                                   (time_budget_df['Workers'] == this_setup[0]) &
+                                                   (time_budget_df['Warm start'] == this_setup[1]),
                                                    'Fastest HPO-technique'].values[0]
 
             # Filter by ML algorithm -> use case
@@ -212,18 +216,46 @@ if find_budget_and_retrain:
                     loss_metric = run_df['loss_metric'].unique()[0]
                     this_seed = run_df['random_seed'].unique()[0]
 
-                    if dataset == 'turbofan' and not turbofan_is_loaded:
-
+                    # Load the data set
+                    if dataset == 'turbofan' and not data_is_loaded:
                         do_shuffle = True
                         X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
-                        turbofan_is_loaded = True  # Avoid reloading of the same data set
+                        data_is_loaded = True
+                        is_time_series = False
 
-                    # else:
-                    #     raise Exception('Please specify the data sets and the shuffling procedure for this data set!')
+                    elif dataset == 'scania' and not data_is_loaded:
+                        do_shuffle = True
+                        X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
+                        data_is_loaded = True
+                        is_time_series = False
 
+                    elif dataset == 'sensor' and not data_is_loaded:
+                        do_shuffle = True
+                        X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
+                        data_is_loaded = True
+                        is_time_series = False
+
+                    elif dataset == 'blisk' and not data_is_loaded:
+                        do_shuffle = False
+                        X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
+                        data_is_loaded = True
+                        is_time_series = True
+
+                    elif data_is_loaded:
+                        raise Exception('Unknown data set!')
+
+                    # Select the loss metric
                     if loss_metric == 'RUL-loss':
 
                         this_metric = hpo_metrics.rul_loss_score
+
+                    elif loss_metric == 'root_mean_squared_error':
+
+                        this_metric = hpo_metrics.root_mean_squared_error
+
+                    elif loss_metric == 'F1-loss':
+
+                        this_metric = hpo_metrics.f1_loss
 
                     else:
                         raise Exception('Unknown loss metric!')
@@ -232,7 +264,7 @@ if find_budget_and_retrain:
                                                     x_train=X_train, x_test=X_test, y_train=y_train, y_test=y_test,
                                                     metric=this_metric, n_func_evals=1,
                                                     random_seed=this_seed, n_workers=this_setup[0], cross_val=False,
-                                                    shuffle=do_shuffle)
+                                                    shuffle=do_shuffle, is_time_series=is_time_series)
 
                     print('-----------------------------------------------------')
                     print('Retrain ' + this_algo + ' on ' + dataset + ' data set.')
@@ -290,7 +322,6 @@ if write_to_metrics:
 
     # Iterate through the rows in the tb_df
     for idx, row in tb_df.iterrows():
-
         # Query results
         trial_id = row['Trial-ID']
         min_test_loss = row['Min. test loss in time budget']
@@ -309,5 +340,3 @@ if write_to_metrics:
 
     # Save modified metrics .csv-file
     metrics_df.to_csv(metrics_path)
-
-# TODO: Verify procedure and results
