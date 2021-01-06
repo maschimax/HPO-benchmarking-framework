@@ -14,7 +14,7 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False, single_mode=Fals
               'CMA-ES': '#ff6600',  # dunkelorange
               'RandomSearch': '#771c2d',  # bordeaux
               'Hyperband': '#438cd4',  # hellblau
-              'TPE': '#00346b',  # dunkelblau
+              'TPE': '#005a94',  # dunkelblau
               'GPBO': '#b1c800',  # kaktus
               'SMAC': '#25b9e2',  # kaugummi
               'Fabolas': '#ffcc99',  # hellorange
@@ -22,10 +22,10 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False, single_mode=Fals
 
     rcParams['font.family'] = 'sans-serif'
     rcParams['font.sans-serif'] = 'Arial'
-    rcParams.update({'font.size': 10})
+    rcParams.update({'font.size': 11})
 
     # Initialize the plot figure
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(6, 4))
     mean_lines = []
     max_time = 0  # necessary to limit the length of the baseline curve (default configuration)
 
@@ -141,22 +141,22 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False, single_mode=Fals
                 legend_labels.append(algo + ' - Default HPs')
 
     # Formatting of the plot
-    ax.set_xlabel('Wall clock time [s]', fontweight='semibold', fontsize=10, fontname='Arial')
-    ax.set_ylabel('Validation loss', fontweight='semibold', fontsize=10, fontname='Arial')
+    ax.set_xlabel('Wall clock time [s]', fontweight='semibold', fontsize=11, fontname='Arial')
+    ax.set_ylabel('Validation loss', fontweight='semibold', fontsize=11, fontname='Arial')
     plt.yscale('log')
     plt.xscale('log')
 
     # Add a legend
     plt.legend(mean_lines, legend_labels, loc='upper right', fontsize='small')
 
-    # Add a title
-    font = {'weight': 'semibold',
-            'size': 11}
+    # # Add a title
+    # font = {'weight': 'semibold',
+    #         'size': 11}
+    #
+    # title_label = 'Learning curves'
+    # plt.title(label=title_label, fontdict=font, loc='center')
 
-    title_label = 'Learning curves'
-    plt.title(label=title_label, fontdict=font, loc='center')
-
-    time_str = str(time.strftime("%Y_%m_%d %H-%M-%S", time.localtime()))
+    # time_str = str(time.strftime("%Y_%m_%d", time.localtime()))
 
     algo_str = '_'
     for algo in set(ml_algorithms):
@@ -166,8 +166,8 @@ def plot_aggregated_learning_curves(logs: dict, show_std=False, single_mode=Fals
     for hpo in set(hpo_methods):
         hpo_str = hpo_str + hpo
 
-    fig_str_jpg = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '_' + time_str + '.jpg'
-    fig_str_svg = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '_' + time_str + '.svg'
+    fig_str_jpg = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '.jpg'
+    fig_str_svg = 'learning_curves_' + this_df['dataset'][0] + algo_str + hpo_str + '.svg'
 
     return fig, fig_str_jpg, fig_str_svg
 
