@@ -26,40 +26,44 @@ def identify_nan_cols(train_df):
     return nan_cols
 
 
-def identify_corr_cols(train_df, corr_threshold=0.95):
+def identify_corr_cols(train_df, corr_threshold=0.95, show_heat_map=False):
 
     # Compute the correlation matrix
     corr_matrix = train_df.corr().abs()
 
-    # Select the upper triangle of the corelation matrix
+    # Select the upper triangle of the correlation matrix
     upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
 
     # Find the columns with a correlation greater than the threshold
     corr_cols = [col for col in upper_tri.columns if any(upper_tri[col] > corr_threshold)]
 
-    # Initialize figure the correlation matrix
-    fig, ax = plt.subplots(figsize=(11, 9))
+    if show_heat_map:
+        # Initialize figure the correlation matrix
+        fig, ax = plt.subplots(figsize=(11, 9))
 
-    # Set a seaborn theme
-    sns.set_theme(style="white")
+        # Set a seaborn theme
+        sns.set_theme(style="white")
 
-    # Create an ipt color map
-    cmap = sns.light_palette(color='#179c7d', n_colors=10, as_cmap=True)
+        # Create an ipt color map
+        cmap = sns.light_palette(color='#179c7d', n_colors=10, as_cmap=True)
 
-    # Mask to select the lower triangle of the correlation matrix
-    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+        # Mask to select the lower triangle of the correlation matrix
+        mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
 
-    # Plot the heatmap
-    sns.heatmap(corr_matrix, mask=mask, cmap=cmap, vmax=1.0, vmin=0.0, center=0.8,
-                square=True, linewidths=.5, cbar_kws={"shrink": .5})
+        # Plot the heatmap
+        sns.heatmap(corr_matrix, mask=mask, cmap=cmap, vmax=1.0, vmin=0.0, center=0.8,
+                    square=True, linewidths=.5, cbar_kws={"shrink": .5})
 
-    plt.savefig('turbofan_corr_matrix.svg', bbox_inches='tight')
-    plt.savefig('turbofan_corr_matrix.jpg', bbox_inches='tight')
+        plt.savefig('turbofan_corr_matrix.svg', bbox_inches='tight')
+        plt.savefig('turbofan_corr_matrix.jpg', bbox_inches='tight')
 
     return corr_cols
 
 
 def turbofan_loading_and_preprocessing():
+
+    show_hist = False
+    show_heat_map = False
 
     # Load the datasets
     raw_train_df = load_data('./datasets/Turbofan_Engine_Degradation/train_FD001.txt')
@@ -101,12 +105,13 @@ def turbofan_loading_and_preprocessing():
     # 80 / 20 split
     x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.2, random_state=0, shuffle=True)
 
-    # Create histogram for the label
-    fig, ax = plt.subplots(figsize=(11, 9))
-    sns.set_theme(style="white")
-    sns.histplot(y_train, stat='count', shrink=0.8, kde=True, color='#179c7d')
-    plt.savefig('turbofan_label_histplot.jpg', bbox_inches='tight')
-    plt.savefig('turbofan_label_histplot.svg', bbox_inches='tight')
+    if show_hist:
+        # Create histogram for the label
+        fig, ax = plt.subplots(figsize=(11, 9))
+        sns.set_theme(style="white")
+        sns.histplot(y_train, stat='count', shrink=0.8, kde=True, color='#179c7d')
+        plt.savefig('turbofan_label_histplot.jpg', bbox_inches='tight')
+        plt.savefig('turbofan_label_histplot.svg', bbox_inches='tight')
 
     # # Visualize features with NaN-values
     # fig, ax = plt.subplots(figsize=(11, 9))
@@ -136,7 +141,7 @@ def turbofan_loading_and_preprocessing():
     x_test.drop(labels=const_columns, axis=1, inplace=True)
 
     # Drop correlated
-    corr_columns = identify_corr_cols(x_train)
+    corr_columns = identify_corr_cols(x_train, show_heat_map=show_heat_map)
     x_train.drop(labels=corr_columns, axis=1, inplace=True)
     x_test.drop(labels=corr_columns, axis=1, inplace=True)
 
