@@ -890,7 +890,7 @@ class Trial:
                 # Early stopping callback
                 early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
                                                                min_delta=0,
-                                                               patience=10,
+                                                               patience=100,
                                                                verbose=1,
                                                                mode='auto',
                                                                restore_best_weights=True)
