@@ -11,7 +11,8 @@ from hpo_framework import hpo_metrics
 
 dataset = 'turbofan'
 find_budget_and_retrain = False
-write_to_metrics = True
+compute_auc = True
+write_to_metrics = False
 
 # Setup variants (# workers, warm start (Yes / No))
 setup_vars = [(1, False), (8, False), (1, True)]
@@ -306,7 +307,126 @@ if find_budget_and_retrain:
     tb_loss_df.to_csv(tb_loss_path)
 
 ########################################################################################################################
+# Compute AUC for time budget
 
+if compute_auc:
+
+    trial_id_list = []
+    algo_list = []
+    hpo_tech_list = []
+    worker_list = []
+    warm_start_list = []
+    budget_list = []
+    mean_auc_list = []
+    fast_tech_list = []
+
+    log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
+    tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
+
+    # Read the log file -> pd.DataFrame
+    log_df = pd.read_csv(log_path, index_col=0)
+    tb_df = pd.read_csv(tb_path, index_col=0)
+
+    # Iterate over setup variants
+    for this_setup in setup_vars:
+
+        # Filter by setup
+        setup_df = log_df.loc[(log_df['workers'] == this_setup[0]) & (log_df['warmstart'] == this_setup[1]), :]
+
+        # ML algorithms of this setup variant
+        ml_algos = list(setup_df['ML-algorithm'].unique())
+
+        # Iterate over ML-algorithms
+        for this_algo in ml_algos:
+
+            # Time budget for this use case
+            this_budget = tb_df.loc[(tb_df['ML-algorithm'] == this_algo) &
+                                    (tb_df['Workers'] == this_setup[0]) &
+                                    (tb_df['Warm start'] == this_setup[1]),
+                                    'Time budget [s]'].values[0]
+
+            this_fastest_tech = tb_df.loc[(tb_df['ML-algorithm'] == this_algo) &
+                                          (tb_df['Workers'] == this_setup[0]) &
+                                          (tb_df['Warm start'] == this_setup[1]),
+                                          'Fastest HPO-technique'].values[0]
+
+            # Filter by ML algorithm -> use case
+            use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
+
+            hpo_techs = list(use_case_df['HPO-method'].unique())
+
+            auc_list = []
+
+            # Iterate over HPO-techniques
+            for this_tech in hpo_techs:
+
+                # Filter by HPO-technique
+                hpo_df = use_case_df.loc[use_case_df['HPO-method'] == this_tech, :]
+
+                # Run IDs
+                runs = list(hpo_df['Run-ID'].unique())
+
+                print('-----------------------------------------------------')
+                print('Computing AUC for ' + this_tech + ' on ' + this_algo)
+
+                # Iterate over runs per HPO-technique
+                for this_run in runs:
+
+                    # Filter by run
+                    run_df = hpo_df.loc[hpo_df['Run-ID'] == this_run]
+
+                    run_successful = run_df['run_successful'].to_numpy()[0]
+
+                    if not run_successful:
+                        continue
+
+                    # Filter for time budget
+                    sub_run_df = run_df.loc[run_df['timestamps'] <= this_budget, :]
+
+                    min_loss = np.inf
+
+                    trace_desc = []
+                    i = 0
+
+                    for idx, row in sub_run_df.iterrows():
+
+                        this_loss = row['val_losses']
+                        if i == 0:
+                            min_loss = this_loss
+
+                        elif this_loss < min_loss:
+                            min_loss = this_loss
+
+                        i += 1
+                        trace_desc.append(min_loss)
+
+                    auc_list.append(hpo_metrics.area_under_curve(trace_desc, lower_bound=0.0))
+
+                mean_auc = np.nanmean(np.array(auc_list))
+
+                trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+                algo_list.append(this_algo)
+                hpo_tech_list.append(this_tech)
+                worker_list.append(this_setup[0])
+                warm_start_list.append(this_setup[1])
+                budget_list.append(this_budget)
+                mean_auc_list.append(mean_auc)
+                fast_tech_list.append(this_fastest_tech)
+
+    tb_auc_df = pd.DataFrame({
+        'Trial-ID': trial_id_list,
+        'ML-algorithm': algo_list,
+        'HPO-method': hpo_tech_list,
+        'Workers': worker_list,
+        'Warm start': warm_start_list,
+        'Time Budget [s]': budget_list,
+        'AUC within Time Budget': mean_auc_list,
+        'Fastest HPO-technique': fast_tech_list
+    })
+    tb_auc_path = './hpo_framework/results/' + dataset + '/auc_in_time_budget_' + dataset + '.csv'
+    tb_auc_df.to_csv(tb_auc_path)
+
+########################################################################################################################
 
 if write_to_metrics:
     # PART 3: Write the results to the metrics file
