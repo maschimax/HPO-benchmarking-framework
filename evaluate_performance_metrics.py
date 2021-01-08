@@ -32,24 +32,57 @@ for this_setup in setup_variants:
 
     algo_list = []
 
-    final_perf_rank = []
-    final_perf_tech = []
-    final_perf_val = []
-    final_perf_rel = []
-    final_perf_tb = []
-    final_perf_fast_tech = []
+    # Result lists for final performance ranking based on the maximum time budget cut
+    max_cut_rank = []
+    max_cut_tech = []
+    max_cut_test_loss = []
+    max_cut_test_scale = []
+    max_cut_tb = []
+    max_cut_fast_tech = []
     final_wc_times = []
 
-    any_perf_rank = []
-    any_perf_tech = []
-    any_perf_val = []
-    any_perf_rel = []
-    any_wc_times = []
+    # Result lists for final performance ranking based on the 1st user defined cut
+    second_cut_rank = []
+    second_cut_tech = []
+    second_cut_val_loss = []
+    second_cut_val_scale = []
+    second_cut_tb = []
 
+    # Result lists for final performance ranking based on the 2nd user defined cut
+    third_cut_rank = []
+    third_cut_tech = []
+    third_cut_val_loss = []
+    third_cut_val_scale = []
+    third_cut_tb = []
+
+    # Result lists for final performance ranking based on the 3rd user defined cut
+    fourth_cut_rank = []
+    fourth_cut_tech = []
+    fourth_cut_val_loss = []
+    fourth_cut_val_scale = []
+    fourth_cut_tb = []
+
+    # Results lists for ranking based on the time required to outperform the default baseline
+    # (1st Anytime Performnance metric)
+    outperform_perf_rank = []
+    outperform_perf_tech = []
+    outperform_perf_val = []
+    outperform_perf_scale = []
+    outperform_wc_times = []
+
+    # Results lists for ranking based on the Area Under Curve (AUC) (2nd Anytime Performnance metric)
+    auc_perf_rank = []
+    auc_perf_tech = []
+    auc_perf_val = []
+    auc_perf_scale = []
+    auc_cut_tb = []
+
+    # Additional result lists (properties of the ML algorithm)
     avg_time_per_eval_list = []
     dim_list = []
     cpl_class_list = []
 
+    # Additional ranking lists for the parallelized setup -> Effective use of parallel resources
     if this_setup[0] == 8:
         para_list_rank = []
         para_list_tech = []
@@ -109,12 +142,12 @@ for this_setup in setup_variants:
         algo_list += ([this_algo] * len(sub_frame['HPO-method']))
 
         # Assess the final performance of the HPO techniques for this ML algorithm and this setup variant
-        final_perf_rank += (list(range(1, len(final_df_sorted['HPO-method']) + 1)))
-        final_perf_tech += (list(final_df_sorted['HPO-method']))
+        max_cut_rank += (list(range(1, len(final_df_sorted['HPO-method']) + 1)))
+        max_cut_tech += (list(final_df_sorted['HPO-method']))
         final_wc_times += (list(final_df_sorted['Wall clock time [s]']))
-        final_perf_val += (list(final_df_sorted[test_loss_str]))
-        final_perf_tb += (list(final_df_sorted['Time Budget [s]']))
-        final_perf_fast_tech += (list(final_df_sorted['Fastest HPO-Technique']))
+        max_cut_test_loss += (list(final_df_sorted[test_loss_str]))
+        max_cut_tb += (list(final_df_sorted['Time Budget [s]']))
+        max_cut_fast_tech += (list(final_df_sorted['Fastest HPO-Technique']))
 
         # Compute the deviation from the minimum loss scaled between 0 and 1
         loss_arr = final_df_sorted[test_loss_str].to_numpy()
@@ -124,13 +157,13 @@ for this_setup in setup_variants:
         scaled_loss_deviation = [(this_loss - min_loss) / (max_loss - min_loss) for this_loss
                                  in list(final_df_sorted[test_loss_str])]
 
-        final_perf_rel += scaled_loss_deviation
+        max_cut_test_scale += scaled_loss_deviation
 
         # Assess the anytime performance of the HPO techniques for this ML algorithm and this setup variant
-        any_perf_rank += (list(range(1, len(any_df_sorted['HPO-method']) + 1)))
-        any_perf_tech += (list(any_df_sorted['HPO-method']))
-        any_perf_val += (list(any_df_sorted['t outperform default [s]']))
-        any_wc_times += (list(any_df_sorted['Wall clock time [s]']))
+        outperform_perf_rank += (list(range(1, len(any_df_sorted['HPO-method']) + 1)))
+        outperform_perf_tech += (list(any_df_sorted['HPO-method']))
+        outperform_perf_val += (list(any_df_sorted['t outperform default [s]']))
+        outperform_wc_times += (list(any_df_sorted['Wall clock time [s]']))
 
         # Compute the deviation from the minimum time scaled between 0 and 1
         times_arr = any_df_sorted['t outperform default [s]'].to_numpy()
@@ -145,7 +178,7 @@ for this_setup in setup_variants:
         # Avoid division by zero
         else:
             scaled_time_deviation = [np.float('inf')] * len(any_df_sorted['t outperform default [s]'])
-        any_perf_rel += scaled_time_deviation
+        outperform_perf_scale += scaled_time_deviation
 
         # Compute the average time per evaluation for Random Search
         wall_cl_time_rs = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Wall clock time [s]'].to_numpy()[0]
@@ -239,18 +272,18 @@ for this_setup in setup_variants:
     # Single worker setup
     if this_setup[0] == 1:
         summary_df = pd.DataFrame({'ML-algorithm': algo_list,
-                                   'FP Rank': final_perf_rank,
-                                   'FP HPO-method': final_perf_tech,
-                                   'FP value': final_perf_val,
-                                   'FP deviation [0-1]': final_perf_rel,
+                                   'FP Rank': max_cut_rank,
+                                   'FP HPO-method': max_cut_tech,
+                                   'FP value': max_cut_test_loss,
+                                   'FP deviation [0-1]': max_cut_test_scale,
                                    'FP wall clock time [s]': final_wc_times,
-                                   'FP time budget [s]': final_perf_tb,
-                                   'FP fastest HPO-tech': final_perf_fast_tech,
-                                   'AP Rank': any_perf_rank,
-                                   'AP HPO-method': any_perf_tech,
-                                   'AP value': any_perf_val,
-                                   'AP deviation [0-1]': any_perf_rel,
-                                   'AP wall clock time [s]': any_wc_times,
+                                   'FP time budget [s]': max_cut_tb,
+                                   'FP fastest HPO-tech': max_cut_fast_tech,
+                                   'AP Rank': outperform_perf_rank,
+                                   'AP HPO-method': outperform_perf_tech,
+                                   'AP value': outperform_perf_val,
+                                   'AP deviation [0-1]': outperform_perf_scale,
+                                   'AP wall clock time [s]': outperform_wc_times,
                                    'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
                                    'Number of HPs': dim_list,
                                    'HP complexity': cpl_class_list})
@@ -258,18 +291,18 @@ for this_setup in setup_variants:
     # Setup with 8 parallel workers
     else:
         summary_df = pd.DataFrame({'ML-algorithm': algo_list,
-                                   'FP Rank': final_perf_rank,
-                                   'FP HPO-method': final_perf_tech,
-                                   'FP value': final_perf_val,
-                                   'FP deviation [0-1]': final_perf_rel,
+                                   'FP Rank': max_cut_rank,
+                                   'FP HPO-method': max_cut_tech,
+                                   'FP value': max_cut_test_loss,
+                                   'FP deviation [0-1]': max_cut_test_scale,
                                    'FP wall clock time [s]': final_wc_times,
-                                   'FP time budget [s]': final_perf_tb,
-                                   'FP fastest HPO-tech': final_perf_fast_tech,
-                                   'AP Rank': any_perf_rank,
-                                   'AP HPO-method': any_perf_tech,
-                                   'AP value': any_perf_val,
-                                   'AP deviation [0-1]': any_perf_rel,
-                                   'AP wall clock time [s]': any_wc_times,
+                                   'FP time budget [s]': max_cut_tb,
+                                   'FP fastest HPO-tech': max_cut_fast_tech,
+                                   'AP Rank': outperform_perf_rank,
+                                   'AP HPO-method': outperform_perf_tech,
+                                   'AP value': outperform_perf_val,
+                                   'AP deviation [0-1]': outperform_perf_scale,
+                                   'AP wall clock time [s]': outperform_wc_times,
                                    'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
                                    'Para. Rank': para_list_rank,
                                    'Para. HPO-method': para_list_tech,
