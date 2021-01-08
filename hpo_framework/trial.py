@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNe
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.model_selection import KFold, train_test_split, TimeSeriesSplit
 from tensorflow import keras
 from tensorflow.random import set_seed
 from xgboost import XGBRegressor, XGBClassifier
@@ -34,7 +34,9 @@ class Trial:
     def __init__(self, hp_space: list, ml_algorithm: str, optimization_schedule: list, metric,
                  n_runs: int, n_func_evals: int, n_workers: int,
                  x_train: pd.DataFrame, y_train: pd.Series, x_test: pd.DataFrame, y_test: pd.Series, val_baseline=0.0,
-                 test_baseline=0.0, do_warmstart='No', optimizer=None, gpu=False, cross_val=False):
+                 test_baseline=0.0, do_warmstart='No', optimizer=None, gpu=False, cross_val=False, shuffle=True,
+                 is_time_series=False):
+
         self.hp_space = hp_space
         self.ml_algorithm = ml_algorithm
         self.optimization_schedule = optimization_schedule
@@ -52,6 +54,8 @@ class Trial:
         self.optimizer = optimizer
         self.gpu = gpu
         self.cross_val = cross_val  # Apply cross validation (yes / no)
+        self.shuffle = shuffle  # Whether to shuffle the training data or not
+        self.is_time_series = is_time_series  # Time series data (yes / no)
 
     def run(self):
         """
@@ -95,7 +99,8 @@ class Trial:
                                                y_train=self.y_train, y_test=self.y_test, metric=self.metric,
                                                n_func_evals=self.n_func_evals, random_seed=this_seed,
                                                n_workers=self.n_workers, do_warmstart=self.do_warmstart,
-                                               cross_val=self.cross_val)
+                                               cross_val=self.cross_val, shuffle=self.shuffle,
+                                               is_time_series=self.is_time_series)
 
                 elif this_hpo_library == 'optuna':
                     optimizer = OptunaOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -104,7 +109,8 @@ class Trial:
                                                 metric=self.metric, n_func_evals=self.n_func_evals,
                                                 random_seed=this_seed, n_workers=self.n_workers,
                                                 do_warmstart=self.do_warmstart,
-                                                cross_val=self.cross_val)
+                                                cross_val=self.cross_val, shuffle=self.shuffle,
+                                                is_time_series=self.is_time_series)
 
                 elif this_hpo_library == 'hpbandster':
                     optimizer = HpbandsterOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -113,7 +119,8 @@ class Trial:
                                                     metric=self.metric, n_func_evals=self.n_func_evals,
                                                     random_seed=this_seed, n_workers=self.n_workers,
                                                     do_warmstart=self.do_warmstart,
-                                                    cross_val=self.cross_val)
+                                                    cross_val=self.cross_val, shuffle=self.shuffle,
+                                                    is_time_series=self.is_time_series)
 
                 elif this_hpo_library == 'robo':
                     optimizer = RoboOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -121,7 +128,8 @@ class Trial:
                                               y_train=self.y_train, y_test=self.y_test, metric=self.metric,
                                               n_func_evals=self.n_func_evals, random_seed=this_seed,
                                               n_workers=self.n_workers, do_warmstart=self.do_warmstart,
-                                              cross_val=self.cross_val)
+                                              cross_val=self.cross_val, shuffle=self.shuffle,
+                                              is_time_series=self.is_time_series)
 
                 elif this_hpo_library == 'hyperopt':
                     optimizer = HyperoptOptimizer(hp_space=self.hp_space, hpo_method=this_hpo_method,
@@ -129,7 +137,8 @@ class Trial:
                                                   x_test=self.x_test, y_train=self.y_train, y_test=self.y_test,
                                                   metric=self.metric, n_func_evals=self.n_func_evals,
                                                   random_seed=this_seed, n_workers=self.n_workers,
-                                                  cross_val=self.cross_val)
+                                                  cross_val=self.cross_val, shuffle=self.shuffle,
+                                                  is_time_series=self.is_time_series)
 
                 else:
                     raise Exception('Unknown HPO-library!')
@@ -669,9 +678,13 @@ class Trial:
         baseline: float
              Loss of the baseline HP-configuration.
         """
+        if self.is_time_series:
+            # Use TimeSeriesSplit for time series data
+            kf = TimeSeriesSplit(n_splits=5)
+        else:
+            # Create K-Folds cross validator for all other data types
+            kf = KFold(n_splits=5, shuffle=self.shuffle)
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5)
         cv_baselines = []
         cv_iter = 0
 
@@ -689,7 +702,7 @@ class Trial:
             elif not cv_mode and not test_mode and cv_iter < 2:
 
                 x_train_cv, x_val_cv, y_train_cv, y_val_cv = train_test_split(self.x_train, self.y_train, test_size=0.2,
-                                                                              shuffle=True, random_state=0)
+                                                                              shuffle=self.shuffle, random_state=0)
 
             # Training on full training set and evaluation on test set
             elif not cv_mode and test_mode and cv_iter < 2:
