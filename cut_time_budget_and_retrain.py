@@ -105,8 +105,8 @@ def find_time_budget(log_df: pd.DataFrame):
     return time_budget_df
 
 
-def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compute_test_loss=True,
-                              cut_type='max'):
+def cut_and_reevaluate(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compute_test_loss=True,
+                       cut_type='max'):
     """
     The function computes the validation and (if compute_test_loss=True) the test loss, that has been achieved by the
      HPO techniques within the time budget.
@@ -125,6 +125,7 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
     budget_list = []
     tb_testloss_list = []
     tb_valloss_list = []
+    mean_auc_list = []
     fast_tech_list = []
     cut_ids = []
     cut_type_list = []
@@ -182,6 +183,7 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
 
                 val_loss_list = []
                 test_loss_list = []
+                auc_list = []
 
                 # Iterate over runs per HPO-technique
                 for this_run in runs:
@@ -200,6 +202,28 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
 
                     # Append min validation loss within the time budget
                     val_loss_list.append(run_df.loc[min_val_loss_idx, 'val_losses'])
+
+                    # Filter for time budget
+                    sub_run_df = run_df.loc[run_df['timestamps'] <= this_budget, :]
+
+                    # Create the descending validation loss trace and compute the AUC within the time budget
+                    lb_loss = np.inf  # initial lower bound of the validation loss
+                    trace_desc = []
+                    i = 0  # iteration counter
+                    for idx, row in sub_run_df.iterrows():
+
+                        this_loss = row['val_losses']
+
+                        if i == 0:
+                            lb_loss = this_loss
+                        elif this_loss < lb_loss:
+                            lb_loss = this_loss
+
+                        i += 1
+                        trace_desc.append(lb_loss)
+
+                    # Compute the AUC based on the descending trace
+                    auc_list.append(hpo_metrics.area_under_curve(trace_desc, lower_bound=0.0))
 
                     if compute_test_loss:
 
@@ -264,7 +288,7 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
                             data_is_loaded = True
                             is_time_series = True
 
-                        elif data_is_loaded:
+                        elif not data_is_loaded:
                             raise Exception('Unknown data set!')
 
                         # Select the loss metric
@@ -306,6 +330,9 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
                 # Calculate the mean validation loss over all runs of this HPO-technique (within time budget)
                 mean_val_loss = np.nanmean(np.array(val_loss_list))
 
+                # Calculate the mean AUC over all runs of this HPO technique (within time budget)
+                mean_auc = np.nanmean(np.array(auc_list))
+
                 # Trial-ID (to identify the experiment)
                 trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
 
@@ -324,6 +351,7 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
                 warm_start_list.append(this_setup[1])
                 budget_list.append(this_budget)
                 tb_valloss_list.append(mean_val_loss)
+                mean_auc_list.append(mean_auc)
                 fast_tech_list.append(this_fastest_tech)
                 cut_type_list.append(cut_type)
 
@@ -340,6 +368,7 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
         'Warm start': warm_start_list,
         'Time Budget [s]': budget_list,
         'Min. validation loss in time budget': tb_valloss_list,
+        'Mean AUC in time budget': mean_auc_list,
         'Fastest HPO-technique': fast_tech_list,
         'Cut type': cut_type_list,
     }
@@ -351,122 +380,122 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
     return tb_loss_df
 
 
-def compute_auc_for_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame):
-    """
-    Compute the AUC of a learning curve for a given time budget.
-    :return:
-    """
-
-    trial_id_list = []
-    algo_list = []
-    hpo_tech_list = []
-    worker_list = []
-    warm_start_list = []
-    budget_list = []
-    mean_auc_list = []
-    fast_tech_list = []
-
-    # Setup variants (# workers, warm start (Yes / No))
-    setup_vars = [(1, False), (8, False), (1, True)]
-
-    # Iterate over setup variants
-    for this_setup in setup_vars:
-
-        # Filter by setup
-        setup_df = log_df.loc[(log_df['workers'] == this_setup[0]) & (log_df['warmstart'] == this_setup[1]), :]
-
-        # ML algorithms of this setup variant
-        ml_algos = list(setup_df['ML-algorithm'].unique())
-
-        # Iterate over ML-algorithms
-        for this_algo in ml_algos:
-
-            # Time budget for this use case
-            this_budget = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
-                                             (time_budget_df['Workers'] == this_setup[0]) &
-                                             (time_budget_df['Warm start'] == this_setup[1]),
-                                             'Time budget [s]'].values[0]
-
-            this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
-                                                   (time_budget_df['Workers'] == this_setup[0]) &
-                                                   (time_budget_df['Warm start'] == this_setup[1]),
-                                                   'Fastest HPO-technique'].values[0]
-
-            # Filter by ML algorithm -> use case
-            use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
-
-            hpo_techs = list(use_case_df['HPO-method'].unique())
-
-            auc_list = []
-
-            # Iterate over HPO-techniques
-            for this_tech in hpo_techs:
-
-                # Filter by HPO-technique
-                hpo_df = use_case_df.loc[use_case_df['HPO-method'] == this_tech, :]
-
-                # Run IDs
-                runs = list(hpo_df['Run-ID'].unique())
-
-                print('-----------------------------------------------------')
-                print('Computing AUC for ' + this_tech + ' on ' + this_algo)
-
-                # Iterate over runs per HPO-technique
-                for this_run in runs:
-
-                    # Filter by run
-                    run_df = hpo_df.loc[hpo_df['Run-ID'] == this_run]
-
-                    run_successful = run_df['run_successful'].to_numpy()[0]
-
-                    if not run_successful:
-                        continue
-
-                    # Filter for time budget
-                    sub_run_df = run_df.loc[run_df['timestamps'] <= this_budget, :]
-
-                    min_loss = np.inf
-
-                    trace_desc = []
-                    i = 0
-
-                    for idx, row in sub_run_df.iterrows():
-
-                        this_loss = row['val_losses']
-                        if i == 0:
-                            min_loss = this_loss
-
-                        elif this_loss < min_loss:
-                            min_loss = this_loss
-
-                        i += 1
-                        trace_desc.append(min_loss)
-
-                    auc_list.append(hpo_metrics.area_under_curve(trace_desc, lower_bound=0.0))
-
-                mean_auc = np.nanmean(np.array(auc_list))
-
-                trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
-                algo_list.append(this_algo)
-                hpo_tech_list.append(this_tech)
-                worker_list.append(this_setup[0])
-                warm_start_list.append(this_setup[1])
-                budget_list.append(this_budget)
-                mean_auc_list.append(mean_auc)
-                fast_tech_list.append(this_fastest_tech)
-
-    tb_auc_df = pd.DataFrame({
-        'Trial-ID': trial_id_list,
-        'ML-algorithm': algo_list,
-        'HPO-method': hpo_tech_list,
-        'Workers': worker_list,
-        'Warm start': warm_start_list,
-        'Time Budget [s]': budget_list,
-        'AUC within Time Budget': mean_auc_list,
-        'Fastest HPO-technique': fast_tech_list
-    })
-
-    return tb_auc_df
+# def compute_auc_for_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame):
+#     """
+#     Compute the AUC of a learning curve for a given time budget.
+#     :return:
+#     """
+#
+#     trial_id_list = []
+#     algo_list = []
+#     hpo_tech_list = []
+#     worker_list = []
+#     warm_start_list = []
+#     budget_list = []
+#     mean_auc_list = []
+#     fast_tech_list = []
+#
+#     # Setup variants (# workers, warm start (Yes / No))
+#     setup_vars = [(1, False), (8, False), (1, True)]
+#
+#     # Iterate over setup variants
+#     for this_setup in setup_vars:
+#
+#         # Filter by setup
+#         setup_df = log_df.loc[(log_df['workers'] == this_setup[0]) & (log_df['warmstart'] == this_setup[1]), :]
+#
+#         # ML algorithms of this setup variant
+#         ml_algos = list(setup_df['ML-algorithm'].unique())
+#
+#         # Iterate over ML-algorithms
+#         for this_algo in ml_algos:
+#
+#             # Time budget for this use case
+#             this_budget = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
+#                                              (time_budget_df['Workers'] == this_setup[0]) &
+#                                              (time_budget_df['Warm start'] == this_setup[1]),
+#                                              'Time budget [s]'].values[0]
+#
+#             this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
+#                                                    (time_budget_df['Workers'] == this_setup[0]) &
+#                                                    (time_budget_df['Warm start'] == this_setup[1]),
+#                                                    'Fastest HPO-technique'].values[0]
+#
+#             # Filter by ML algorithm -> use case
+#             use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
+#
+#             hpo_techs = list(use_case_df['HPO-method'].unique())
+#
+#             # Iterate over HPO-techniques
+#             for this_tech in hpo_techs:
+#
+#                 auc_list = []
+#
+#                 # Filter by HPO-technique
+#                 hpo_df = use_case_df.loc[use_case_df['HPO-method'] == this_tech, :]
+#
+#                 # Run IDs
+#                 runs = list(hpo_df['Run-ID'].unique())
+#
+#                 print('-----------------------------------------------------')
+#                 print('Computing AUC for ' + this_tech + ' on ' + this_algo)
+#
+#                 # Iterate over runs per HPO-technique
+#                 for this_run in runs:
+#
+#                     # Filter by run
+#                     run_df = hpo_df.loc[hpo_df['Run-ID'] == this_run]
+#
+#                     run_successful = run_df['run_successful'].to_numpy()[0]
+#
+#                     if not run_successful:
+#                         continue
+#
+#                     # Filter for time budget
+#                     sub_run_df = run_df.loc[run_df['timestamps'] <= this_budget, :]
+#
+#                     min_loss = np.inf
+#
+#                     trace_desc = []
+#                     i = 0
+#
+#                     for idx, row in sub_run_df.iterrows():
+#
+#                         this_loss = row['val_losses']
+#                         if i == 0:
+#                             min_loss = this_loss
+#
+#                         elif this_loss < min_loss:
+#                             min_loss = this_loss
+#
+#                         i += 1
+#                         trace_desc.append(min_loss)
+#
+#                     auc_list.append(hpo_metrics.area_under_curve(trace_desc, lower_bound=0.0))
+#
+#                 mean_auc = np.nanmean(np.array(auc_list))
+#
+#                 trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+#                 algo_list.append(this_algo)
+#                 hpo_tech_list.append(this_tech)
+#                 worker_list.append(this_setup[0])
+#                 warm_start_list.append(this_setup[1])
+#                 budget_list.append(this_budget)
+#                 mean_auc_list.append(mean_auc)
+#                 fast_tech_list.append(this_fastest_tech)
+#
+#     tb_auc_df = pd.DataFrame({
+#         'Trial-ID': trial_id_list,
+#         'ML-algorithm': algo_list,
+#         'HPO-method': hpo_tech_list,
+#         'Workers': worker_list,
+#         'Warm start': warm_start_list,
+#         'Time Budget [s]': budget_list,
+#         'AUC within Time Budget': mean_auc_list,
+#         'Fastest HPO-technique': fast_tech_list
+#     })
+#
+#     return tb_auc_df
 
 
 if __name__ == '__main__':
@@ -479,15 +508,13 @@ if __name__ == '__main__':
     dataset = 'turbofan'
 
     # Flags
-    identify_time_budgets = False
+    identify_time_budgets = True
 
-    get_losses_for_budget = True
-    user_defined = True
-    compute_test_loss = False
+    perform_cut = True
+    user_defined_cut = False
+    compute_test_loss = True
 
-    compute_auc = False
-
-    append_results_to_metrics = True
+    append_results_to_metrics = False
 
     # Read the aggregated log file -> pd.DataFrame
     log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
@@ -503,45 +530,48 @@ if __name__ == '__main__':
         time_budget_df.to_csv(tb_path)
 
     # Compute loss values for time budgets?
-    if get_losses_for_budget:
+    if perform_cut:
 
         # Compute the losses up to the maximum time budget (defined by the fastest optimization run)
-        if not user_defined:
+        if not user_defined_cut:
             tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
             computed_budget_df = pd.read_csv(tb_path, index_col=0)
-            tb_loss_df = get_losses_in_time_budget(computed_budget_df, log_df, compute_test_loss=compute_test_loss,
-                                                   cut_type='max')
+            tb_loss_df = cut_and_reevaluate(computed_budget_df, log_df, compute_test_loss=compute_test_loss,
+                                            cut_type='max')
             filestr = 'losses_for_max_time_cut_'
 
         # Compute the losses up to the user defined time budget (can be an point prior to the maximum time budget)
         else:
             tb_path = './hpo_framework/results/turbofan/my_cuts_turbofan.csv'
             user_budget_df = pd.read_csv(tb_path, index_col=0)
-            tb_loss_df = get_losses_in_time_budget(user_budget_df, log_df, compute_test_loss=compute_test_loss,
-                                                   cut_type='user')
+            tb_loss_df = cut_and_reevaluate(user_budget_df, log_df, compute_test_loss=compute_test_loss,
+                                            cut_type='user')
             filestr = 'losses_for_user_def_cut_'
 
         # Write results to .csv-file
         tb_loss_path = './hpo_framework/results/' + dataset + '/' + filestr + dataset + '.csv'
         tb_loss_df.to_csv(tb_loss_path)
 
-    # Compute AUC metric?
-    if compute_auc:
-        # Compute the AUC of the learning curves up to the maximum time budget
-        tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
-        computed_budget_df = pd.read_csv(tb_path, index_col=0)
-        tb_auc_df = compute_auc_for_time_budget(computed_budget_df, log_df)
+    # # Compute AUC metric?
+    # if compute_auc:
+    #     # Compute the AUC of the learning curves up to the maximum time budget
+    #     tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
+    #     computed_budget_df = pd.read_csv(tb_path, index_col=0)
+    #     tb_auc_df = compute_auc_for_time_budget(computed_budget_df, log_df)
+    #
+    #     # Write results to .csv-file
+    #     tb_auc_path = './hpo_framework/results/' + dataset + '/auc_in_max_time_budget_' + dataset + '.csv'
+    #     tb_auc_df.to_csv(tb_auc_path)
 
-        # Write results to .csv-file
-        tb_auc_path = './hpo_framework/results/' + dataset + '/auc_in_max_time_budget_' + dataset + '.csv'
-        tb_auc_df.to_csv(tb_auc_path)
-
-    # TODO: Modify to add AUC, validaton loss, ...
     if append_results_to_metrics:
         # PART 3: Write the results to the metrics file
         metrics_path = './hpo_framework/results/' + dataset + '/metrics_' + dataset + '.csv'
+
         cut_data_path = './hpo_framework/results/' + dataset + '/losses_for_user_def_cut_' + dataset + '.csv'
         save_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
+
+        # cut_data_path = './hpo_framework/results/' + dataset + '/losses_for_user_def_cut_' + dataset + '.csv'
+        # save_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
 
         # Load .csv-files
         metrics_df = pd.read_csv(metrics_path, index_col=0)
@@ -560,20 +590,23 @@ if __name__ == '__main__':
 
             if time_budget_str in row:
 
-                # Add new time budget column
+                # Time Budget (cutting point)
                 time_budget = row[time_budget_str]
 
-                # Add new validation loss column
+                # Min validation loss within the time budget (averaged over runs)
                 min_val_loss = row['Min. validation loss in time budget']
+
+                # AUC of the (descending) learning curves within the time budget (averaged over runs)
+                mean_auc = row['Mean AUC in time budget']
 
                 if row['Cut type'] == 'max':
 
                     metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut ID'] = cut_id
                     metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Time Budget [s]'] = time_budget
                     metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Validation loss'] = min_val_loss
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut AUC'] = mean_auc
 
                     if test_loss_str in row:
-
                         min_test_loss = row[test_loss_str]
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Test Loss'] = min_test_loss
 
@@ -583,29 +616,35 @@ if __name__ == '__main__':
                         metrics_df['2nd Cut ID'] = np.nan
                         metrics_df['2nd Cut Time Budget [s]'] = np.nan
                         metrics_df['2nd Cut Validation loss'] = np.nan
+                        metrics_df['2nd Cut AUC'] = np.nan
                     if '3rd Cut ID' not in metrics_df.columns:
                         metrics_df['3rd Cut ID'] = np.nan
                         metrics_df['3rd Cut Time Budget [s]'] = np.nan
                         metrics_df['3rd Cut Validation loss'] = np.nan
+                        metrics_df['3rd Cut AUC'] = np.nan
                     if '4th Cut ID' not in metrics_df.columns:
                         metrics_df['4th Cut ID'] = np.nan
                         metrics_df['4th Cut Time Budget [s]'] = np.nan
                         metrics_df['4th Cut Validation loss'] = np.nan
+                        metrics_df['4th Cut AUC'] = np.nan
 
                     if metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'].isnull().values:
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'] = cut_id
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Time Budget [s]'] = time_budget
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Validation loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut AUC'] = mean_auc
 
                     elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'].isnull().values:
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'] = cut_id
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Time Budget [s]'] = time_budget
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Validation loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut AUC'] = mean_auc
 
                     elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'].isnull().values:
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'] = cut_id
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Time Budget [s]'] = time_budget
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Validation loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut AUC'] = mean_auc
 
                     else:
                         raise Exception('You exceed the maximum number of user defined cuts!')
@@ -623,3 +662,4 @@ if __name__ == '__main__':
 
         # Save modified metrics .csv-file
         metrics_df.to_csv(save_path)
+        print('Saved the updated file: ', save_path)
