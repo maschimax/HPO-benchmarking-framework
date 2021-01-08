@@ -10,6 +10,7 @@ from datasets.Sensor_System_Production.sensor_loading_and_balancing import senso
 from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from hpo_framework import hpo_metrics
 
+
 def find_time_budget(log_df: pd.DataFrame):
     """
     Identify the time budget for each use case (wall clock time of fastest optimization run)
@@ -105,14 +106,14 @@ def find_time_budget(log_df: pd.DataFrame):
 
 
 def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compute_test_loss=True,
-                              new_use_case=False):
+                              cut_type='max'):
     """
     The function computes the validation and (if compute_test_loss=True) the test loss, that has been achieved by the
      HPO techniques within the time budget.
+    :param cut_type: 'max' -> max time budget cut; 'user' -> user defined cut
     :param time_budget_df: DataFrame containing a time budget for each BM use case for this data set.
     :param log_df: DataFrame, that stores the log files of the BM experiments for this data set.
     :param compute_test_loss: Whether to compute the test loss (retraining required) or not.
-    :param new_use_case: Whether the cut / time budget defines a new use case or not.
     :return: tb_loss_df
     """
 
@@ -125,6 +126,8 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
     tb_testloss_list = []
     tb_valloss_list = []
     fast_tech_list = []
+    cut_ids = []
+    cut_type_list = []
 
     data_is_loaded = False
 
@@ -144,10 +147,19 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
         for this_algo in ml_algos:
 
             # Time budget for this use case
-            this_budget = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
-                                             (time_budget_df['Workers'] == this_setup[0]) &
-                                             (time_budget_df['Warm start'] == this_setup[1]),
-                                             'Time budget [s]'].values[0]
+            budget_arr = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
+                                            (time_budget_df['Workers'] == this_setup[0]) &
+                                            (time_budget_df['Warm start'] == this_setup[1]),
+                                            'Time budget [s]'].values
+
+            # Continue, if no time budget / cut is defined for this ML algorithm
+            if budget_arr.size == 0:
+                continue
+            else:
+                this_budget = budget_arr[0]
+
+            # Unique Identifier for this time budget cut
+            cut_id = str(uuid.uuid4())
 
             this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
                                                    (time_budget_df['Workers'] == this_setup[0]) &
@@ -294,14 +306,18 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
                 # Calculate the mean validation loss over all runs of this HPO-technique (within time budget)
                 mean_val_loss = np.nanmean(np.array(val_loss_list))
 
-                if not new_use_case:
-                    # Use the existing ID
-                    trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
-                else:
-                    # Create a new ID for this trial
-                    trial_id_list.append(str(uuid.uuid4()))
+                # Trial-ID (to identify the experiment)
+                trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+
+                # if not new_use_case:
+                #     # Use the existing ID
+                #     trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+                # else:
+                #     # Create a new ID for this trial
+                #     trial_id_list.append(str(uuid.uuid4()))
 
                 # Append
+                cut_ids.append(cut_id)
                 algo_list.append(this_algo)
                 hpo_tech_list.append(this_tech)
                 worker_list.append(this_setup[0])
@@ -309,21 +325,23 @@ def get_losses_in_time_budget(time_budget_df: pd.DataFrame, log_df: pd.DataFrame
                 budget_list.append(this_budget)
                 tb_valloss_list.append(mean_val_loss)
                 fast_tech_list.append(this_fastest_tech)
+                cut_type_list.append(cut_type)
 
                 if compute_test_loss:
                     tb_testloss_list.append(mean_test_loss)
 
     # Create a pd.DataFrame to store the results
-
     tb_loss_dict = {
         'Trial-ID': trial_id_list,
+        'Cut-ID': cut_ids,
         'ML-algorithm': algo_list,
         'HPO-method': hpo_tech_list,
         'Workers': worker_list,
         'Warm start': warm_start_list,
         'Time Budget [s]': budget_list,
-        'Min. validatino loss in time budget': tb_valloss_list,
-        'Fastest HPO-technique': fast_tech_list
+        'Min. validation loss in time budget': tb_valloss_list,
+        'Fastest HPO-technique': fast_tech_list,
+        'Cut type': cut_type_list,
     }
     if compute_test_loss:
         tb_loss_dict['Min. test loss in time budget'] = tb_testloss_list
@@ -469,7 +487,7 @@ if __name__ == '__main__':
 
     compute_auc = False
 
-    append_results_to_metrics = False
+    append_results_to_metrics = True
 
     # Read the aggregated log file -> pd.DataFrame
     log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
@@ -477,7 +495,6 @@ if __name__ == '__main__':
 
     # Find time budgets?
     if identify_time_budgets:
-
         # Identify time budgets for each use case -> minimum wall clock time (fastest optimization run)
         time_budget_df = find_time_budget(log_df)
 
@@ -493,16 +510,16 @@ if __name__ == '__main__':
             tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
             computed_budget_df = pd.read_csv(tb_path, index_col=0)
             tb_loss_df = get_losses_in_time_budget(computed_budget_df, log_df, compute_test_loss=compute_test_loss,
-                                                   new_use_case=False)
-            filestr = 'losses_for_max_time_budget_'
+                                                   cut_type='max')
+            filestr = 'losses_for_max_time_cut_'
 
         # Compute the losses up to the user defined time budget (can be an point prior to the maximum time budget)
         else:
             tb_path = './hpo_framework/results/turbofan/my_cuts_turbofan.csv'
             user_budget_df = pd.read_csv(tb_path, index_col=0)
             tb_loss_df = get_losses_in_time_budget(user_budget_df, log_df, compute_test_loss=compute_test_loss,
-                                                   new_use_case=True)
-            filestr = 'losses_for_user_def_budget_'
+                                                   cut_type='user')
+            filestr = 'losses_for_user_def_cut_'
 
         # Write results to .csv-file
         tb_loss_path = './hpo_framework/results/' + dataset + '/' + filestr + dataset + '.csv'
@@ -510,7 +527,6 @@ if __name__ == '__main__':
 
     # Compute AUC metric?
     if compute_auc:
-
         # Compute the AUC of the learning curves up to the maximum time budget
         tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
         computed_budget_df = pd.read_csv(tb_path, index_col=0)
@@ -520,38 +536,90 @@ if __name__ == '__main__':
         tb_auc_path = './hpo_framework/results/' + dataset + '/auc_in_max_time_budget_' + dataset + '.csv'
         tb_auc_df.to_csv(tb_auc_path)
 
-    # # TODO: Modify to add AUC, validaton loss, ...
-    # write_test_losses_to_metrics = False
-    # if write_test_losses_to_metrics:
-    #     # PART 3: Write the results to the metrics file
-    #     metrics_path = './hpo_framework/results/' + dataset + '/metrics_' + dataset + '.csv'
-    #     tb_loss_path = './hpo_framework/results/' + dataset + '/min_losses_in_time_budget_' + dataset + '.csv'
-    #
-    #     # Load .csv-files
-    #     metrics_df = pd.read_csv(metrics_path, index_col=0)
-    #     tb_df = pd.read_csv(tb_loss_path, index_col=0)
-    #
-    #     # Count the number of modified lines in the metrics file
-    #     col_count = 0
-    #
-    #     # Iterate through the rows in the tb_df
-    #     for idx, row in tb_df.iterrows():
-    #         # Query results
-    #         trial_id = row['Trial-ID']
-    #         min_test_loss = row['Min. test loss in time budget']
-    #         time_budget = row['Time Budget [s]']
-    #         fast_tech = row['Fastest HPO-technique']
-    #
-    #         # TODO: Check the behavior for new / unknown Trial-ID's
-    #         # Write results to metrics_df
-    #         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Time Budget [s]'] = time_budget
-    #         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Min. avg. test loss in time budget'] = min_test_loss
-    #         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Fastest HPO-Technique'] = fast_tech
-    #
-    #         print(str(col_count) + ' - Modified Trial: ' + trial_id)
-    #         col_count += 1
-    #
-    #     print(str(col_count) + ' of ' + str(len(metrics_df)) + ' total lines have been modified!')
-    #
-    #     # Save modified metrics .csv-file
-    #     metrics_df.to_csv(metrics_path)
+    # TODO: Modify to add AUC, validaton loss, ...
+    if append_results_to_metrics:
+        # PART 3: Write the results to the metrics file
+        metrics_path = './hpo_framework/results/' + dataset + '/metrics_' + dataset + '.csv'
+        cut_data_path = './hpo_framework/results/' + dataset + '/losses_for_user_def_cut_' + dataset + '.csv'
+        save_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
+
+        # Load .csv-files
+        metrics_df = pd.read_csv(metrics_path, index_col=0)
+        cut_data_df = pd.read_csv(cut_data_path, index_col=0)
+
+        # Count the number of modified lines in the metrics file
+        col_count = 0
+
+        # Iterate through the rows in the tb_df
+        for idx, row in cut_data_df.iterrows():
+
+            trial_id = row['Trial-ID']
+            cut_id = row['Cut-ID']
+            time_budget_str = 'Time Budget [s]'
+            test_loss_str = 'Min. test loss in time budget'
+
+            if time_budget_str in row:
+
+                # Add new time budget column
+                time_budget = row[time_budget_str]
+
+                # Add new validation loss column
+                min_val_loss = row['Min. validation loss in time budget']
+
+                if row['Cut type'] == 'max':
+
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut ID'] = cut_id
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Time Budget [s]'] = time_budget
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Validation loss'] = min_val_loss
+
+                    if test_loss_str in row:
+
+                        min_test_loss = row[test_loss_str]
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Test Loss'] = min_test_loss
+
+                elif row['Cut type'] == 'user':
+
+                    if '2nd Cut ID' not in metrics_df.columns:
+                        metrics_df['2nd Cut ID'] = np.nan
+                        metrics_df['2nd Cut Time Budget [s]'] = np.nan
+                        metrics_df['2nd Cut Validation loss'] = np.nan
+                    if '3rd Cut ID' not in metrics_df.columns:
+                        metrics_df['3rd Cut ID'] = np.nan
+                        metrics_df['3rd Cut Time Budget [s]'] = np.nan
+                        metrics_df['3rd Cut Validation loss'] = np.nan
+                    if '4th Cut ID' not in metrics_df.columns:
+                        metrics_df['4th Cut ID'] = np.nan
+                        metrics_df['4th Cut Time Budget [s]'] = np.nan
+                        metrics_df['4th Cut Validation loss'] = np.nan
+
+                    if metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'].isnull().values:
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'] = cut_id
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Time Budget [s]'] = time_budget
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Validation loss'] = min_val_loss
+
+                    elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'].isnull().values:
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'] = cut_id
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Time Budget [s]'] = time_budget
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Validation loss'] = min_val_loss
+
+                    elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'].isnull().values:
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'] = cut_id
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Time Budget [s]'] = time_budget
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Validation loss'] = min_val_loss
+
+                    else:
+                        raise Exception('You exceed the maximum number of user defined cuts!')
+
+                else:
+                    raise Exception('Unknown cut type!')
+
+            else:
+                raise Exception('Unknown data format / analysis type! Cannot append the data to the metrics file!')
+
+            print(str(col_count) + ' - Modified Trial: ' + trial_id)
+            col_count += 1
+
+        print(str(col_count) + ' of ' + str(len(metrics_df)) + ' total lines have been modified!')
+
+        # Save modified metrics .csv-file
+        metrics_df.to_csv(save_path)
