@@ -603,7 +603,7 @@ if __name__ == '__main__':
 
                     metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut ID'] = cut_id
                     metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Time Budget [s]'] = time_budget
-                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Validation loss'] = min_val_loss
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Validation Loss'] = min_val_loss
                     metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut AUC'] = mean_auc
 
                     if test_loss_str in row:
@@ -615,35 +615,35 @@ if __name__ == '__main__':
                     if '2nd Cut ID' not in metrics_df.columns:
                         metrics_df['2nd Cut ID'] = np.nan
                         metrics_df['2nd Cut Time Budget [s]'] = np.nan
-                        metrics_df['2nd Cut Validation loss'] = np.nan
+                        metrics_df['2nd Cut Validation Loss'] = np.nan
                         metrics_df['2nd Cut AUC'] = np.nan
                     if '3rd Cut ID' not in metrics_df.columns:
                         metrics_df['3rd Cut ID'] = np.nan
                         metrics_df['3rd Cut Time Budget [s]'] = np.nan
-                        metrics_df['3rd Cut Validation loss'] = np.nan
+                        metrics_df['3rd Cut Validation Loss'] = np.nan
                         metrics_df['3rd Cut AUC'] = np.nan
                     if '4th Cut ID' not in metrics_df.columns:
                         metrics_df['4th Cut ID'] = np.nan
                         metrics_df['4th Cut Time Budget [s]'] = np.nan
-                        metrics_df['4th Cut Validation loss'] = np.nan
+                        metrics_df['4th Cut Validation Loss'] = np.nan
                         metrics_df['4th Cut AUC'] = np.nan
 
                     if metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'].isnull().values:
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'] = cut_id
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Time Budget [s]'] = time_budget
-                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Validation loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Validation Loss'] = min_val_loss
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut AUC'] = mean_auc
 
                     elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'].isnull().values:
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'] = cut_id
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Time Budget [s]'] = time_budget
-                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Validation loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Validation Loss'] = min_val_loss
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut AUC'] = mean_auc
 
                     elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'].isnull().values:
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'] = cut_id
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Time Budget [s]'] = time_budget
-                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Validation loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Validation Loss'] = min_val_loss
                         metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut AUC'] = mean_auc
 
                     else:

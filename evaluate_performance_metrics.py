@@ -27,55 +27,142 @@ setup_variants = [(1, False), (8, False), (1, True)]
 # restriction of the number of function evaluations
 time_budget_restriction = True
 
+analysis_dict = {'Max Cut Loss': {'1st metric': 'Max Cut Test Loss',
+                                  '2nd metric': 'Max Cut Validation Loss',
+                                  'Budget col': 'Max Cut Time Budget [s]'},
+                 '2nd Cut Loss': {'1st metric': '2nd Cut Validation Loss',
+                                  'Budget col': '2nd Cut Time Budget [s]'},
+                 '3rd Cut Loss': {'1st metric': '3rd Cut Validation Loss',
+                                  'Budget col': '3rd Cut Time Budget [s]'},
+                 '4th Cut Loss': {'1st metric': '4th Cut Validation Loss',
+                                  'Budget col': '4th Cut Time Budget [s]'},
+                 'Max Cut AUC': {'1st metric': 'Max cut AUC',
+                                 'Budget col': 'Max Cut Time Budget [s]'},
+                 'Outperform Baseline': {'1st metric': 't outperform default [s]',
+                                         'Budget col': 'Max Cut Time Budget [s]'}}
+
 # Iterate over setup variants
 for this_setup in setup_variants:
 
     algo_list = []
+    rank_list = []
+    hpo_list = []
+    first_metric_list = []
+    scaled_list = []
+    second_metric_list = []
+    budget_list = []
 
-    # Result lists for final performance ranking based on the maximum time budget cut
-    max_cut_rank = []
-    max_cut_tech = []
-    max_cut_test_loss = []
-    max_cut_test_scale = []
-    max_cut_tb = []
-    max_cut_fast_tech = []
-    final_wc_times = []
+    avg_time_per_eval_list = []
+    dim_list = []
+    cpl_class_list = []
 
-    # Result lists for final performance ranking based on the 1st user defined cut
-    second_cut_rank = []
-    second_cut_tech = []
-    second_cut_val_loss = []
-    second_cut_val_scale = []
-    second_cut_tb = []
+    for this_analysis in analysis_dict.keys():
 
-    # Result lists for final performance ranking based on the 2nd user defined cut
-    third_cut_rank = []
-    third_cut_tech = []
-    third_cut_val_loss = []
-    third_cut_val_scale = []
-    third_cut_tb = []
+        setup_df = metrics_df.loc[(metrics_df['Workers'] == this_setup[0]) & (metrics_df['Warmstart'] == this_setup[1]), :]
 
-    # Result lists for final performance ranking based on the 3rd user defined cut
-    fourth_cut_rank = []
-    fourth_cut_tech = []
-    fourth_cut_val_loss = []
-    fourth_cut_val_scale = []
-    fourth_cut_tb = []
+        ml_algos = setup_df['ML-algorithm'].unique()
 
-    # Results lists for ranking based on the time required to outperform the default baseline
-    # (1st Anytime Performnance metric)
-    outperform_perf_rank = []
-    outperform_perf_tech = []
-    outperform_perf_val = []
-    outperform_perf_scale = []
-    outperform_wc_times = []
+        for this_algo in ml_algos:
 
-    # Results lists for ranking based on the Area Under Curve (AUC) (2nd Anytime Performnance metric)
-    auc_perf_rank = []
-    auc_perf_tech = []
-    auc_perf_val = []
-    auc_perf_scale = []
-    auc_cut_tb = []
+            use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
+
+            # TODO: Add row for Default HPs
+
+            # TODO: Correct negative 'Outperform Baseline' values (warm started setup)
+
+            analysis_df = use_case_df.sort_values(by=analysis_dict[this_analysis]['1st metric'], axis=0, inplace=False,
+                                                  ascending=True, na_position='last')
+
+            algo_list += ([this_algo] * len(analysis_df['HPO-method']))
+            rank_list += (list(range(1, len(analysis_df['HPO-method']) + 1)))
+            hpo_list += (list(analysis_df['HPO-method']))
+            first_metric_list += (list(analysis_df[analysis_dict[this_analysis]['1st metric']]))
+            budget_list += (list(analysis_df[analysis_dict[this_analysis]['Budget col']]))
+
+            # Compute the scaled deviation for the 1st metric
+            metric_arr = analysis_df[analysis_dict[this_analysis]['1st metric']].to_numpy()
+            min_value = np.nanmin(metric_arr)
+            max_value = np.nanmax(metric_arr[metric_arr != np.inf])
+
+            # TODO: Handling of division by zero for 'Outperform Baseline' analysis
+            scaled_deviation = [(this_value - min_value) / (max_value - min_value) for this_value
+                                in list(metric_arr)]
+
+            scaled_list += scaled_deviation
+
+            # Average time per function evaluation of Random Search
+            wc_time_rs = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch', 'Wall clock time [s]'].to_numpy()
+            n_evals = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
+            time_per_eval = round(wc_time_rs / n_evals, 2)
+            avg_time_per_eval_list += ([time_per_eval] * len(analysis_df['HPO-method']))
+
+            # Number of each HP type
+            num_cont_hps = np.nanmean(analysis_df.loc[:, '# cont. HPs'].to_numpy())
+            num_int_hps = np.nanmean(analysis_df.loc[:, '# int. HPs'].to_numpy())
+            num_cat_hps = np.nanmean(analysis_df.loc[:, '# cat. HPs'].to_numpy())
+
+            # Dimensionality of the configuration space for this ML algorithm
+            dim_list += ([num_cont_hps + num_int_hps + num_cat_hps] * len(analysis_df['HPO-method']))
+
+            # Check complexity class
+            if num_cat_hps > 0:
+                cplx_class = 3
+            elif num_int_hps > 0:
+                cplx_class = 2
+            else:
+                cplx_class = 1
+
+            # Append the complexity class of this ML algorithm
+            cpl_class_list += ([cplx_class] * len(analysis_df['HPO-method']))
+
+            # TODO: Parallelized Setup -> effective use of parallel resources
+
+    # TODO: Create pd.DataFrame and save to .csv file
+
+    # # Result lists for final performance ranking based on the maximum time budget cut
+    # max_cut_rank = []
+    # max_cut_tech = []
+    # max_cut_test_loss = []
+    # max_cut_test_scale = []
+    # max_cut_tb = []
+    # max_cut_fast_tech = []
+    # final_wc_times = []
+    #
+    # # Result lists for final performance ranking based on the 1st user defined cut
+    # second_cut_rank = []
+    # second_cut_tech = []
+    # second_cut_val_loss = []
+    # second_cut_val_scale = []
+    # second_cut_tb = []
+    #
+    # # Result lists for final performance ranking based on the 2nd user defined cut
+    # third_cut_rank = []
+    # third_cut_tech = []
+    # third_cut_val_loss = []
+    # third_cut_val_scale = []
+    # third_cut_tb = []
+    #
+    # # Result lists for final performance ranking based on the 3rd user defined cut
+    # fourth_cut_rank = []
+    # fourth_cut_tech = []
+    # fourth_cut_val_loss = []
+    # fourth_cut_val_scale = []
+    # fourth_cut_tb = []
+    #
+    # # Results lists for ranking based on the time required to outperform the default baseline
+    # # (1st Anytime Performance metric)
+    # outperform_perf_rank = []
+    # outperform_perf_tech = []
+    # outperform_perf_val = []
+    # outperform_perf_scale = []
+    # outperform_wc_times = []
+    #
+    # # Results lists for ranking based on the Area Under Curve (AUC) (2nd Anytime Performance metric)
+    # auc_perf_rank = []
+    # auc_perf_tech = []
+    # auc_perf_val = []
+    # auc_perf_scale = []
+    # auc_cut_tb = []
 
     # Additional result lists (properties of the ML algorithm)
     avg_time_per_eval_list = []
@@ -133,6 +220,15 @@ for this_setup in setup_variants:
 
         final_df_sorted = sub_frame.sort_values(by=test_loss_str, axis=0, inplace=False, ascending=True,
                                                 na_position='last')
+
+        # Final cut
+        final_cut_df_sorted = sub_frame.sort_values(by='Max Cut Test Loss', axis=0, inplace=False, ascending=True,
+                                                    na_position='last')
+
+        # 1st user defined cut
+        second_cut_df_sorted = sub_frame.sort_values(by='2nd Cut Validation loss', axis=0, inplace=False,
+                                                     ascending=True,
+                                                     na_position='last')
 
         # Sort DataFrame according to the anytime performance
         any_df_sorted = sub_frame.sort_values(by='t outperform default [s]', axis=0, inplace=False, ascending=True,
