@@ -245,7 +245,7 @@ elif dataset == 'blisk':
 
 elif dataset == 'surface':
 
-    X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing()
+    X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing(images_per_class=20000)
 
 elif dataset == 'mining':
 

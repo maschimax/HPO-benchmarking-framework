@@ -21,7 +21,7 @@ def importPositiveImages(lTotal):
     hData = []
     for i in range(lTotal):
         i += 1
-        if i < 19379 and i > 9999:
+        if 19379 > i > 9999:
             hData.append(np.asarray(
                 Image.open(
                     "C:/Users/Max/Documents/GitHub/HPO-benchmarking-framework/datasets/Surface_Crack_Image/Positive/" + str(
@@ -37,9 +37,8 @@ def importPositiveImages(lTotal):
     return hData
 
 
-def surface_crack_loading_and_preprocessing():
-    # Number of images per class (max. 20,000)
-    images_per_class = 2000
+def surface_crack_loading_and_preprocessing(images_per_class=20000):
+    # Max. number of images per class -> 20,000
 
     # Load raw images of both classes
     image_data = importNegativeImages(images_per_class) + importPositiveImages(images_per_class)
@@ -49,7 +48,7 @@ def surface_crack_loading_and_preprocessing():
         this_sobel_image = sobel(image_data[i])
         image_data[i] = this_sobel_image
 
-    # Structure the data a numpy arrays
+    # Structure the data as numpy arrays
     X_data = np.asarray(image_data).reshape(2 * images_per_class, image_data[0].shape[0] * image_data[0].shape[1])
 
     # Create labels
@@ -68,34 +67,59 @@ def surface_crack_loading_and_preprocessing():
 
 
 ########################################################################################################################
-# X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing()
+# X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing(2000)
 #
 # # Modeling
 #
 # # from tensorflow import keras
+# # import time
 # #
 # # model = keras.Sequential()
 # #
 # # model.add(keras.layers.InputLayer(len(X_train.keys())))
 # # model.add(keras.layers.Dense(512, activation='relu'))
 # # model.add(keras.layers.Dense(512, activation='relu'))
-# # model.add(keras.layers.Dense(256, activation='relu'))
 # # model.add(keras.layers.Dense(1, activation='sigmoid'))
 # #
-# # adam = keras.optimizers.Adam(learning_rate=0.0001)
+# # adam = keras.optimizers.Adam(learning_rate=0.001)
 # # model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
 # #
-# # model.fit(X_train, y_train, epochs=100, batch_size=256, validation_split=0.2, shuffle=True, verbose=1)
+# # print('Training the algorithm ...')
+# # t_start = time.time()
+# # model.fit(X_train, y_train, epochs=100, batch_size=128, validation_split=0.2, shuffle=True, verbose=1)
+# # t_training = time.time() - t_start
 # #
 # # y_pred = model.predict(X_test)
 # #
 # # y_pred = np.rint(y_pred)
 #
-# from sklearn.tree import DecisionTreeClassifier
-# clf = DecisionTreeClassifier(random_state=0)
-# clf.fit(X_train, y_train)
-# y_pred = clf.predict(X_test)
+# # from sklearn.tree import DecisionTreeClassifier
+# # clf = DecisionTreeClassifier(random_state=0)
+# # clf.fit(X_train, y_train)
+# # y_pred = clf.predict(X_test)
 #
-# accuracy = accuracy_score(y_test, y_pred)
+# # accuracy = accuracy_score(y_test, y_pred)
+# # print('Training duration: ', t_training)
+# # print('Accuracy: ', accuracy)
 #
-# print('Accuracy: ', accuracy)
+# from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+# from sklearn.svm import SVC
+# from sklearn.metrics import accuracy_score
+# import time
+#
+# # model = RandomForestClassifier(random_state=0)
+# # model = SVC(random_state=0, cache_size=500)
+# model = AdaBoostClassifier(random_state=0)
+#
+# print('Training the algorithm ...')
+#
+# t_start = time.time()
+# model.fit(X_train, y_train)
+# t_training = time.time() - t_start
+#
+# y_pred = model.predict(X_test)
+#
+# acc = accuracy_score(y_test, y_pred)
+#
+# print('Training duration: ', t_training)
+# print('Accuracy: ', acc)
