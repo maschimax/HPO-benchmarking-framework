@@ -1,8 +1,8 @@
 import numpy as np
 from PIL import Image
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from skimage.filters import sobel
+from skimage.transform import resize
 import pandas as pd
 
 
@@ -37,7 +37,7 @@ def importPositiveImages(lTotal):
     return hData
 
 
-def surface_crack_loading_and_preprocessing(images_per_class=20000):
+def surface_crack_loading_and_preprocessing(images_per_class=2000):
     # Max. number of images per class -> 20,000
 
     # Load raw images of both classes
@@ -47,6 +47,11 @@ def surface_crack_loading_and_preprocessing(images_per_class=20000):
     for i in range(len(image_data)):
         this_sobel_image = sobel(image_data[i])
         image_data[i] = this_sobel_image
+
+    # Resize images to (64, 64) to decrease the number of features and accelerate the training process
+    for i in range(len(image_data)):
+        this_down_scaled_image = resize(image_data[i], output_shape=(64, 64), anti_aliasing=True)
+        image_data[i] = this_down_scaled_image
 
     # Structure the data as numpy arrays
     X_data = np.asarray(image_data).reshape(2 * images_per_class, image_data[0].shape[0] * image_data[0].shape[1])
@@ -67,57 +72,63 @@ def surface_crack_loading_and_preprocessing(images_per_class=20000):
 
 
 ########################################################################################################################
-# X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing(2000)
+# X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing(3000)
 #
 # # Modeling
 #
-# # from tensorflow import keras
-# # import time
+# from tensorflow import keras
+# import time
+#
+# model = keras.Sequential()
+#
+# model.add(keras.layers.InputLayer(len(X_train.keys())))
+# model.add(keras.layers.Dense(256, activation='relu'))
+# model.add(keras.layers.Dense(256, activation='relu'))
+# model.add(keras.layers.Dense(1, activation='sigmoid'))
+#
+# adam = keras.optimizers.Adam(learning_rate=0.001)
+# model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+#
+# print('Training the algorithm ...')
+# t_start = time.time()
+# model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.2, shuffle=True, verbose=1)
+# t_training = time.time() - t_start
+#
+# y_pred = model.predict(X_test)
+#
+# y_pred = np.rint(y_pred)
+#
+# accuracy = accuracy_score(y_test, y_pred)
+#
+# from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+# from sklearn.svm import SVC
+# from xgboost import XGBClassifier
+# from sklearn.metrics import accuracy_score, plot_confusion_matrix
+# import time
+# import matplotlib.pyplot as plt
+# from sklearn.tree import DecisionTreeClassifier
+# from sklearn.neighbors import KNeighborsClassifier
+# from sklearn.naive_bayes import GaussianNB
 # #
-# # model = keras.Sequential()
-# #
-# # model.add(keras.layers.InputLayer(len(X_train.keys())))
-# # model.add(keras.layers.Dense(512, activation='relu'))
-# # model.add(keras.layers.Dense(512, activation='relu'))
-# # model.add(keras.layers.Dense(1, activation='sigmoid'))
-# #
-# # adam = keras.optimizers.Adam(learning_rate=0.001)
-# # model.compile(optimizer=adam, loss=keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+# # # model = RandomForestClassifier(random_state=0)
+# # # model = SVC(random_state=0, cache_size=500)
+# # # model = AdaBoostClassifier(random_state=0)
+# # # model = XGBClassifier(random_state=0)
+# # # model = DecisionTreeClassifier(random_state=0)
+# # # model = KNeighborsClassifier()
+# # model = GaussianNB()
 # #
 # # print('Training the algorithm ...')
+# #
 # # t_start = time.time()
-# # model.fit(X_train, y_train, epochs=100, batch_size=128, validation_split=0.2, shuffle=True, verbose=1)
+# # model.fit(X_train, y_train)
 # # t_training = time.time() - t_start
 # #
 # # y_pred = model.predict(X_test)
 # #
-# # y_pred = np.rint(y_pred)
-#
-# # from sklearn.tree import DecisionTreeClassifier
-# # clf = DecisionTreeClassifier(random_state=0)
-# # clf.fit(X_train, y_train)
-# # y_pred = clf.predict(X_test)
-#
-# # accuracy = accuracy_score(y_test, y_pred)
-# # print('Training duration: ', t_training)
-# # print('Accuracy: ', accuracy)
-#
-# from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-# from sklearn.svm import SVC
-# from sklearn.metrics import accuracy_score
-# import time
-#
-# # model = RandomForestClassifier(random_state=0)
-# # model = SVC(random_state=0, cache_size=500)
-# model = AdaBoostClassifier(random_state=0)
-#
-# print('Training the algorithm ...')
-#
-# t_start = time.time()
-# model.fit(X_train, y_train)
-# t_training = time.time() - t_start
-#
-# y_pred = model.predict(X_test)
+# # plot_confusion_matrix(model, X_test, y_test)
+# #
+# # plt.show()
 #
 # acc = accuracy_score(y_test, y_pred)
 #
