@@ -5,7 +5,7 @@ import os
 
 dataset = 'turbofan'
 
-metrics_path = './hpo_framework/results/' + dataset + '/metrics_' + dataset + '.csv'
+metrics_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
 metrics_df = pd.read_csv(metrics_path, index_col=0)
 
 hpo_techniques = metrics_df['HPO-method'].unique()
@@ -36,7 +36,7 @@ analysis_dict = {'Max Cut Loss': {'1st metric': 'Max Cut Test Loss',
                                   'Budget col': '3rd Cut Time Budget [s]'},
                  '4th Cut Loss': {'1st metric': '4th Cut Validation Loss',
                                   'Budget col': '4th Cut Time Budget [s]'},
-                 'Max Cut AUC': {'1st metric': 'Max cut AUC',
+                 'Max Cut AUC': {'1st metric': 'Max Cut AUC',
                                  'Budget col': 'Max Cut Time Budget [s]'},
                  'Outperform Baseline': {'1st metric': 't outperform default [s]',
                                          'Budget col': 'Max Cut Time Budget [s]'}}
@@ -44,31 +44,80 @@ analysis_dict = {'Max Cut Loss': {'1st metric': 'Max Cut Test Loss',
 # Iterate over setup variants
 for this_setup in setup_variants:
 
-    algo_list = []
-    rank_list = []
-    hpo_list = []
-    first_metric_list = []
-    scaled_list = []
-    second_metric_list = []
-    budget_list = []
-
-    avg_time_per_eval_list = []
-    dim_list = []
-    cpl_class_list = []
-
     for this_analysis in analysis_dict.keys():
 
-        setup_df = metrics_df.loc[(metrics_df['Workers'] == this_setup[0]) & (metrics_df['Warmstart'] == this_setup[1]), :]
+        algo_list = []
+        rank_list = []
+        hpo_list = []
+        first_metric_list = []
+        scaled_list = []
+        second_metric_list = []
+        budget_list = []
+
+        avg_time_per_eval_list = []
+        dim_list = []
+        cpl_class_list = []
+
+        setup_df = metrics_df.loc[(metrics_df['Workers'] == this_setup[0]) &
+                                  (metrics_df['Warmstart'] == this_setup[1]), :]
 
         ml_algos = setup_df['ML-algorithm'].unique()
 
         for this_algo in ml_algos:
 
+            # Filter for ML-algorithm -> HPO Use Case
             use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
 
-            # TODO: Add row for Default HPs
+            # Continue, if there is no data for this ML algorithm <-> analysis combination
+            if use_case_df[analysis_dict[this_analysis]['1st metric']].isnull().all():
+                continue
 
-            # TODO: Correct negative 'Outperform Baseline' values (warm started setup)
+            # Correct negative values of 't outperform default [s]' -> may occur on the warm started setup
+            if this_setup[1]:
+                for idx, row in use_case_df.iterrows():
+                    if row['t outperform default [s]'] < 0.0:
+                        use_case_df.loc[idx, 't outperform default [s]'] = 0.0
+
+            # Add row for HPO technique 'Default HPs'
+            default_test_loss = np.nanmean(use_case_df.loc[:, 'Test baseline'])
+            default_val_loss = np.nanmean(use_case_df.loc[:, 'Validation baseline'])
+            default_auc = np.nanmean(use_case_df.loc[:, 'Validation baseline'])
+            default_t_outperform = np.inf
+
+            default_row = {'HPO-method': 'Default HPs',
+                           'ML-algorithm': this_algo,
+                           'Workers': this_setup[0],
+                           'Warmstart': this_setup[1],
+                           'Mean (final validation loss)': default_val_loss,
+                           'Mean (final test loss)': default_test_loss,
+                           'Area under curve (AUC)': default_auc,
+                           't outperform default [s]': default_t_outperform}
+
+            this_metric = analysis_dict[this_analysis]['1st metric']
+
+            if this_metric == 'Max Cut Test Loss':
+
+                default_row[analysis_dict[this_analysis]['1st metric']] = default_test_loss
+                default_row[analysis_dict[this_analysis]['2nd metric']] = default_val_loss
+
+            elif this_metric in ['2nd Cut Validation Loss', '3rd Cut Validation Loss', '4th Cut Validation Loss']:
+
+                default_row[analysis_dict[this_analysis]['1st metric']] = default_val_loss
+
+            elif this_metric == 'Max Cut AUC':
+
+                default_row[analysis_dict[this_analysis]['1st metric']] = default_auc
+
+            elif this_metric == 't outperform default [s]':
+
+                default_row[analysis_dict[this_analysis]['1st metric']] = default_t_outperform
+
+            else:
+
+                raise Exception('Unknown analysis type for default HPs!')
+
+            default_df = pd.DataFrame(default_row, index=[len(use_case_df)])
+            use_case_df = pd.concat(objs=[use_case_df, default_df], axis=0, ignore_index=True)
 
             analysis_df = use_case_df.sort_values(by=analysis_dict[this_analysis]['1st metric'], axis=0, inplace=False,
                                                   ascending=True, na_position='last')
@@ -78,20 +127,30 @@ for this_setup in setup_variants:
             hpo_list += (list(analysis_df['HPO-method']))
             first_metric_list += (list(analysis_df[analysis_dict[this_analysis]['1st metric']]))
             budget_list += (list(analysis_df[analysis_dict[this_analysis]['Budget col']]))
+            if '2nd metric' in analysis_dict[this_analysis].keys():
+                second_metric_list += (list(analysis_df[analysis_dict[this_analysis]['2nd metric']]))
 
             # Compute the scaled deviation for the 1st metric
             metric_arr = analysis_df[analysis_dict[this_analysis]['1st metric']].to_numpy()
             min_value = np.nanmin(metric_arr)
             max_value = np.nanmax(metric_arr[metric_arr != np.inf])
 
-            # TODO: Handling of division by zero for 'Outperform Baseline' analysis
-            scaled_deviation = [(this_value - min_value) / (max_value - min_value) for this_value
-                                in list(metric_arr)]
+            if max_value - min_value > 0.0:
+
+                scaled_deviation = [(this_value - min_value) / (max_value - min_value) for this_value
+                                    in list(metric_arr)]
+
+            # Avoid division by zero
+            else:
+
+                scaled_deviation = [np.inf] * len(metric_arr)
 
             scaled_list += scaled_deviation
 
-            # Average time per function evaluation of Random Search
-            wc_time_rs = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch', 'Wall clock time [s]'].to_numpy()
+            # Average time per function evaluation of Random Search (on this setup variant)
+            wc_time_rs = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch',
+                                         'Wall clock time [s]'].to_numpy()[0]
+
             n_evals = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
             time_per_eval = round(wc_time_rs / n_evals, 2)
             avg_time_per_eval_list += ([time_per_eval] * len(analysis_df['HPO-method']))
@@ -116,306 +175,104 @@ for this_setup in setup_variants:
             cpl_class_list += ([cplx_class] * len(analysis_df['HPO-method']))
 
             # TODO: Parallelized Setup -> effective use of parallel resources
+            # # For parallelized setup -> compute speed up factor due to parallelization
+            # if this_setup[0] == 8:
+            #
+            #     # Filter for single worker, no warm start setup
+            #     single_sub_frame = metrics_df.loc[
+            #                        (metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 1)
+            #                        & (metrics_df['Warmstart'] == False), :]
+            #
+            #     # Filter for 8 parallel workers, no warm start setup
+            #     para_sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 8)
+            #                                     & (metrics_df['Warmstart'] == False), :]
+            #
+            #     # Iterate over HPO-techniques
+            #     for this_tech in para_sub_frame['HPO-method'].unique():
+            #         # Wall clock time on single worker setup
+            #         single_wc_time = single_sub_frame.loc[single_sub_frame['HPO-method'] == this_tech,
+            #                                               'Wall clock time [s]'].values[0]
+            #
+            #         # Wall clock time on setup with 8 parallel workers
+            #         para_wc_time = para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech,
+            #                                           'Wall clock time [s]'].values[0]
+            #
+            #         # Speed up factor
+            #         this_speed_up = round(single_wc_time / para_wc_time, 2)
+            #
+            #         para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech, 'Speed up factor'] = this_speed_up
+            #
+            #     # Default baselines on single worker setup
+            #     single_validation_baseline = np.nanmean(single_sub_frame.loc[:, 'Validation baseline'].to_numpy())
+            #     single_test_baseline = np.nanmean(single_sub_frame.loc[:, 'Test baseline'].to_numpy())
+            #
+            #     # Add row for Default HPs
+            #     para_default_row = {'HPO-method': 'Default',
+            #                         'ML-algorithm': this_algo,
+            #                         'Workers': this_setup[0],
+            #                         'Warmstart': this_setup[1],
+            #                         'Mean (final validation loss)': single_validation_baseline,
+            #                         'Mean (final test loss)': single_test_baseline,
+            #                         'Validation baseline': single_validation_baseline,
+            #                         'Test baseline': single_test_baseline,
+            #                         'Min.avg.test loss in time budget': single_test_baseline,
+            #                         'Speed up factor': 1.0}
+            #
+            #     para_default_df = pd.DataFrame(para_default_row, index=[len(para_sub_frame)])
+            #
+            #     # Append new row to DataFrame
+            #     para_sub_frame = pd.concat(objs=[para_sub_frame, para_default_df], axis=0, ignore_index=True)
+            #
+            #     para_sub_frame.sort_values(by='Speed up factor', axis=0, inplace=True, ascending=False,
+            #                                na_position='last')
+            #
+            #     para_list_rank += (list(range(1, len(para_sub_frame['HPO-method']) + 1)))
+            #     para_list_tech += (list(para_sub_frame['HPO-method']))
+            #     para_list_val += (list(para_sub_frame['Speed up factor']))
+            #     para_wct_list += (list(para_sub_frame['Wall clock time [s]']))
+            #
+            #     # Compute the deviation from the maximum speed up scaled between 0 and 1
+            #     speed_up_arr = para_sub_frame['Speed up factor'].to_numpy()
+            #     max_speed_up = np.nanmax(speed_up_arr[speed_up_arr != np.inf])
+            #     min_speed_up = np.nanmin(speed_up_arr)
+            #
+            #     para_list_rel += [(max_speed_up - this_speed_up) / (max_speed_up - min_speed_up) for this_speed_up in
+            #                       list(para_sub_frame['Speed up factor'])]
 
-    # TODO: Create pd.DataFrame and save to .csv file
+        # Create pd.DataFrame and save to .csv file
+        ranked_dict = {'ML-algorithm': algo_list,
+                       '1st metric': [analysis_dict[this_analysis]['1st metric']] * len(algo_list),
+                       '1st metric rank': rank_list,
+                       '1st metric HPO-technique': hpo_list,
+                       '1st metric value': first_metric_list,
+                       '1st metric scaled deviation': scaled_list,
+                       'Time budget [s]': budget_list,
+                       'Time per eval on this setup (RS)': avg_time_per_eval_list,
+                       'Number of HPs': dim_list,
+                       'HP complexity': cpl_class_list}
 
-    # # Result lists for final performance ranking based on the maximum time budget cut
-    # max_cut_rank = []
-    # max_cut_tech = []
-    # max_cut_test_loss = []
-    # max_cut_test_scale = []
-    # max_cut_tb = []
-    # max_cut_fast_tech = []
-    # final_wc_times = []
-    #
-    # # Result lists for final performance ranking based on the 1st user defined cut
-    # second_cut_rank = []
-    # second_cut_tech = []
-    # second_cut_val_loss = []
-    # second_cut_val_scale = []
-    # second_cut_tb = []
-    #
-    # # Result lists for final performance ranking based on the 2nd user defined cut
-    # third_cut_rank = []
-    # third_cut_tech = []
-    # third_cut_val_loss = []
-    # third_cut_val_scale = []
-    # third_cut_tb = []
-    #
-    # # Result lists for final performance ranking based on the 3rd user defined cut
-    # fourth_cut_rank = []
-    # fourth_cut_tech = []
-    # fourth_cut_val_loss = []
-    # fourth_cut_val_scale = []
-    # fourth_cut_tb = []
-    #
-    # # Results lists for ranking based on the time required to outperform the default baseline
-    # # (1st Anytime Performance metric)
-    # outperform_perf_rank = []
-    # outperform_perf_tech = []
-    # outperform_perf_val = []
-    # outperform_perf_scale = []
-    # outperform_wc_times = []
-    #
-    # # Results lists for ranking based on the Area Under Curve (AUC) (2nd Anytime Performance metric)
-    # auc_perf_rank = []
-    # auc_perf_tech = []
-    # auc_perf_val = []
-    # auc_perf_scale = []
-    # auc_cut_tb = []
+        if '2nd metric' in analysis_dict[this_analysis].keys():
+            ranked_dict['2nd metric'] = [analysis_dict[this_analysis]['2nd metric']] * len(algo_list)
+            ranked_dict['2nd metric value'] = second_metric_list
 
-    # Additional result lists (properties of the ML algorithm)
-    avg_time_per_eval_list = []
-    dim_list = []
-    cpl_class_list = []
+        analysis_ranked_df = pd.DataFrame(ranked_dict)
 
-    # Additional ranking lists for the parallelized setup -> Effective use of parallel resources
-    if this_setup[0] == 8:
-        para_list_rank = []
-        para_list_tech = []
-        para_list_val = []
-        para_list_rel = []
-        para_wct_list = []
+        save_dir = './hpo_framework/results/' + dataset + '/RankingAnalysis'
 
-    # Iterate over ML algorithms
-    for this_algo in ml_algorithms:
+        if not os.path.isdir(save_dir):
+            os.mkdir(save_dir)
 
-        # Skip Keras models for the parallelized and warm started setup variants
-        if (this_algo == 'KerasRegressor' or this_algo == 'KerasClassifier') and (this_setup[0] > 1 or this_setup[1]):
-            continue
-
-        # Filter for setup variant and ML algorithm
-        sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == this_setup[0])
-                                   & (metrics_df['Warmstart'] == this_setup[1]), :]
-
-        # Correct negative anytime performance values (negative values may occur on the warm start setup)
-        for idx, row_series in sub_frame.iterrows():
-            if row_series['t outperform default [s]'] < 0.0:
-                sub_frame.loc[idx, 't outperform default [s]'] = 0.0
-
-        # Add row for HPO-technique: Default HPs
-        default_validation_loss = np.nanmean(sub_frame.loc[:, 'Validation baseline'].to_numpy())
-        default_test_loss = np.nanmean(sub_frame.loc[:, 'Test baseline'].to_numpy())
-
-        default_row = {'HPO-method': 'Default',
-                       'ML-algorithm': this_algo,
-                       'Workers': this_setup[0],
-                       'Warmstart': this_setup[1],
-                       'Mean (final validation loss)': default_validation_loss,
-                       'Mean (final test loss)': default_test_loss,
-                       'Validation baseline': default_validation_loss,
-                       'Test baseline': default_test_loss,
-                       'Min. avg. test loss in time budget': default_test_loss}
-
-        default_df = pd.DataFrame(default_row, index=[len(sub_frame)])
-
-        # Append new row to DataFrame
-        sub_frame = pd.concat(objs=[sub_frame, default_df], axis=0, ignore_index=True)
-
-        # Sort DataFrame according to the final performance
-        if time_budget_restriction:
-            test_loss_str = 'Min. avg. test loss in time budget'
+        if this_setup[1]:
+            wst_str = 'Wst_'
         else:
-            test_loss_str = 'Mean (final test loss)'
+            wst_str = 'NoWst_'
 
-        final_df_sorted = sub_frame.sort_values(by=test_loss_str, axis=0, inplace=False, ascending=True,
-                                                na_position='last')
+        file_name = str(this_setup[0]) + 'Workers_' + wst_str + \
+            analysis_dict[this_analysis]['1st metric'] + '_ranked.csv'
 
-        # Final cut
-        final_cut_df_sorted = sub_frame.sort_values(by='Max Cut Test Loss', axis=0, inplace=False, ascending=True,
-                                                    na_position='last')
+        analysis_ranked_df.to_csv(os.path.join(save_dir, file_name))
 
-        # 1st user defined cut
-        second_cut_df_sorted = sub_frame.sort_values(by='2nd Cut Validation loss', axis=0, inplace=False,
-                                                     ascending=True,
-                                                     na_position='last')
-
-        # Sort DataFrame according to the anytime performance
-        any_df_sorted = sub_frame.sort_values(by='t outperform default [s]', axis=0, inplace=False, ascending=True,
-                                              na_position='last')
-
-        # Append ML algorithm
-        algo_list += ([this_algo] * len(sub_frame['HPO-method']))
-
-        # Assess the final performance of the HPO techniques for this ML algorithm and this setup variant
-        max_cut_rank += (list(range(1, len(final_df_sorted['HPO-method']) + 1)))
-        max_cut_tech += (list(final_df_sorted['HPO-method']))
-        final_wc_times += (list(final_df_sorted['Wall clock time [s]']))
-        max_cut_test_loss += (list(final_df_sorted[test_loss_str]))
-        max_cut_tb += (list(final_df_sorted['Time Budget [s]']))
-        max_cut_fast_tech += (list(final_df_sorted['Fastest HPO-Technique']))
-
-        # Compute the deviation from the minimum loss scaled between 0 and 1
-        loss_arr = final_df_sorted[test_loss_str].to_numpy()
-        min_loss = np.nanmin(loss_arr)
-        max_loss = np.nanmax(loss_arr[loss_arr != np.inf])
-
-        scaled_loss_deviation = [(this_loss - min_loss) / (max_loss - min_loss) for this_loss
-                                 in list(final_df_sorted[test_loss_str])]
-
-        max_cut_test_scale += scaled_loss_deviation
-
-        # Assess the anytime performance of the HPO techniques for this ML algorithm and this setup variant
-        outperform_perf_rank += (list(range(1, len(any_df_sorted['HPO-method']) + 1)))
-        outperform_perf_tech += (list(any_df_sorted['HPO-method']))
-        outperform_perf_val += (list(any_df_sorted['t outperform default [s]']))
-        outperform_wc_times += (list(any_df_sorted['Wall clock time [s]']))
-
-        # Compute the deviation from the minimum time scaled between 0 and 1
-        times_arr = any_df_sorted['t outperform default [s]'].to_numpy()
-        min_time = np.nanmin(times_arr)
-        max_time = np.nanmax(times_arr[times_arr != np.inf])
-
-        if max_time - min_time > 0.0:
-
-            scaled_time_deviation = [(this_time - min_time) / (max_time - min_time) for this_time
-                                     in any_df_sorted['t outperform default [s]']]
-
-        # Avoid division by zero
-        else:
-            scaled_time_deviation = [np.float('inf')] * len(any_df_sorted['t outperform default [s]'])
-        outperform_perf_scale += scaled_time_deviation
-
-        # Compute the average time per evaluation for Random Search
-        wall_cl_time_rs = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Wall clock time [s]'].to_numpy()[0]
-        n_evals = sub_frame.loc[sub_frame['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
-        avg_time_per_eval = round(wall_cl_time_rs / n_evals, 2)
-        avg_time_per_eval_list += ([avg_time_per_eval] * len(sub_frame['HPO-method']))
-
-        # Number of each HP type
-        num_cont_hps = np.nanmean(sub_frame.loc[:, '# cont. HPs'].to_numpy())
-        num_int_hps = np.nanmean(sub_frame.loc[:, '# int. HPs'].to_numpy())
-        num_cat_hps = np.nanmean(sub_frame.loc[:, '# cat. HPs'].to_numpy())
-
-        # Dimensionality of the configuration space for this ML algorithm
-        dim_list += ([num_cont_hps + num_int_hps + num_cat_hps] * len(sub_frame['HPO-method']))
-
-        # Check complexity class
-        if num_cat_hps > 0:
-            cplx_class = 3
-        elif num_int_hps > 0:
-            cplx_class = 2
-        else:
-            cplx_class = 1
-
-        # Append the complexity class of this ML algorithm
-        cpl_class_list += ([cplx_class] * len(sub_frame['HPO-method']))
-
-        # For parallelized setup -> compute speed up factor due to parallelization
-        if this_setup[0] == 8:
-
-            # Filter for single worker, no warm start setup
-            single_sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 1)
-                                              & (metrics_df['Warmstart'] == False), :]
-
-            # Filter for 8 parallel workers, no warm start setup
-            para_sub_frame = metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) & (metrics_df['Workers'] == 8)
-                                            & (metrics_df['Warmstart'] == False), :]
-
-            # Iterate over HPO-techniques
-            for this_tech in para_sub_frame['HPO-method'].unique():
-                # Wall clock time on single worker setup
-                single_wc_time = single_sub_frame.loc[single_sub_frame['HPO-method'] == this_tech,
-                                                      'Wall clock time [s]'].values[0]
-
-                # Wall clock time on setup with 8 parallel workers
-                para_wc_time = para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech,
-                                                  'Wall clock time [s]'].values[0]
-
-                # Speed up factor
-                this_speed_up = round(single_wc_time / para_wc_time, 2)
-
-                para_sub_frame.loc[para_sub_frame['HPO-method'] == this_tech, 'Speed up factor'] = this_speed_up
-
-            # Default baselines on single worker setup
-            single_validation_baseline = np.nanmean(single_sub_frame.loc[:, 'Validation baseline'].to_numpy())
-            single_test_baseline = np.nanmean(single_sub_frame.loc[:, 'Test baseline'].to_numpy())
-
-            # Add row for Default HPs
-            para_default_row = {'HPO-method': 'Default',
-                                'ML-algorithm': this_algo,
-                                'Workers': this_setup[0],
-                                'Warmstart': this_setup[1],
-                                'Mean (final validation loss)': single_validation_baseline,
-                                'Mean (final test loss)': single_test_baseline,
-                                'Validation baseline': single_validation_baseline,
-                                'Test baseline': single_test_baseline,
-                                'Min.avg.test loss in time budget': single_test_baseline,
-                                'Speed up factor': 1.0}
-
-            para_default_df = pd.DataFrame(para_default_row, index=[len(para_sub_frame)])
-
-            # Append new row to DataFrame
-            para_sub_frame = pd.concat(objs=[para_sub_frame, para_default_df], axis=0, ignore_index=True)
-
-            para_sub_frame.sort_values(by='Speed up factor', axis=0, inplace=True, ascending=False, na_position='last')
-
-            para_list_rank += (list(range(1, len(para_sub_frame['HPO-method']) + 1)))
-            para_list_tech += (list(para_sub_frame['HPO-method']))
-            para_list_val += (list(para_sub_frame['Speed up factor']))
-            para_wct_list += (list(para_sub_frame['Wall clock time [s]']))
-
-            # Compute the deviation from the maximum speed up scaled between 0 and 1
-            speed_up_arr = para_sub_frame['Speed up factor'].to_numpy()
-            max_speed_up = np.nanmax(speed_up_arr[speed_up_arr != np.inf])
-            min_speed_up = np.nanmin(speed_up_arr)
-
-            para_list_rel += [(max_speed_up - this_speed_up) / (max_speed_up - min_speed_up) for this_speed_up in
-                              list(para_sub_frame['Speed up factor'])]
-
-    # Create DataFrame for this setup variant
-
-    # Single worker setup
-    if this_setup[0] == 1:
-        summary_df = pd.DataFrame({'ML-algorithm': algo_list,
-                                   'FP Rank': max_cut_rank,
-                                   'FP HPO-method': max_cut_tech,
-                                   'FP value': max_cut_test_loss,
-                                   'FP deviation [0-1]': max_cut_test_scale,
-                                   'FP wall clock time [s]': final_wc_times,
-                                   'FP time budget [s]': max_cut_tb,
-                                   'FP fastest HPO-tech': max_cut_fast_tech,
-                                   'AP Rank': outperform_perf_rank,
-                                   'AP HPO-method': outperform_perf_tech,
-                                   'AP value': outperform_perf_val,
-                                   'AP deviation [0-1]': outperform_perf_scale,
-                                   'AP wall clock time [s]': outperform_wc_times,
-                                   'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
-                                   'Number of HPs': dim_list,
-                                   'HP complexity': cpl_class_list})
-
-    # Setup with 8 parallel workers
-    else:
-        summary_df = pd.DataFrame({'ML-algorithm': algo_list,
-                                   'FP Rank': max_cut_rank,
-                                   'FP HPO-method': max_cut_tech,
-                                   'FP value': max_cut_test_loss,
-                                   'FP deviation [0-1]': max_cut_test_scale,
-                                   'FP wall clock time [s]': final_wc_times,
-                                   'FP time budget [s]': max_cut_tb,
-                                   'FP fastest HPO-tech': max_cut_fast_tech,
-                                   'AP Rank': outperform_perf_rank,
-                                   'AP HPO-method': outperform_perf_tech,
-                                   'AP value': outperform_perf_val,
-                                   'AP deviation [0-1]': outperform_perf_scale,
-                                   'AP wall clock time [s]': outperform_wc_times,
-                                   'Avg. time per eval (RS)[s]': avg_time_per_eval_list,
-                                   'Para. Rank': para_list_rank,
-                                   'Para. HPO-method': para_list_tech,
-                                   'Para. value': para_list_val,
-                                   'Para. deviation [0-1]': para_list_rel,
-                                   'Para. wall clock time [s]': para_wct_list,
-                                   'Number of HPs': dim_list,
-                                   'HP complexity': cpl_class_list})
-
-    if not os.path.isdir('./hpo_framework/results/' + dataset + '/Summary/'):
-        os.mkdir('./hpo_framework/results/' + dataset + '/Summary/')
-
-    # Save DataFrame to .csv File
-    table_name = './hpo_framework/results/' + dataset + '/Summary/' + dataset + '_summary_' + str(this_setup[0]) + \
-                 'Workers_Warmstart' + str(this_setup[1]) + '.csv'
-
-    summary_df.to_csv(table_name)
+exit(0)
 
 ########################################################################################################################
 # 1. Effective use of parallel resources
