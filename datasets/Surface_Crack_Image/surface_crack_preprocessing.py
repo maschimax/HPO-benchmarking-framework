@@ -11,7 +11,7 @@ def importNegativeImages(lTotal):
     for i in range(lTotal):
         i += 1
         hData.append(np.asarray(Image.open(
-            "C:/Users/Max/Documents/GitHub/HPO-benchmarking-framework/datasets/Surface_Crack_Image/Negative/" + str(
+            "./datasets/Surface_Crack_Image/Negative/" + str(
                 i).zfill(5) + ".jpg").convert(mode='L')))
 
     return hData
@@ -24,13 +24,13 @@ def importPositiveImages(lTotal):
         if 19379 > i > 9999:
             hData.append(np.asarray(
                 Image.open(
-                    "C:/Users/Max/Documents/GitHub/HPO-benchmarking-framework/datasets/Surface_Crack_Image/Positive/" + str(
+                    "./datasets/Surface_Crack_Image/Positive/" + str(
                         i).zfill(5) + "_1.jpg").convert(
                     mode='L')))
         else:
             hData.append(np.asarray(
                 Image.open(
-                    "C:/Users/Max/Documents/GitHub/HPO-benchmarking-framework/datasets/Surface_Crack_Image/Positive/" + str(
+                    "./datasets/Surface_Crack_Image/Positive/" + str(
                         i).zfill(5) + ".jpg").convert(
                     mode='L')))
 
