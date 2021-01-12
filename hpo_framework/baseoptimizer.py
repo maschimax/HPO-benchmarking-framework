@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNe
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.model_selection import KFold, train_test_split, TimeSeriesSplit
 from tensorflow import keras
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
@@ -26,7 +26,8 @@ from hpo_framework.hp_spaces import warmstart_lgb, warmstart_xgb, warmstart_kera
 class BaseOptimizer(ABC):
     def __init__(self, hp_space, hpo_method: str, ml_algorithm: str,
                  x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.Series, y_test: pd.Series,
-                 metric, n_func_evals: int, random_seed: int, n_workers: int, cross_val: bool, shuffle: bool):
+                 metric, n_func_evals: int, random_seed: int, n_workers: int, cross_val: bool, shuffle: bool,
+                 is_time_series=False):
         """
         Superclass for the individual optimizer classes of each HPO-library.
         :param hp_space: list
@@ -70,8 +71,8 @@ class BaseOptimizer(ABC):
         self.n_workers = n_workers
         self.cross_val = cross_val
         self.shuffle = shuffle
+        self.is_time_series = is_time_series
 
-    @abstractmethod
     def optimize(self) -> TuningResult:
 
         raise NotImplementedError
@@ -87,6 +88,7 @@ class BaseOptimizer(ABC):
         """
         return result.best_configuration
 
+    @staticmethod
     def get_best_val_score(result: TuningResult):
         """
         Method returns the best best validation loss  of this optimization run.
@@ -215,8 +217,14 @@ class BaseOptimizer(ABC):
         :return: warmstart_loss: float
             Validation loss for the default HP-configuration or the HP-configuration that has been passed via kwargs.
         """
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5, shuffle=self.shuffle)
+
+        if self.is_time_series:
+            # Use TimeSeriesSplit for time series data
+            kf = TimeSeriesSplit(n_splits=5)
+        else:
+            # Create K-Folds cross validator for all other data types
+            kf = KFold(n_splits=5, shuffle=self.shuffle)
+
         cross_val_losses = []
         cv_iter = 0
 
@@ -661,8 +669,13 @@ class BaseOptimizer(ABC):
 
             params['hidden_layer_sizes'] = (hidden_layer_size,) * n_hidden_layers
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5, shuffle=self.shuffle)
+        if self.is_time_series:
+            # Use TimeSeriesSplit for time series data
+            kf = TimeSeriesSplit(n_splits=5)
+        else:
+            # Create K-Folds cross validator for all other data types
+            kf = KFold(n_splits=5, shuffle=self.shuffle)
+
         cross_val_losses = []
         cv_iter = 0
 
@@ -820,8 +833,13 @@ class BaseOptimizer(ABC):
         """
         full_budget_epochs = 100  # see https://arxiv.org/abs/1905.04970
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5, shuffle=self.shuffle)
+        if self.is_time_series:
+            # Use TimeSeriesSplit for time series data
+            kf = TimeSeriesSplit(n_splits=5)
+        else:
+            # Create K-Folds cross validator for all other data types
+            kf = KFold(n_splits=5, shuffle=self.shuffle)
+
         cross_val_losses = []
         cv_iter = 0
 
@@ -1054,8 +1072,13 @@ class BaseOptimizer(ABC):
             del params['colsample_bytree']
             del params['colsample_bylevel']
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5, shuffle=self.shuffle)
+        if self.is_time_series:
+            # Use TimeSeriesSplit for time series data
+            kf = TimeSeriesSplit(n_splits=5)
+        else:
+            # Create K-Folds cross validator for all other data types
+            kf = KFold(n_splits=5, shuffle=self.shuffle)
+
         cross_val_losses = []
         cv_iter = 0
 
@@ -1152,8 +1175,13 @@ class BaseOptimizer(ABC):
             Validation loss of this run
         """
 
-        # Create K-Folds cross validator
-        kf = KFold(n_splits=5, shuffle=self.shuffle)
+        if self.is_time_series:
+            # Use TimeSeriesSplit for time series data
+            kf = TimeSeriesSplit(n_splits=5)
+        else:
+            # Create K-Folds cross validator for all other data types
+            kf = KFold(n_splits=5, shuffle=self.shuffle)
+
         cross_val_losses = []
         cv_iter = 0
 

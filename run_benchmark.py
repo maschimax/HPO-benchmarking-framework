@@ -47,6 +47,7 @@ if debug:
     use_gpu = 'No'
     cross_validation = 'No'
     shuffle = 'Yes'
+    time_series_data = 'No'
 
 else:
     parser = argparse.ArgumentParser(description="Hyperparameter Optimization Benchmarking Framework")
@@ -95,6 +96,9 @@ else:
     parser.add_argument('--shuffle', type=str, help='Shuffle training data (yes/no)', default='Yes',
                         choices=['Yes', 'No'])
 
+    parser.add_argument('--time_series_data', type=str, help='Time series data (yes/no)', default='No',
+                        choices=['Yes', 'No'])
+
     args = parser.parse_args()
 
     # Settings for this trial
@@ -110,6 +114,7 @@ else:
     use_gpu = args.gpu
     cross_validation = args.cross_validation
     shuffle = args.shuffle
+    time_series_data = args.time_series_data
 
     # Create the optimization schedule by matching the hpo-methods with their libraries
     opt_schedule = []
@@ -304,11 +309,16 @@ if shuffle == 'Yes':
 else:
     shuffle_data = False
 
+if time_series_data == 'Yes':
+    time_series = True
+else:
+    time_series = False
+
 # Create a new trial
 trial = Trial(hp_space=hp_space, ml_algorithm=ml_algo, optimization_schedule=opt_schedule,
               metric=loss_metric, n_runs=n_runs, n_func_evals=n_func_evals, n_workers=n_workers,
               x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test, do_warmstart=do_warmstart,
-              gpu=gpu, cross_val=cv, shuffle=shuffle_data)
+              gpu=gpu, cross_val=cv, shuffle=shuffle_data, is_time_series=time_series)
 
 # Run the optimization
 res = trial.run()
