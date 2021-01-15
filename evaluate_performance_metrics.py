@@ -41,22 +41,26 @@ analysis_dict = {'Max Cut Loss': {'1st metric': 'Max Cut Test Loss',
                  'Outperform Baseline': {'1st metric': 't outperform default [s]',
                                          'Budget col': 'Max Cut Time Budget [s]'}}
 
+algo_list = []
+worker_list = []
+wst_list = []
+rank_list = []
+hpo_list = []
+first_metric_name = []
+first_metric_list = []
+scaled_list = []
+second_metric_name = []
+second_metric_list = []
+budget_list = []
+
+avg_time_per_eval_list = []
+dim_list = []
+cpl_class_list = []
+
 # Iterate over setup variants
 for this_setup in setup_variants:
 
     for this_analysis in analysis_dict.keys():
-
-        algo_list = []
-        rank_list = []
-        hpo_list = []
-        first_metric_list = []
-        scaled_list = []
-        second_metric_list = []
-        budget_list = []
-
-        avg_time_per_eval_list = []
-        dim_list = []
-        cpl_class_list = []
 
         setup_df = metrics_df.loc[(metrics_df['Workers'] == this_setup[0]) &
                                   (metrics_df['Warmstart'] == this_setup[1]), :]
@@ -123,12 +127,19 @@ for this_setup in setup_variants:
                                                   ascending=True, na_position='last')
 
             algo_list += ([this_algo] * len(analysis_df['HPO-method']))
+            worker_list += ([this_setup[0]] * len(analysis_df['HPO-method']))
+            wst_list += ([this_setup[1]] * len(analysis_df['HPO-method']))
             rank_list += (list(range(1, len(analysis_df['HPO-method']) + 1)))
             hpo_list += (list(analysis_df['HPO-method']))
+            first_metric_name += ([analysis_dict[this_analysis]['1st metric']] * len(analysis_df['HPO-method']))
             first_metric_list += (list(analysis_df[analysis_dict[this_analysis]['1st metric']]))
             budget_list += (list(analysis_df[analysis_dict[this_analysis]['Budget col']]))
             if '2nd metric' in analysis_dict[this_analysis].keys():
+                second_metric_name += ([analysis_dict[this_analysis]['2nd metric']] * len(analysis_df['HPO-method']))
                 second_metric_list += (list(analysis_df[analysis_dict[this_analysis]['2nd metric']]))
+            else:
+                second_metric_name += ([np.nan] * len(analysis_df['HPO-method']))
+                second_metric_list += ([np.nan] * len(analysis_df['HPO-method']))
 
             # Compute the scaled deviation for the 1st metric
             metric_arr = analysis_df[analysis_dict[this_analysis]['1st metric']].to_numpy()
@@ -239,38 +250,32 @@ for this_setup in setup_variants:
             #     para_list_rel += [(max_speed_up - this_speed_up) / (max_speed_up - min_speed_up) for this_speed_up in
             #                       list(para_sub_frame['Speed up factor'])]
 
-        # Create pd.DataFrame and save to .csv file
-        ranked_dict = {'ML-algorithm': algo_list,
-                       '1st metric': [analysis_dict[this_analysis]['1st metric']] * len(algo_list),
-                       '1st metric rank': rank_list,
-                       '1st metric HPO-technique': hpo_list,
-                       '1st metric value': first_metric_list,
-                       '1st metric scaled deviation': scaled_list,
-                       'Time budget [s]': budget_list,
-                       'Time per eval on this setup (RS)': avg_time_per_eval_list,
-                       'Number of HPs': dim_list,
-                       'HP complexity': cpl_class_list}
+# Create pd.DataFrame and save to .csv file
+ranked_dict = {'ML-algorithm': algo_list,
+               'Workers': worker_list,
+               'Warm start': wst_list,
+               '1st metric': first_metric_name,
+               '1st metric rank': rank_list,
+               '1st metric HPO-technique': hpo_list,
+               '1st metric value': first_metric_list,
+               '1st metric scaled deviation': scaled_list,
+               'Time budget [s]': budget_list,
+               'Time per eval on this setup (RS)': avg_time_per_eval_list,
+               'Number of HPs': dim_list,
+               'HP complexity': cpl_class_list,
+               '2nd metric': second_metric_name,
+               '2nd metric value': second_metric_list}
 
-        if '2nd metric' in analysis_dict[this_analysis].keys():
-            ranked_dict['2nd metric'] = [analysis_dict[this_analysis]['2nd metric']] * len(algo_list)
-            ranked_dict['2nd metric value'] = second_metric_list
+analysis_ranked_df = pd.DataFrame(ranked_dict)
 
-        analysis_ranked_df = pd.DataFrame(ranked_dict)
+save_dir = './hpo_framework/results/' + dataset + '/RankingAnalysis'
 
-        save_dir = './hpo_framework/results/' + dataset + '/RankingAnalysis'
+if not os.path.isdir(save_dir):
+    os.mkdir(save_dir)
 
-        if not os.path.isdir(save_dir):
-            os.mkdir(save_dir)
+file_name = dataset + '_ranked_metrics.csv'
 
-        if this_setup[1]:
-            wst_str = 'Wst_'
-        else:
-            wst_str = 'NoWst_'
-
-        file_name = str(this_setup[0]) + 'Workers_' + wst_str + \
-            analysis_dict[this_analysis]['1st metric'] + '_ranked.csv'
-
-        analysis_ranked_df.to_csv(os.path.join(save_dir, file_name))
+analysis_ranked_df.to_csv(os.path.join(save_dir, file_name))
 
 exit(0)
 

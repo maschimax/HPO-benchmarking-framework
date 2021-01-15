@@ -251,7 +251,10 @@ def cut_and_reevaluate(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compu
 
                                         clean_dict['n_estimators'] = int(clean_dict['n_estimators'])
                                         clean_dict['learning_rate'] = float(clean_dict['learning_rate'])
-                                        clean_dict['loss'] = clean_dict['loss'].strip().strip("'")
+                                        if 'loss' in clean_dict.keys():
+                                            clean_dict['loss'] = clean_dict['loss'].strip().strip("'")
+                                        elif 'algorithm' in clean_dict.keys():
+                                            clean_dict['algorithm'] = clean_dict['algorithm'].strip().strip("'")
 
                                         _, max_depth = clean_dict['base_estimator'].split('=')
                                         max_depth = max_depth.strip().strip(')')
@@ -264,7 +267,8 @@ def cut_and_reevaluate(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compu
                                     else:
                                         raise Exception('Error handling required!')
 
-                                # Retrain the ML algorithm for this hyperparameter configuration and calculate the test loss
+                                # Retrain the ML algorithm for this hyperparameter configuration and calculate
+                                # the test loss
                                 loss_metric = run_df['loss_metric'].unique()[0]
                                 this_seed = run_df['random_seed'].unique()[0]
 
@@ -392,16 +396,16 @@ if __name__ == '__main__':
     # Find AUC for a given time budget (computed or ?user defined?)
     # Include new information to metrics.csv file -> can be validation and test loss or AUC
 
-    dataset = 'turbofan'
+    dataset = 'scania'
 
     # Flags
-    identify_time_budgets = False
+    identify_time_budgets = True
 
-    perform_cut = False
-    user_defined_cut = True
-    compute_test_loss = False
+    perform_cut = True
+    user_defined_cut = False
+    compute_test_loss = True
 
-    append_results_to_metrics = True
+    append_results_to_metrics = False
 
     # Read the aggregated log file -> pd.DataFrame
     log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
