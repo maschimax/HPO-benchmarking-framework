@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import ast
 import uuid
+from sklearn.preprocessing import OneHotEncoder
 
 from hpo_framework.baseoptimizer import BaseOptimizer
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
@@ -288,8 +289,20 @@ def cut_and_reevaluate(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compu
                                 elif dataset == 'sensor' and not data_is_loaded:
                                     do_shuffle = True
                                     X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
-                                    data_is_loaded = True
+                                    data_is_loaded = False  # Data reloading necessary for Keras models
                                     is_time_series = False
+
+                                    if this_algo == 'KerasClassifier' or this_algo == 'KerasRegressor':
+
+                                        # Apply scikit-learn's OneHotEncoder
+                                        oh_enc = OneHotEncoder(sparse=False, handle_unknown='error')
+                                        y_train_oh = oh_enc.fit_transform(np.array(y_train).reshape(-1, 1))
+                                        y_test_oh = oh_enc.transform(np.array(y_test).reshape(-1, 1))
+
+                                        # Transform numpy arrays to pandas DataFrames
+                                        y_train = pd.DataFrame(y_train_oh)
+                                        y_test = pd.DataFrame(y_test_oh)
+
 
                                 elif dataset == 'blisk' and not data_is_loaded:
                                     do_shuffle = False
@@ -396,7 +409,7 @@ if __name__ == '__main__':
     # Find AUC for a given time budget (computed or ?user defined?)
     # Include new information to metrics.csv file -> can be validation and test loss or AUC
 
-    dataset = 'scania'
+    dataset = 'sensor'
 
     # Flags
     identify_time_budgets = True

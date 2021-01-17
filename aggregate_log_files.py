@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 # Specify the data set
-dataset = 'turbofan'
+dataset = 'sensor'
 bm_dir = 'C:/Users/Max/OneDrive - rwth-aachen.de/Uni/Master/Masterarbeit/01_Content/05_Benchmarking Study/' + dataset
 
 # Count the number of log files

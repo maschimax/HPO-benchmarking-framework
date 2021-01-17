@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-dataset = 'turbofan'
+dataset = 'sensor'
 dir = 'C:/Users/Max/OneDrive - rwth-aachen.de/Uni/Master/Masterarbeit/01_Content/05_Benchmarking Study/' + dataset
 
 metrics_count = 0
