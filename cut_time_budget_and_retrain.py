@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
         # Compute the losses up to the user defined time budget (can be an point prior to the maximum time budget)
         else:
-            tb_path = './hpo_framework/results/turbofan/my_cuts_turbofan.csv'
+            tb_path = './hpo_framework/results/' + dataset + '/my_cuts_' + dataset + '.csv'
             user_budget_df = pd.read_csv(tb_path, index_col=0)
             tb_loss_df = cut_and_reevaluate(user_budget_df, log_df, compute_test_loss=compute_test_loss,
                                             cut_type='user')

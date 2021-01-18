@@ -66,7 +66,7 @@ for idx, row in metrics_df.iterrows():
         fourth_cut_row['Evaluations for best configuration'] = np.nan
         fourth_cut_row['Evaluations'] = np.nan
 
-        expanded_df = expanded_df.append(third_cut_row, ignore_index=True)
+        expanded_df = expanded_df.append(fourth_cut_row, ignore_index=True)
 
 expanded_df.drop(['Unnamed: 0'], axis=1, inplace=True)
 
