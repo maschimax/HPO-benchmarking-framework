@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from math import isnan
 
-dataset = 'turbofan'
+dataset = 'sensor'
 file_name = 'metrics_with_cuts_' + dataset + '.csv'
 file_path = './hpo_framework/results/' + dataset
 
@@ -62,18 +62,33 @@ for idx, row in metrics_df.iterrows():
     this_hpo = row['HPO-method']
     this_lib = row['HPO-library']
 
-    for this_ability in ur_programming_ability[this_lib]:
+    # Iterate over programming abilities
+    for this_ability in ['low', 'medium', 'high']:
 
-        for this_transparency in ur_transparency[this_hpo]:
+        # Iterate over transparency categories
+        for this_transparency in ['yes', 'no']:
 
-            for this_doc in ur_well_documented[this_lib]:
+            # Iterate over documentation categories
+            for this_doc in ['yes', 'no']:
 
+                # Iterate over robustness category
                 for this_robustness_category in robustness_dict.keys():
 
                         this_crash_share = row['Crashes'] / row['Runs']
 
-                        if this_crash_share > robustness_dict[this_robustness_category]:
-                            continue
+                        # Check, whether this HPO technique is suitable based on the URs, etc.
+                        if this_ability not in ur_programming_ability[this_lib] \
+                                or this_transparency not in ur_transparency[this_hpo] \
+                                or this_doc not in ur_well_documented[this_lib] \
+                                or this_crash_share > robustness_dict[this_robustness_category]:
+
+                            # The HPO technique is not suitable for this use case (at least on requirement is not met
+                            hpo_suitability = 'no'
+
+                        else:
+
+                            # The HPO technique is suitable for this use case -> all requirements are met
+                            hpo_suitability = 'yes'
 
                         if not np.isnan(row['Max Cut Time Budget [s]']):
                             max_cut_row = row.loc[cols]
@@ -90,6 +105,7 @@ for idx, row in metrics_df.iterrows():
                             max_cut_row['UR: Availability of a well documented library'] = this_doc
                             max_cut_row['Robustness'] = this_robustness_category
                             max_cut_row['UR: quality demands'] = quality_demands
+                            max_cut_row['HPO suitability'] = hpo_suitability
 
                             expanded_df = expanded_df.append(max_cut_row, ignore_index=True)
 
@@ -109,6 +125,7 @@ for idx, row in metrics_df.iterrows():
                             second_cut_row['UR: Availability of a well documented library'] = this_doc
                             second_cut_row['Robustness'] = this_robustness_category
                             second_cut_row['UR: quality demands'] = quality_demands
+                            second_cut_row['HPO suitability'] = hpo_suitability
 
                             expanded_df = expanded_df.append(second_cut_row, ignore_index=True)
 
@@ -128,6 +145,7 @@ for idx, row in metrics_df.iterrows():
                             third_cut_row['UR: Availability of a well documented library'] = this_doc
                             third_cut_row['Robustness'] = this_robustness_category
                             third_cut_row['UR: quality demands'] = quality_demands
+                            third_cut_row['HPO suitability'] = hpo_suitability
 
                             expanded_df = expanded_df.append(third_cut_row, ignore_index=True)
 
@@ -147,6 +165,7 @@ for idx, row in metrics_df.iterrows():
                             fourth_cut_row['UR: Availability of a well documented library'] = this_doc
                             fourth_cut_row['Robustness'] = this_robustness_category
                             fourth_cut_row['UR: quality demands'] = quality_demands
+                            fourth_cut_row['HPO suitability'] = hpo_suitability
 
                             expanded_df = expanded_df.append(fourth_cut_row, ignore_index=True)
 
