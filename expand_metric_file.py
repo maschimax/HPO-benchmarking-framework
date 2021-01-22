@@ -11,18 +11,19 @@ metrics_df = pd.read_csv(os.path.join(file_path, file_name))
 cols = metrics_df.columns
 cols = cols[:-17]
 
-# TODO: Expand by UR and Robustness -> i.e. Filter non robust HPO-techniques here?
-# TODO: Avoid duplicates here?
-
-# User's programming ability -> low: DefaultValues, Scikit-optimize (GPBO, SMAC), Optuna (TPE, RS, CMA-ES) //
-# medium: HPBandster (BOHB, Hyperband), RoBO (Bohamiann, Fabolas) // high: None
+# User's programming ability
+# -> low: DefaultValues, Scikit-optimize (GPBO, SMAC), Optuna (TPE, RS, CMA-ES)
+# -> medium: HPBandster (BOHB, Hyperband), RoBO (Bohamiann, Fabolas)
+# -> high: None
 ur_programming_ability = {'Default Values': ['low', 'medium', 'high'],
                           'skopt': ['low', 'medium', 'high'],
                           'optuna': ['low', 'medium', 'high'],
                           'hpbandster': ['medium', 'high'],
                           'robo': ['medium', 'high']}
 
-# UR: Need for model transparency -> yes: RandomSearch, DefaultValues // no: remaining
+# UR: Need for model transparency
+# -> yes: RandomSearch, DefaultValues
+# -> no: remaining HPO techniques
 ur_transparency = {'Default Values': ['yes', 'no'],
                    'RandomSearch': ['yes', 'no'],
                    'GPBO': ['no'],
@@ -34,8 +35,9 @@ ur_transparency = {'Default Values': ['yes', 'no'],
                    'Fabolas': ['no'],
                    'Bohamiann': ['no']}
 
-# Availability of a well documented library -> yes: DefaultValues, HPBandSter (BOHB, Hyperband),
-# Scikit-optimize (GPBO, SMAC), Optuna (TPE, RS, CMA-ES) // no: RoBO (Bohamiann, Fabolas)
+# Availability of a well documented library
+# -> yes: DefaultValues, HPBandSter (BOHB, Hyperband), Scikit-optimize (GPBO, SMAC), Optuna (TPE, RS, CMA-ES)
+# -> no: RoBO (Bohamiann, Fabolas)
 ur_well_documented = {'Default Values': ['yes', 'no'],
                       'skopt': ['yes', 'no'],
                       'hpbandster': ['yes', 'no'],
@@ -45,6 +47,9 @@ ur_well_documented = {'Default Values': ['yes', 'no'],
 # Pairs of antecedent and crash threshold values
 robustness_dict = {'high': 0.5,
                    'low': 1.0}
+
+# Examined 'high' Final Performance use cases only in the benchmarking study
+quality_demands = 'high'
 
 expanded_df = pd.DataFrame(columns=cols)
 
@@ -81,9 +86,10 @@ for idx, row in metrics_df.iterrows():
                             max_cut_row['Generalization error'] = np.nan
                             max_cut_row['Evaluations for best configuration'] = np.nan
                             max_cut_row["User's programming ability"] = this_ability
-                            max_cut_row['UR: Need for model transparency'] = this_transparency
+                            max_cut_row['UR: need for model transparency'] = this_transparency
                             max_cut_row['UR: Availability of a well documented library'] = this_doc
                             max_cut_row['Robustness'] = this_robustness_category
+                            max_cut_row['UR: quality demands'] = quality_demands
 
                             expanded_df = expanded_df.append(max_cut_row, ignore_index=True)
 
@@ -99,9 +105,10 @@ for idx, row in metrics_df.iterrows():
                             second_cut_row['Evaluations for best configuration'] = np.nan
                             second_cut_row['Evaluations'] = np.nan
                             second_cut_row["User's programming ability"] = this_ability
-                            second_cut_row['UR: Need for model transparency'] = this_transparency
+                            second_cut_row['UR: need for model transparency'] = this_transparency
                             second_cut_row['UR: Availability of a well documented library'] = this_doc
                             second_cut_row['Robustness'] = this_robustness_category
+                            second_cut_row['UR: quality demands'] = quality_demands
 
                             expanded_df = expanded_df.append(second_cut_row, ignore_index=True)
 
@@ -117,9 +124,10 @@ for idx, row in metrics_df.iterrows():
                             third_cut_row['Evaluations for best configuration'] = np.nan
                             third_cut_row['Evaluations'] = np.nan
                             third_cut_row["User's programming ability"] = this_ability
-                            third_cut_row['UR: Need for model transparency'] = this_transparency
+                            third_cut_row['UR: need for model transparency'] = this_transparency
                             third_cut_row['UR: Availability of a well documented library'] = this_doc
                             third_cut_row['Robustness'] = this_robustness_category
+                            third_cut_row['UR: quality demands'] = quality_demands
 
                             expanded_df = expanded_df.append(third_cut_row, ignore_index=True)
 
@@ -135,9 +143,10 @@ for idx, row in metrics_df.iterrows():
                             fourth_cut_row['Evaluations for best configuration'] = np.nan
                             fourth_cut_row['Evaluations'] = np.nan
                             fourth_cut_row["User's programming ability"] = this_ability
-                            fourth_cut_row['UR: Need for model transparency'] = this_transparency
+                            fourth_cut_row['UR: need for model transparency'] = this_transparency
                             fourth_cut_row['UR: Availability of a well documented library'] = this_doc
                             fourth_cut_row['Robustness'] = this_robustness_category
+                            fourth_cut_row['UR: quality demands'] = quality_demands
 
                             expanded_df = expanded_df.append(fourth_cut_row, ignore_index=True)
 
