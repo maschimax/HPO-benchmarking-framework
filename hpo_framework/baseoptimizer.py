@@ -483,7 +483,7 @@ class BaseOptimizer(ABC):
                 # Early stopping callback
                 early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
                                                                min_delta=0,
-                                                               patience=100,
+                                                               patience=10,
                                                                verbose=1,
                                                                mode='auto',
                                                                restore_best_weights=True)
@@ -1018,7 +1018,7 @@ class BaseOptimizer(ABC):
             # Early stopping callback
             early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss',
                                                            min_delta=0,
-                                                           patience=100,
+                                                           patience=10,
                                                            verbose=0,
                                                            mode='auto',
                                                            restore_best_weights=True)
