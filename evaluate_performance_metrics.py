@@ -27,9 +27,12 @@ setup_variants = [(1, False), (8, False), (1, True)]
 # restriction of the number of function evaluations
 time_budget_restriction = True
 
-analysis_dict = {'Max Cut Loss': {'1st metric': 'Max Cut Test Loss',
-                                  '2nd metric': 'Max Cut Validation Loss',
-                                  'Budget col': 'Max Cut Time Budget [s]'},
+analysis_dict = {'Max Cut Test Loss': {'1st metric': 'Max Cut Test Loss',
+                                       '2nd metric': 'Max Cut Validation Loss',
+                                       'Budget col': 'Max Cut Time Budget [s]'},
+                 'Max Cut Validation Loss': {'1st metric': 'Max Cut Validation Loss',
+                                             '2nd metric': 'Max Cut Test Loss',
+                                             'Budget col': 'Max Cut Time Budget [s]'},
                  '2nd Cut Loss': {'1st metric': '2nd Cut Validation Loss',
                                   'Budget col': '2nd Cut Time Budget [s]'},
                  '3rd Cut Loss': {'1st metric': '3rd Cut Validation Loss',
@@ -103,6 +106,11 @@ for this_setup in setup_variants:
 
                 default_row[analysis_dict[this_analysis]['1st metric']] = default_test_loss
                 default_row[analysis_dict[this_analysis]['2nd metric']] = default_val_loss
+
+            elif this_metric == 'Max Cut Validation Loss':
+
+                default_row[analysis_dict[this_analysis]['1st metric']] = default_val_loss
+                default_row[analysis_dict[this_analysis]['2nd metric']] = default_test_loss
 
             elif this_metric in ['2nd Cut Validation Loss', '3rd Cut Validation Loss', '4th Cut Validation Loss']:
 
