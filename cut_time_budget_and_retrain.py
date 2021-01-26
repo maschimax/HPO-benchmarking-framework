@@ -303,7 +303,6 @@ def cut_and_reevaluate(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compu
                                         y_train = pd.DataFrame(y_train_oh)
                                         y_test = pd.DataFrame(y_test_oh)
 
-
                                 elif dataset == 'blisk' and not data_is_loaded:
                                     do_shuffle = False
                                     X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
@@ -409,16 +408,16 @@ if __name__ == '__main__':
     # Find AUC for a given time budget (computed or ?user defined?)
     # Include new information to metrics.csv file -> can be validation and test loss or AUC
 
-    dataset = 'sensor'
+    dataset = 'surface'
 
     # Flags
-    identify_time_budgets = True
+    identify_time_budgets = False
 
-    perform_cut = True
-    user_defined_cut = False
-    compute_test_loss = True
+    perform_cut = False
+    user_defined_cut = True
+    compute_test_loss = False
 
-    append_results_to_metrics = False
+    append_results_to_metrics = True
 
     # Read the aggregated log file -> pd.DataFrame
     log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
@@ -455,17 +454,6 @@ if __name__ == '__main__':
         # Write results to .csv-file
         tb_loss_path = './hpo_framework/results/' + dataset + '/' + filestr + dataset + '.csv'
         tb_loss_df.to_csv(tb_loss_path)
-
-    # # Compute AUC metric?
-    # if compute_auc:
-    #     # Compute the AUC of the learning curves up to the maximum time budget
-    #     tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
-    #     computed_budget_df = pd.read_csv(tb_path, index_col=0)
-    #     tb_auc_df = compute_auc_for_time_budget(computed_budget_df, log_df)
-    #
-    #     # Write results to .csv-file
-    #     tb_auc_path = './hpo_framework/results/' + dataset + '/auc_in_max_time_budget_' + dataset + '.csv'
-    #     tb_auc_df.to_csv(tb_auc_path)
 
     if append_results_to_metrics:
         # PART 3: Write the results to the metrics file

@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from math import isnan
 
-dataset = 'sensor'
+dataset = 'surface'
 file_name = 'metrics_with_cuts_' + dataset + '.csv'
 file_path = './hpo_framework/results/' + dataset
 
@@ -93,7 +93,10 @@ for idx, row in metrics_df.iterrows():
                         if not np.isnan(row['Max Cut Time Budget [s]']):
                             max_cut_row = row.loc[cols]
                             max_cut_row['Wall clock time [s]'] = row.loc['Max Cut Time Budget [s]']
-                            max_cut_row['Mean (final test loss)'] = row.loc['Max Cut Test Loss']
+                            if 'Max Cut Test Loss' in row:
+                                max_cut_row['Mean (final test loss)'] = row.loc['Max Cut Test Loss']
+                            else:
+                                max_cut_row['Mean (final test loss)'] = np.nan
                             max_cut_row['Mean (final validation loss)'] = row.loc['Max Cut Validation Loss']
                             max_cut_row['Area under curve (AUC)'] = row.loc['Max Cut AUC']
                             max_cut_row['Test loss ratio (default / best)'] = np.nan

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-dataset = 'turbofan'
+dataset = 'sensor'
 
 metrics_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
 metrics_df = pd.read_csv(metrics_path, index_col=0)
@@ -67,6 +67,11 @@ for this_setup in setup_variants:
 
         setup_df = metrics_df.loc[(metrics_df['Workers'] == this_setup[0]) &
                                   (metrics_df['Warmstart'] == this_setup[1]), :]
+
+        if analysis_dict[this_analysis]['1st metric'] not in setup_df.keys():
+            print("There is no data for '%s' in the metrics file. This analysis is skipped." %
+                  analysis_dict[this_analysis]['1st metric'])
+            continue
 
         ml_algos = setup_df['ML-algorithm'].unique()
 
@@ -152,17 +157,25 @@ for this_setup in setup_variants:
             # Compute the scaled deviation for the 1st metric
             metric_arr = analysis_df[analysis_dict[this_analysis]['1st metric']].to_numpy()
             min_value = np.nanmin(metric_arr)
-            max_value = np.nanmax(metric_arr[metric_arr != np.inf])
 
-            if max_value - min_value > 0.0:
-
-                scaled_deviation = [(this_value - min_value) / (max_value - min_value) for this_value
-                                    in list(metric_arr)]
-
-            # Avoid division by zero
-            else:
+            # Special Case: For 't outperform baseline [s]' the array may consist of np.inf 
+            # values only (HPO techniques did not beat the baseline)
+            if len(metric_arr[metric_arr != np.inf]) == 0:
 
                 scaled_deviation = [np.inf] * len(metric_arr)
+
+            else:
+                max_value = np.nanmax(metric_arr[metric_arr != np.inf])
+
+                if max_value - min_value > 0.0:
+
+                    scaled_deviation = [(this_value - min_value) / (max_value - min_value) for this_value
+                                        in list(metric_arr)]
+
+                # Avoid division by zero
+                else:
+
+                    scaled_deviation = [np.inf] * len(metric_arr)
 
             scaled_list += scaled_deviation
 
