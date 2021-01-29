@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-dataset = 'sensor'
+dataset = 'surface'
 
 metrics_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
 metrics_df = pd.read_csv(metrics_path, index_col=0)
@@ -180,10 +180,16 @@ for this_setup in setup_variants:
             scaled_list += scaled_deviation
 
             # Average time per function evaluation of Random Search (on this setup variant)
-            wc_time_rs = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch',
-                                         'Wall clock time [s]'].to_numpy()[0]
+            try:
+                wc_time_rs = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch',
+                                            'Wall clock time [s]'].to_numpy()[0]
+                n_evals = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
+            
+            except: # If RS crashed
 
-            n_evals = analysis_df.loc[analysis_df['HPO-method'] == 'RandomSearch', 'Evaluations'].to_numpy()[0]
+                wc_time_rs = np.nanmean(analysis_df['Wall clock time [s]'].to_numpy())
+                n_evals = np.nanmean(analysis_df['Evaluations'].to_numpy())
+
             time_per_eval = round(wc_time_rs / n_evals, 2)
             avg_time_per_eval_list += ([time_per_eval] * len(analysis_df['HPO-method']))
 
