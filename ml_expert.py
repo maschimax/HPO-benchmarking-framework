@@ -2,12 +2,13 @@ import pandas as pd
 import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.neural_network import MLPRegressor
 from sklearn.utils import shuffle
+import matplotlib.pyplot as plt
 
 # Map HPO techniques: BRB -> BM
 hpo_brb2bm_map = {
@@ -135,13 +136,13 @@ datset2constant_map = {
     }
 }
 
-hpos = ['Bohamiann', 'BOHB', 'CMA-ES', 'Fabolas', 'GPBO',
+hpo_techs = ['Bohamiann', 'BOHB', 'CMA-ES', 'Fabolas', 'GPBO',
             'Hyperband', 'RandomSearch', 'SMAC', 'TPE', 'Default Values']
 
 def preprocess_X(X_data):
 
-    y_data = X_data.loc[:, hpos].copy(deep=True)
-    X_data.drop(hpos, axis=1, inplace=True)
+    y_data = X_data.loc[:, hpo_techs].copy(deep=True)
+    X_data.drop(hpo_techs, axis=1, inplace=True)
 
     # Drop constant, unused and empty columns
     drop_cols = ['Obtainability of gradients',
@@ -194,7 +195,7 @@ if __name__ == '__main__':
 
     metrics_folder = 'C:/Users/Max/Desktop/BM_results'
     create_X_data = False
-    evaluation_set = 'scania'
+    evaluation_set = 'turbofan'
 
     # Extract use cases and labels from the metrics files (create training data set)
     if create_X_data:
@@ -254,6 +255,7 @@ if __name__ == '__main__':
             # Map ML algorithms: BM -> BRB
             ml_bm2brb_map = {v: k for k, v in ml_brb2bm_map.items()}
 
+            # Extract the HPO use cases from the metrics files (serve as input for the ML model)
             df_use_case = pd.DataFrame([])
             df_use_case['Machine Learning Algorithm'] = metric_df['ML-algorithm'].map(
                 ml_bm2brb_map)
@@ -261,7 +263,6 @@ if __name__ == '__main__':
             df_use_case['Availability of a warm-start HP configuration'] = metric_df['Warmstart'].map(
                 wst_bm2brb_map)
             df_use_case['Number of maximum function evaluations/ trials budget'] = metric_df['Evaluations']
-            # df_use_case['Running time per trial [s]'] = [interval[0, 30]] * len(maxr['ML-algorithm']) # TODO: Calculation necessary
             df_use_case['Running time per trial [s]'] = metric_df['Wall clock time [s]'] / \
                 metric_df['Evaluations']
             df_use_case['Total Computing Time [s]'] = metric_df['Wall clock time [s]']
@@ -294,6 +295,7 @@ if __name__ == '__main__':
             df_use_case["Loss function"] = datset2constant_map[this_dataset]['Loss function']
             df_use_case["Special properties of loss function"] = datset2constant_map[this_dataset]['Special properties of loss function']
             df_use_case['UR: Anytime Performance'] = 'low'
+            df_use_case['UR: Robustness'] = metric_df['Robustness']
 
             # Remove duplicate use cases
             df_use_case.drop_duplicates(inplace=True, ignore_index=True)
@@ -309,7 +311,7 @@ if __name__ == '__main__':
                                     (metric_df['UR: need for model transparency'] == use_case['UR: need for model transparency']) &
                                     (metric_df['UR: Availability of a well documented library'] == use_case['UR: Availability of a well documented library']) &
                                     (metric_df['UR: quality demands'] == use_case["UR: quality demands"]) &
-                                    (metric_df['Robustness'] == 'low'), :]
+                                    (metric_df['Robustness'] == use_case['UR: Robustness']), :]
                 # TODO: Iterate over Robustness (& Anytime Performance?)
 
                 if len(exp) == 0:
@@ -357,66 +359,91 @@ if __name__ == '__main__':
     X_data = pd.read_csv(os.path.join(
         metrics_folder, 'X_data.csv'), index_col=0)
 
-    # Load the the use cases
-    test_file = evaluation_set + '_use_cases.csv'
-    test_use_cases = pd.read_csv(os.path.join(metrics_folder, test_file), index_col=0)
+    # # Load the the use cases
+    # test_file = evaluation_set + '_use_cases.csv'
+    # test_use_cases = pd.read_csv(os.path.join(metrics_folder, test_file), index_col=0)
 
     # DATA PREPROCESSING
     X_train, y_train = preprocess_X(X_data)
-    X_test, y_test = preprocess_X(test_use_cases)
+    X_train = X_train.reindex(sorted(X_train.columns), axis=1)
+    # X_test, y_test = preprocess_X(test_use_cases)
 
-    # # Train-test-split
-    # X_train, X_val, y_train, y_val = train_test_split(X_processed, y_data,
-    #                                                   test_size=0.2, random_state=0, shuffle=True)
+    kfold = KFold(n_splits=5, shuffle=True, random_state=0)
+    cv_scores = []
 
-    # # Modeling and Training
-    # model1 = RandomForestRegressor(random_state=0)
-    # model2 = MultiOutputRegressor(estimator=AdaBoostRegressor(random_state=0))
-    # model3 = MLPRegressor(hidden_layer_sizes=(64, 64), batch_size=8)
+    for train_idx, test_idx in kfold.split(X_train):
+        X_train_cv = X_train.iloc[train_idx, :]
+        X_test_cv = X_train.iloc[test_idx, :]
+        y_train_cv = y_train.iloc[train_idx, :]
+        y_test_cv = y_train.iloc[test_idx, :]
 
-    # model1.fit(X_train, y_train)
-    # model2.fit(X_train, y_train)
-    # model3.fit(X_train, y_train)
+        model = RandomForestRegressor(random_state=0)
 
-    # # Performance evaluation
-    # y_pred1 = model1.predict(X_val)
-    # y_pred2 = model2.predict(X_val)
-    # y_pred3 = model3.predict(X_val)
+        model.fit(X_train_cv, y_train_cv)
 
-    # print('Model 1 MAE: ', mean_absolute_error(y_val, y_pred1))
-    # print('Model 2 MAE: ', mean_absolute_error(y_val, y_pred2))
-    # print('Model 3 MAE: ', mean_absolute_error(y_val, y_pred3))
+        y_pred = model.predict(X_test_cv)
+        y_pred = pd.DataFrame(y_pred, columns=hpo_techs, index=y_test_cv.index)
+
+        scores = []
+
+        for idx, row in y_test_cv.iterrows():
+
+            hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
+            scores.append(row[hpo_rec])
+        
+        cv_scores.append(np.nanmean(scores))
+
+    test_score = np.nanmean(cv_scores)
+    print('CV score: ', test_score)
 
     # Shuffle
-    X_train, y_train = shuffle(X_train, y_train, random_state=0)
+    # X_train, y_train = shuffle(X_train, y_train, random_state=0)
 
     # Train model
     # model = RandomForestRegressor(random_state=0)
-    model = MLPRegressor(hidden_layer_sizes=(64, 64), batch_size=8)
+    # model = MLPRegressor(hidden_layer_sizes=(64, 64), batch_size=8)
     # model = MultiOutputRegressor(estimator=AdaBoostRegressor(random_state=0))
+
+    # # Sort columns in alphabetical order
+    # X_train = X_train.reindex(sorted(X_train.columns), axis=1)
+
+    # model.fit(X_train, y_train)
+
+    # # Performance evaluation
+    # train_cols = set(X_train.columns)
+    # test_cols = set(X_test.columns)
+    # diff_cols = train_cols - test_cols
     
-    model.fit(X_train, y_train)
+    # for col in diff_cols:
+    #     X_test.loc[:, col] = 0
 
-    # Performance evaluation
-    train_cols = set(X_train.columns)
-    test_cols = set(X_test.columns)
-    diff_cols = train_cols - test_cols
-    
-    for col in diff_cols:
-        X_test.loc[:, col] = 0
+    # # Sort columns in alphabetical order
+    # X_test = X_test.reindex(sorted(X_test.columns), axis=1)
 
-    y_pred = model.predict(X_test)
-    y_pred = pd.DataFrame(y_pred, columns=hpos)
+    # y_pred = model.predict(X_test)
+    # y_pred = pd.DataFrame(y_pred, columns=hpo_techs)
 
-    y_pred.idxmin(axis='columns').hist()
-    import matplotlib.pyplot as plt
+    # y_pred.idxmin(axis='columns').hist()
+    # plt.show()
+
+    # scores = []
+
+    # for idx, row in y_test.iterrows():
+
+    #     hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
+    #     scores.append(row[hpo_rec])
+
+    # print('Average score: ', np.nanmean(scores))
+
+    # Plot feature importances
+    fig, ax = plt.subplots(figsize=(7, 4))
+
+    feat_imp_dict = {}
+    for i in range(len(X_train.columns)):
+        feat_imp_dict[X_train.columns[i]] = model.feature_importances_[i]
+
+    feat_imp = pd.Series(feat_imp_dict).sort_values(ascending=False, inplace=False)
+
+    ax.bar(x=feat_imp.keys(), height=feat_imp.values)
+    ax.tick_params(axis='x', rotation=90)
     plt.show()
-
-    scores = []
-
-    for idx, row in y_test.iterrows():
-
-        hpo_rec = y_pred.iloc[idx].idxmin(axis='columns')
-        scores.append(row[hpo_rec])
-
-    print('Average score: ', np.nanmean(scores))
