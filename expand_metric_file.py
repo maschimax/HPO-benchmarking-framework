@@ -45,7 +45,7 @@ ur_well_documented = {'Default Values': ['yes', 'no'],
                       'robo': ['no']}
 
 # Pairs of antecedent and crash threshold values
-robustness_dict = {'high': 0.5,
+robustness_dict = {'high': 0.25,
                    'low': 1.0}
 
 # Examined 'high' Final Performance use cases only in the benchmarking study

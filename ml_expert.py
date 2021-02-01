@@ -137,18 +137,19 @@ datset2constant_map = {
 }
 
 hpo_techs = ['Bohamiann', 'BOHB', 'CMA-ES', 'Fabolas', 'GPBO',
-            'Hyperband', 'RandomSearch', 'SMAC', 'TPE', 'Default Values']
+             'Hyperband', 'RandomSearch', 'SMAC', 'TPE', 'Default Values']
+
+# Drop constant, unused and empty columns
+drop_cols = ['Obtainability of gradients',
+             'Obtainability of good approximate',
+             'Supports parallel evaluations',
+             'Number of maximum function evaluations/ trials budget']
+
 
 def preprocess_X(X_data):
 
     y_data = X_data.loc[:, hpo_techs].copy(deep=True)
     X_data.drop(hpo_techs, axis=1, inplace=True)
-
-    # Drop constant, unused and empty columns
-    drop_cols = ['Obtainability of gradients',
-                 'Obtainability of good approximate',
-                 'Supports parallel evaluations',
-                 'Number of maximum function evaluations/ trials budget']
 
     X_data.drop(drop_cols, axis=1, inplace=True)
 
@@ -358,6 +359,8 @@ if __name__ == '__main__':
     # Load the training data
     X_data = pd.read_csv(os.path.join(
         metrics_folder, 'X_data.csv'), index_col=0)
+    # X_data = pd.read_csv(os.path.join(
+    #     metrics_folder, 'surface_use_cases.csv'), index_col=0)
 
     # # Load the the use cases
     # test_file = evaluation_set + '_use_cases.csv'
@@ -390,7 +393,7 @@ if __name__ == '__main__':
 
             hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
             scores.append(row[hpo_rec])
-        
+
         cv_scores.append(np.nanmean(scores))
 
     test_score = np.nanmean(cv_scores)
@@ -413,7 +416,7 @@ if __name__ == '__main__':
     # train_cols = set(X_train.columns)
     # test_cols = set(X_test.columns)
     # diff_cols = train_cols - test_cols
-    
+
     # for col in diff_cols:
     #     X_test.loc[:, col] = 0
 
@@ -442,8 +445,35 @@ if __name__ == '__main__':
     for i in range(len(X_train.columns)):
         feat_imp_dict[X_train.columns[i]] = model.feature_importances_[i]
 
-    feat_imp = pd.Series(feat_imp_dict).sort_values(ascending=False, inplace=False)
+    original_features = set(X_data.columns) - set(drop_cols)
+
+    original_features.add('HP datatypes')
+    hp_types = ['continuous', 'discrete', 'nominal']
+    for this_type in hp_types:
+        original_features.remove(this_type)
+
+    original_feat_imp_dict = {}
+
+    for this_feature in original_features:
+
+        original_feat_imp_dict[this_feature] = 0.0
+
+        for k, v in feat_imp_dict.items():
+
+            if this_feature in k:
+
+                original_feat_imp_dict[this_feature] += v
+
+            elif this_feature == 'HP datatypes' and k in hp_types:
+
+                original_feat_imp_dict['HP datatypes'] += v
+
+    feat_imp = pd.Series(original_feat_imp_dict).sort_values(
+        ascending=False, inplace=False)
 
     ax.bar(x=feat_imp.keys(), height=feat_imp.values)
     ax.tick_params(axis='x', rotation=90)
+    ax.set_ylabel('Feature Importance Overall')
+    plt.savefig(os.path.join(metrics_folder,
+                             'feature_importance_overall.svg'), bbox_inches='tight')
     plt.show()
