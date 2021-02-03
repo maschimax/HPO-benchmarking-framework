@@ -4,9 +4,11 @@ import ast
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.metrics import mean_absolute_error, confusion_matrix
-import json
+from tensorflow import keras
+import pickle
 
 from hpo_framework.baseoptimizer import BaseOptimizer
+from hpo_framework.trial import Trial
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
 from datasets.Scania_APS_Failure.scania_preprocessing import scania_loading_and_preprocessing
 from datasets.Sensor_System_Production.sensor_loading_and_balancing import sensor_loading_and_preprocessing
@@ -154,23 +156,28 @@ for idx, row in config_df.iterrows():
     if dataset == 'turbofan':
 
         X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+        is_time_series = False
 
     elif dataset == 'scania':
 
         X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
+        is_time_series = False
 
     elif dataset == 'sensor':
 
         X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
+        is_time_series = False
 
     elif dataset == 'blisk':
 
         X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
+        is_time_series = True
 
     elif dataset == 'surface':
 
         X_train, X_test, y_train, y_test = surface_crack_loading_and_preprocessing()
-        
+        is_time_series = False
+
     else:
 
         raise Exception('Unknown data set!')
@@ -188,46 +195,35 @@ for idx, row in config_df.iterrows():
         else:
 
             raise Exception('Unknown metric!')
-            
 
-        if ml_algo == 'DecisionTreeRegressor':
+        print('Computing %s for %s on %s data set!' % (this_metric, ml_algo, dataset))
 
-            # Inialize models with default and best HPs
-            df_model = DecisionTreeRegressor(random_state=0)
-            best_model = DecisionTreeRegressor(**hp_config_dict, random_state=0)
+        dummy_optimizer = BaseOptimizer(hp_space=None, hpo_method=None,
+                                        ml_algorithm=ml_algo,
+                                        x_train=X_train, x_test=X_test,
+                                        y_train=y_train, y_test=y_test,
+                                        metric=metric, n_func_evals=1,
+                                        random_seed=0, n_workers=1,
+                                        cross_val=False, shuffle=False,
+                                        is_time_series=is_time_series)
 
-        elif ml_algo == 'AdaBoostClassifier':
-            
-            # Inialize models with default and best HPs
-            df_model = AdaBoostClassifier(random_state=0)
+        best_metric_value = dummy_optimizer.train_evaluate_ml_model(params=hp_config_dict,
+                                                                    cv_mode=False, test_mode=True)
 
-            max_depth = hp_config_dict.pop('max_depth')
-            hp_config_dict['base_estimator'] = DecisionTreeClassifier(max_depth=max_depth)
-            best_model = AdaBoostClassifier(**hp_config_dict, random_state=0)
+        dummy_trial = Trial(hp_space=None, ml_algorithm=ml_algo,
+                            optimization_schedule=None, metric=metric,
+                            n_runs=None, n_func_evals=None, n_workers=None,
+                            x_train=X_train, y_train=y_train, x_test=X_test,
+                            y_test=y_test, cross_val=False, shuffle=False,
+                            is_time_series=is_time_series)
 
-        elif ml_algo == 'KerasClassifier':
-
-            
-
-        else:
-
-            print(ml_algo)
-            raise Exception('Unknown ML algorithm!')
-
-        # Train best model
-        best_model.fit(X_train, y_train)
-        best_y_pred = best_model.predict(X_test)
-        best_loss = metric(y_test, best_y_pred)
-
-        # Train default model
-        df_model.fit(X_train, y_train)
-        df_y_pred = df_model.predict(X_test)
-        df_loss = metric(y_test, df_y_pred)
+        df_metric_value = dummy_trial.get_baseline(
+            cv_mode=False, test_mode=True)
 
         # Assign results
-        new_metrics[dataset][this_metric][0] = df_loss
-        new_metrics[dataset][this_metric][1] = best_loss
+        new_metrics[dataset][this_metric][1] = best_metric_value
+        new_metrics[dataset][this_metric][0] = df_metric_value
 
-with open('new_metrics.json', 'w') as js_file:
+with open('new_metrics.p', 'w') as pickle_file:
 
-    json.dump(new_metrics, js_file)
+    pickle.dump(new_metrics, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
