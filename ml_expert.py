@@ -10,6 +10,20 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 
+# IPT-colors
+ipt_colors = {
+    'Bohamiann': '#000000',
+    'BOHB': '#179c7d',
+    'CMA-ES': '#ff6600',
+    'Fabolas': '#ffcc99',
+    'GPBO': '#b1c800',
+    'Hyperband': '#438cd4',
+    'RandomSearch': '#771c2d',
+    'SMAC': '#25b9e2',
+    'TPE': '#005a94',
+    'Default Values': '#969696',
+}
+
 # Map HPO techniques: BRB -> BM
 hpo_brb2bm_map = {
     'BOHAMIANN': 'Bohamiann',
@@ -454,6 +468,7 @@ if __name__ == '__main__':
 
     original_feat_imp_dict = {}
 
+    # Reverse One-Hot-Encoding
     for this_feature in original_features:
 
         original_feat_imp_dict[this_feature] = 0.0
@@ -468,6 +483,7 @@ if __name__ == '__main__':
 
                 original_feat_imp_dict['HP datatypes'] += v
 
+    # Sort by descending importance
     feat_imp = pd.Series(original_feat_imp_dict).sort_values(
         ascending=False, inplace=False)
 
@@ -476,4 +492,21 @@ if __name__ == '__main__':
     ax.set_ylabel('Feature Importance Overall')
     plt.savefig(os.path.join(metrics_folder,
                              'feature_importance_overall.svg'), bbox_inches='tight')
-    plt.show()
+
+    # Pie chart - ML expert recommendation
+    fig_pie_expert, ax_pie_expert = plt.subplots()
+    recs = y_pred.idxmin(axis=1)
+    hist_dict = recs.value_counts()
+    ax_pie_expert.pie(x=hist_dict.values, labels=hist_dict.keys(),
+                      wedgeprops=dict(width=0.3, edgecolor='w'), autopct='%1.1f%%')
+    ax_pie_expert.set_title('ML expert recommendations')
+    plt.savefig('piechart_ml_expert.jpg')
+
+    # Pie chart - Best HPO techniques based on BM
+    fig_pie_bm, ax_pie_bm = plt.subplots()
+    recs = y_test_cv.idxmin(axis=1)
+    hist_dict = recs.value_counts()
+    ax_pie_bm.pie(x=hist_dict.values, labels=hist_dict.keys(),
+                  wedgeprops=dict(width=0.3, edgecolor='w'), autopct='%1.1f%%')
+    ax_pie_bm.set_title('BM results')
+    plt.savefig('piechart_bm_results.jpg')
