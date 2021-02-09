@@ -17,6 +17,7 @@ from tensorflow import keras
 from tensorflow.random import set_seed
 from xgboost import XGBRegressor, XGBClassifier
 import lightgbm as lgb
+from sklearn.metrics import confusion_matrix
 
 from hpo_framework.results import TuningResult
 from hpo_framework.lr_schedules import fix, exponential, cosine
@@ -826,8 +827,13 @@ class BaseOptimizer(ABC):
             # Measure the finish time of the iteration
             self.times.append(time.time())
 
-            # Compute the average cross validation loss
-            cv_loss = np.mean(cross_val_losses)
+            if self.metric != confusion_matrix:
+                # Compute the average cross validation loss
+                cv_loss = np.mean(cross_val_losses)
+
+            else:
+
+                cv_loss = cross_val_losses[0]
 
         else:
             cv_loss = cross_val_losses[0]
@@ -1072,8 +1078,13 @@ class BaseOptimizer(ABC):
             # Measure the finish time of the iteration
             self.times.append(time.time())
 
-            # Compute the average cross validation loss
-            cv_loss = np.mean(cross_val_losses)
+            if self.metric != confusion_matrix:
+                # Compute the average cross validation loss
+                cv_loss = np.mean(cross_val_losses)
+                
+            else:
+
+                cv_loss = cross_val_losses[0]
 
         else:
             cv_loss = cross_val_losses[0]
