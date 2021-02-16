@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'turbofan'
 algo_dict = {'AdaBoostRegressor': 'AdaBoost',
              'AdaBoostClassifier': 'AdaBoost',
              'DecisionTreeRegressor': 'Decision Tree',
@@ -52,13 +52,13 @@ for this_algo in ml_algorithms:
 
 # Reorder the columns
 ordered_heat_df = pd.DataFrame([])
-ordered_heat_df[['Default HPs', 'Random Search', 'GPBO', 'SMAC', 'TPE', 'Hyperband', 'BOHB', 'FABOLAS', 'BOHAMIANN']
-                ] = heat_df[['Default HPs', 'RandomSearch', 'GPBO', 'SMAC', 'TPE', 'Hyperband', 'BOHB', 'Fabolas', 'Bohamiann']]
+ordered_heat_df[['Default HPs', 'Random Search', 'GPBO', 'SMAC', 'TPE', 'CMA-ES', 'Hyperband', 'BOHB', 'FABOLAS', 'BOHAMIANN']
+                ] = heat_df[['Default HPs', 'RandomSearch', 'GPBO', 'SMAC', 'TPE', 'CMA-ES', 'Hyperband', 'BOHB', 'Fabolas', 'Bohamiann']]
 
 # Sort index (ML algorithms) in alphabetical order
 ordered_heat_df.sort_index(axis=0, ascending=True, inplace=True)
 
-fig, ax = plt.subplots(figsize=(9, 5))
+fig, ax = plt.subplots(figsize=(8.5, 4.5))
 font_size = 11
 sns.set_theme(font='Arial')
 
