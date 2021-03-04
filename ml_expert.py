@@ -160,7 +160,7 @@ drop_cols = ['Obtainability of gradients',
              'Number of maximum function evaluations/ trials budget']
 
 
-def preprocess_X(X_data):
+def preprocess_X(X_data, validation_mode):
 
     y_data = X_data.loc[:, hpo_techs].copy(deep=True)
     X_data.drop(hpo_techs, axis=1, inplace=True)
@@ -196,9 +196,19 @@ def preprocess_X(X_data):
 
     # Scaling of numerical features
     num_cols = set(X_data.columns) - set(cat_cols)
-    scaler = StandardScaler()
-    X_num = pd.DataFrame(scaler.fit_transform(
-        X_data[num_cols]), columns=num_cols)
+
+    if validation_mode in ['FI-overall', 'FI-dataset']:
+
+        scaler = StandardScaler()
+        X_num = pd.DataFrame(scaler.fit_transform(
+            X_data[num_cols]), columns=num_cols)
+
+    elif validation_mode == 'hold-out':
+
+        X_num = X_data[num_cols].copy(deep=True)
+
+    else:
+        raise Exception('Unknown validation mode!')
 
     # Concatenate numerical and categorical features
     X_processed = pd.concat(objs=[X_num, X_cat_oh], axis=1)
@@ -210,7 +220,8 @@ if __name__ == '__main__':
 
     metrics_folder = 'C:/Users/Max/Desktop/BM_results'
     create_X_data = False
-    evaluation_set = 'turbofan'
+    validation_set = 'sensor'
+    validation_mode = 'FI-dataset'  # 'FI-dataset', 'FI-overall', 'hold-out'
 
     # Extract use cases and labels from the metrics files (create training data set)
     if create_X_data:
@@ -272,6 +283,7 @@ if __name__ == '__main__':
 
             # Extract the HPO use cases from the metrics files (serve as input for the ML model)
             df_use_case = pd.DataFrame([])
+            df_use_case['ID'] = metric_df['ID']
             df_use_case['Machine Learning Algorithm'] = metric_df['ML-algorithm'].map(
                 ml_bm2brb_map)
             df_use_case['Hardware: Number of workers/kernels for parallel computing'] = metric_df['Workers']
@@ -371,90 +383,104 @@ if __name__ == '__main__':
         X_data.to_csv(os.path.join(metrics_folder, 'X_data.csv'))
 
     # Load the training data
-    X_data = pd.read_csv(os.path.join(
-        metrics_folder, 'X_data.csv'), index_col=0)
-    # X_data = pd.read_csv(os.path.join(
-    #     metrics_folder, 'surface_use_cases.csv'), index_col=0)
 
-    # # Load the the use cases
-    # test_file = evaluation_set + '_use_cases.csv'
-    # test_use_cases = pd.read_csv(os.path.join(metrics_folder, test_file), index_col=0)
+    if validation_mode in ['FI-overall', 'hold-out']:
+
+        X_data = pd.read_csv(os.path.join(
+            metrics_folder, 'X_data.csv'), index_col=0)
+
+    elif validation_mode == 'FI-dataset':
+        file_name = '%s_use_cases.csv' % validation_set
+        X_data = pd.read_csv(os.path.join(
+            metrics_folder, file_name), index_col=0)
+
+    else:
+
+        raise Exception('Unknown validation mode!')
 
     # DATA PREPROCESSING
-    X_train, y_train = preprocess_X(X_data)
+    X_data.drop('ID', axis=1, inplace=True)
+    X_train, y_train = preprocess_X(X_data, validation_mode=validation_mode)
     X_train = X_train.reindex(sorted(X_train.columns), axis=1)
-    # X_test, y_test = preprocess_X(test_use_cases)
 
-    kfold = KFold(n_splits=5, shuffle=True, random_state=0)
-    cv_scores = []
+    if validation_mode == 'hold-out':
 
-    for train_idx, test_idx in kfold.split(X_train):
-        X_train_cv = X_train.iloc[train_idx, :]
-        X_test_cv = X_train.iloc[test_idx, :]
-        y_train_cv = y_train.iloc[train_idx, :]
-        y_test_cv = y_train.iloc[test_idx, :]
+        test_uc = [('AdaBoost', 1, 'no'), ('AdaBoost',
+                                           1, 'yes'), ('AdaBoost', 8, 'no')]
 
-        model = RandomForestRegressor(random_state=0)
+        cv_scores = []
 
-        model.fit(X_train_cv, y_train_cv)
+        for this_uc in test_uc:
 
-        y_pred = model.predict(X_test_cv)
-        y_pred = pd.DataFrame(y_pred, columns=hpo_techs, index=y_test_cv.index)
+            # TODO: Shuffle data
 
-        scores = []
+            test_idx = X_train.loc[(X_train['Machine Learning Algorithm_' + this_uc[0]] == 1) &
+                                   (X_train['Hardware: Number of workers/kernels for parallel computing'] == this_uc[1]) &
+                                   (X_train['Availability of a warm-start HP configuration_' + this_uc[2]] == 1), :].index
 
-        for idx, row in y_test_cv.iterrows():
+            X_test_cv = X_train.iloc[test_idx, :]
+            y_test_cv = y_train.iloc[test_idx, :]
 
-            hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
-            scores.append(row[hpo_rec])
+            X_train_cv = X_train.drop(index=test_idx, inplace=False)
+            y_train_cv = y_train.drop(index=test_idx, inplace=False)
 
-        cv_scores.append(np.nanmean(scores))
+            model = RandomForestRegressor(random_state=0)
 
-    test_score = np.nanmean(cv_scores)
-    print('CV score: ', test_score)
+            model.fit(X_train_cv, y_train_cv)
 
-    # Shuffle
-    # X_train, y_train = shuffle(X_train, y_train, random_state=0)
+            y_pred = model.predict(X_test_cv)
+            y_pred = pd.DataFrame(
+                y_pred, columns=hpo_techs, index=y_test_cv.index)
 
-    # Train model
-    # model = RandomForestRegressor(random_state=0)
-    # model = MLPRegressor(hidden_layer_sizes=(64, 64), batch_size=8)
-    # model = MultiOutputRegressor(estimator=AdaBoostRegressor(random_state=0))
+            scores = []
 
-    # # Sort columns in alphabetical order
-    # X_train = X_train.reindex(sorted(X_train.columns), axis=1)
+            for idx, row in y_test_cv.iterrows():
 
-    # model.fit(X_train, y_train)
+                hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
+                scores.append(row[hpo_rec])
 
-    # # Performance evaluation
-    # train_cols = set(X_train.columns)
-    # test_cols = set(X_test.columns)
-    # diff_cols = train_cols - test_cols
+            cv_scores.append(np.nanmean(scores))
 
-    # for col in diff_cols:
-    #     X_test.loc[:, col] = 0
+        test_score = np.nanmean(cv_scores)
+        print('CV score: ', test_score)
+        exit(0)
 
-    # # Sort columns in alphabetical order
-    # X_test = X_test.reindex(sorted(X_test.columns), axis=1)
+    elif validation_mode in ['FI-dataset', 'FI-overall']:
 
-    # y_pred = model.predict(X_test)
-    # y_pred = pd.DataFrame(y_pred, columns=hpo_techs)
+        kfold = KFold(n_splits=5, shuffle=True, random_state=0)
+        cv_scores = []
 
-    # y_pred.idxmin(axis='columns').hist()
-    # plt.show()
+        for train_idx, test_idx in kfold.split(X_train):
+            X_train_cv = X_train.iloc[train_idx, :]
+            X_test_cv = X_train.iloc[test_idx, :]
+            y_train_cv = y_train.iloc[train_idx, :]
+            y_test_cv = y_train.iloc[test_idx, :]
 
-    # scores = []
+            model = RandomForestRegressor(random_state=0)
 
-    # for idx, row in y_test.iterrows():
+            model.fit(X_train_cv, y_train_cv)
 
-    #     hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
-    #     scores.append(row[hpo_rec])
+            y_pred = model.predict(X_test_cv)
+            y_pred = pd.DataFrame(
+                y_pred, columns=hpo_techs, index=y_test_cv.index)
 
-    # print('Average score: ', np.nanmean(scores))
+            scores = []
 
-    # Plot feature importances
-    fig, ax = plt.subplots(figsize=(7, 4))
+            for idx, row in y_test_cv.iterrows():
 
+                hpo_rec = y_pred.loc[idx, :].idxmin(axis='columns')
+                scores.append(row[hpo_rec])
+
+            cv_scores.append(np.nanmean(scores))
+
+        test_score = np.nanmean(cv_scores)
+        print('CV score: ', test_score)
+
+    else:
+
+        raise Exception('Unknown validation mode!')
+
+    # FEATURE IMPORTANCE
     feat_imp_dict = {}
     for i in range(len(X_train.columns)):
         feat_imp_dict[X_train.columns[i]] = model.feature_importances_[i]
@@ -483,30 +509,51 @@ if __name__ == '__main__':
 
                 original_feat_imp_dict['HP datatypes'] += v
 
+    # Update some long or misleading keys
+    original_feat_imp_dict['Usage of warm-start HP configuration'] = original_feat_imp_dict.pop('Availability of a warm-start HP configuration')
+    original_feat_imp_dict['Number of workers'] = original_feat_imp_dict.pop('Hardware: Number of workers/kernels for parallel computing')
+    original_feat_imp_dict['UR: Need for model transparency'] = original_feat_imp_dict.pop('UR: need for model transparency')
+    original_feat_imp_dict["UR: User's programming ability"] = original_feat_imp_dict.pop("User's programming ability")
+    original_feat_imp_dict['UR: Need for a well documented library'] = original_feat_imp_dict.pop('UR: Availability of a well documented library')
+
     # Sort by descending importance
     feat_imp = pd.Series(original_feat_imp_dict).sort_values(
         ascending=False, inplace=False)
 
-    ax.bar(x=feat_imp.keys(), height=feat_imp.values)
+    # Only consider features with FI higher than 0.0
+    feat_imp = feat_imp[feat_imp > 0]
+
+    # Create Feature importance plot
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.bar(x=feat_imp.keys(), height=feat_imp.values, color='#3E927F', width=0.6)
+    
     ax.tick_params(axis='x', rotation=90)
-    ax.set_ylabel('Feature Importance Overall')
+    ax.set_ylim(bottom=0.0, top=1.0)
+    ax.set_ylabel('Feature Importance', fontsize=11, fontname='Arial')
+
+    file_name_dict = {'FI-dataset': 'feature_importance_%s.svg' % validation_set,
+                      'FI-overall': 'feature_importance_overall.svg',
+                      'hold-out': 'feature_importance_holdout.svg'}
+    
+
     plt.savefig(os.path.join(metrics_folder,
-                             'feature_importance_overall.svg'), bbox_inches='tight')
+                             file_name_dict[validation_mode]),
+                bbox_inches='tight')
 
-    # Pie chart - ML expert recommendation
-    fig_pie_expert, ax_pie_expert = plt.subplots()
-    recs = y_pred.idxmin(axis=1)
-    hist_dict = recs.value_counts()
-    ax_pie_expert.pie(x=hist_dict.values, labels=hist_dict.keys(),
-                      wedgeprops=dict(width=0.3, edgecolor='w'), autopct='%1.1f%%')
-    ax_pie_expert.set_title('ML expert recommendations')
-    plt.savefig('piechart_ml_expert.jpg')
+    # # Pie chart - ML expert recommendation
+    # fig_pie_expert, ax_pie_expert = plt.subplots()
+    # recs = y_pred.idxmin(axis=1)
+    # hist_dict = recs.value_counts()
+    # ax_pie_expert.pie(x=hist_dict.values, labels=hist_dict.keys(),
+    #                   wedgeprops=dict(width=0.3, edgecolor='w'), autopct='%1.1f%%')
+    # ax_pie_expert.set_title('ML expert recommendations')
+    # plt.savefig('piechart_ml_expert.jpg')
 
-    # Pie chart - Best HPO techniques based on BM
-    fig_pie_bm, ax_pie_bm = plt.subplots()
-    recs = y_test_cv.idxmin(axis=1)
-    hist_dict = recs.value_counts()
-    ax_pie_bm.pie(x=hist_dict.values, labels=hist_dict.keys(),
-                  wedgeprops=dict(width=0.3, edgecolor='w'), autopct='%1.1f%%')
-    ax_pie_bm.set_title('BM results')
-    plt.savefig('piechart_bm_results.jpg')
+    # # Pie chart - Best HPO techniques based on BM
+    # fig_pie_bm, ax_pie_bm = plt.subplots()
+    # recs = y_test_cv.idxmin(axis=1)
+    # hist_dict = recs.value_counts()
+    # ax_pie_bm.pie(x=hist_dict.values, labels=hist_dict.keys(),
+    #               wedgeprops=dict(width=0.3, edgecolor='w'), autopct='%1.1f%%')
+    # ax_pie_bm.set_title('BM results')
+    # plt.savefig('piechart_bm_results.jpg')

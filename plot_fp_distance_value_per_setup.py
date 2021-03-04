@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-dataset = 'turbofan'
+dataset = 'sensor'
 setup_variants = [(1, False), (8, False), (1, True)]
 
 setup_labels = ['Single worker, no warm-start',
@@ -62,14 +62,15 @@ for i in range(len(setup_variants)):
 sns.set_theme(font='Arial', style='ticks')
 
 cat = sns.catplot(data=dv_per_setup_df, x='HPO technique', y='Average Distance Value',
-                  hue='Benchmarking Setup', kind='bar', legend_out=False,
-                  palette=sns.color_palette(['#179c7d', '#8bcdbe', '#dddddd']))
+                  hue='Benchmarking Setup', kind='bar', legend=False,
+                  palette=sns.color_palette(['#3E927F', '#8bcdbe', '#dddddd']))
 
 cat.fig.set_size_inches(6.5, 4)
 cat.set(xlabel=None)
 
 plt.tick_params(axis='both', labelsize=11)
 plt.tick_params(axis='x', rotation=90)
+plt.legend(loc='upper right')
 
 
 fig_name = './hpo_framework/results/%s/RankingAnalysis/dv_per_setup_%s.svg' % (
