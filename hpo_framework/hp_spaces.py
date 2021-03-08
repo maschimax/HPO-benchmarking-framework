@@ -72,9 +72,9 @@ space_keras = [
     skopt.space.Real(low=.0, high=.6, name='dropout2')
 ]
 
-WARM START CONFIGURATION FOR KERAS SETUP 1
-HP values for warm starting a Keras model with 2 hidden layers //
-https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
+# WARM START CONFIGURATION FOR KERAS SETUP 1
+# HP values for warm starting a Keras model with 2 hidden layers //
+# https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier
 warmstart_keras = {'init_lr': 0.001,
                    'batch_size': 128,
                    'lr_schedule': 'constant',
