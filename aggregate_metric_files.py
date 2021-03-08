@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-dataset = 'sensor'
+dataset = 'blisk'
 dir = 'C:/Users/Max/OneDrive - rwth-aachen.de/Uni/Master/Masterarbeit/01_Content/05_Benchmarking Study/' + dataset
 
 metrics_count = 0

@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'surface'
 # Use: ['t outperform default [s]', 'time'] or: ['Max Cut AUC', 'AUC']
 ap_analysis_type = ['t outperform default [s]', 'time']
 setup_variants = [(1, False), (8, False), (1, True)]

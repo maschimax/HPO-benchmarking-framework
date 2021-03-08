@@ -220,7 +220,7 @@ if __name__ == '__main__':
 
     metrics_folder = 'C:/Users/Max/Desktop/BM_results'
     create_X_data = False
-    validation_set = 'sensor'
+    validation_set = 'blisk'
     validation_mode = 'FI-dataset'  # 'FI-dataset', 'FI-overall', 'hold-out'
 
     # Extract use cases and labels from the metrics files (create training data set)

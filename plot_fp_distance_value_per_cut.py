@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'surface'
 cut_variants = ['All Time Budgets', 'Max Time Budget', 'Low Time Budgets']
 
 ipt_colors = ['#179c7d', '#438cd4', '#ffcc99']

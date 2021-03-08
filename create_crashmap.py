@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'surface'
 algo_dict = {'AdaBoostRegressor': 'AdaBoost',
              'AdaBoostClassifier': 'AdaBoost',
              'DecisionTreeRegressor': 'Decision Tree',
@@ -28,6 +28,24 @@ file_path = './hpo_framework/results/%s/metrics_%s.csv' % (dataset, dataset)
 
 metrics_df = pd.read_csv(file_path, index_col=0)
 
+# Surface data set:
+# manually add crashed runs of RandomSearch, TPE, CMA-ES for LightGBM on eight
+# worker setup
+if dataset == 'surface':
+
+    for crash_tech in ['RandomSearch', 'TPE', 'CMA-ES']:
+
+        crash_dict = {'ML-algorithm': 'LGBMClassifier',
+                      'Workers': 8,
+                      'HPO-library': 'optuna',
+                      'HPO-method': crash_tech,
+                      'Runs': 5,
+                      'Crashes': 5}
+
+        crash_ser = pd.Series(crash_dict)
+
+        metrics_df = metrics_df.append(crash_ser, ignore_index=True)
+
 ml_algorithms = metrics_df['ML-algorithm'].unique()
 hpo_techs = metrics_df['HPO-method'].unique()
 
@@ -40,7 +58,7 @@ for this_algo in ml_algorithms:
         n_runs = np.sum(metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) &
                                        (metrics_df['HPO-method'] == this_tech), 'Runs'].to_numpy())
         n_crashes = np.sum(metrics_df.loc[(metrics_df['ML-algorithm'] == this_algo) &
-                                       (metrics_df['HPO-method'] == this_tech), 'Crashes'].to_numpy())
+                                          (metrics_df['HPO-method'] == this_tech), 'Crashes'].to_numpy())
         crash_ratio = round(n_crashes / n_runs, 2)
 
         crash_df.loc[algo_dict[this_algo], this_tech] = crash_ratio
@@ -48,7 +66,7 @@ for this_algo in ml_algorithms:
 # Reorder the columns
 ordered_crash_df = pd.DataFrame([])
 ordered_crash_df[['Random Search', 'GPBO', 'SMAC', 'TPE', 'CMA-ES', 'Hyperband', 'BOHB', 'FABOLAS', 'BOHAMIANN']
-                ] = crash_df[['RandomSearch', 'GPBO', 'SMAC', 'TPE', 'CMA-ES', 'Hyperband', 'BOHB', 'Fabolas', 'Bohamiann']]
+                 ] = crash_df[['RandomSearch', 'GPBO', 'SMAC', 'TPE', 'CMA-ES', 'Hyperband', 'BOHB', 'Fabolas', 'Bohamiann']]
 
 # Sort index (ML algorithms) in alphabetical order
 ordered_crash_df.sort_index(axis=0, ascending=True, inplace=True)

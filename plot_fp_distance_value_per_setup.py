@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'surface'
 setup_variants = [(1, False), (8, False), (1, True)]
 
 setup_labels = ['Single worker, no warm-start',

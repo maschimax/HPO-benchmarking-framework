@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-dataset = 'sensor'
+dataset = 'surface'
 
 file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
     dataset, dataset)

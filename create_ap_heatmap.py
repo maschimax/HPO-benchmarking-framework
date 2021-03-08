@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'surface'
 # Use: ['t outperform default [s]', 'time'] or: ['Max Cut AUC', 'AUC']
 ap_analysis_type = ['t outperform default [s]', 'time']
 

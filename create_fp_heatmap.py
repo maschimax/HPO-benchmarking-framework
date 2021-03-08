@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-dataset = 'sensor'
+dataset = 'surface'
 algo_dict = {'AdaBoostRegressor': 'AdaBoost',
              'AdaBoostClassifier': 'AdaBoost',
              'DecisionTreeRegressor': 'Decision Tree',

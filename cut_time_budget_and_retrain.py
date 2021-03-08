@@ -408,12 +408,12 @@ if __name__ == '__main__':
     # Find AUC for a given time budget (computed or ?user defined?)
     # Include new information to metrics.csv file -> can be validation and test loss or AUC
 
-    dataset = 'surface'
+    dataset = 'blisk'
 
     # Flags
-    identify_time_budgets = False
+    identify_time_budgets = False # Find the maximum time budgets (when the first HPO technique finished the total number of evaluations)
 
-    perform_cut = False
+    perform_cut = False # Find loss values achieved by HPO techniques at given time budgets
     user_defined_cut = True
     compute_test_loss = False
 
