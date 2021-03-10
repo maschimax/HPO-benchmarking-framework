@@ -5,6 +5,7 @@ import ast
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.metrics import mean_absolute_error, confusion_matrix, accuracy_score, ConfusionMatrixDisplay
+from hpo_framework.hpo_metrics import f1_score_weighted, rul_loss_score, root_mean_squared_error
 from tensorflow import keras
 import json
 import matplotlib.pyplot as plt
@@ -28,7 +29,8 @@ best_hp_configs = {
         'HP configuration': None,
         'HPO technique': None,
         'Workers': None,
-        'Warm start': None
+        'Warm start': None,
+        'seed': None
     },
     'scania': {
         'Max relative improvement': 0.0,
@@ -36,7 +38,8 @@ best_hp_configs = {
         'HP configuration': None,
         'HPO technique': None,
         'Workers': None,
-        'Warm start': None
+        'Warm start': None,
+        'seed': None
     },
     'sensor': {
         'Max relative improvement': 0.0,
@@ -44,7 +47,8 @@ best_hp_configs = {
         'HP configuration': None,
         'HPO technique': None,
         'Workers': None,
-        'Warm start': None
+        'Warm start': None,
+        'seed': None
     },
     'blisk': {
         'Max relative improvement': 0.0,
@@ -52,7 +56,8 @@ best_hp_configs = {
         'HP configuration': None,
         'HPO technique': None,
         'Workers': None,
-        'Warm start': None
+        'Warm start': None,
+        'seed': None
     },
     'surface': {
         'Max relative improvement': 0.0,
@@ -60,18 +65,24 @@ best_hp_configs = {
         'HP configuration': None,
         'HPO technique': None,
         'Workers': None,
-        'Warm start': None
+        'Warm start': None,
+        'seed': None
     }
 }
 
-new_metrics = {'turbofan': {'MAE': [None, None]},
+new_metrics = {'turbofan': {'RUL': [None, None],
+                            'MAE': [None, None]},
                'scania': {'Confusion Matrix': [None, None],
-                          'Accuracy': [None, None]},
+                          'Accuracy': [None, None],
+                          'F1': [None, None]},
                'sensor': {'Confusion Matrix': [None, None],
-                          'Accuracy': [None, None]},
-               'blisk': {'MAE': [None, None]},
+                          'Accuracy': [None, None],
+                          'F1': [None, None]},
+               'blisk': {'RMSE': [None, None],
+                         'MAE': [None, None]},
                'surface': {'Confusion Matrix': [None, None],
-                           'Accuracy': [None, None]}}
+                           'Accuracy': [None, None],
+                           'F1': [None, None]}}
 
 max_rel_loss_improvement = 0.0
 best_ml_algo = None
@@ -121,6 +132,7 @@ if find_best_configs:
                             best_hp_configs[this_dataset]['HPO technique'] = row['HPO-method']
                             best_hp_configs[this_dataset]['Workers'] = row['workers']
                             best_hp_configs[this_dataset]['Warm start'] = row['warmstart']
+                            best_hp_configs[this_dataset]['seed'] = row['random_seed']
 
     i = 0
     for this_dataset in best_hp_configs.keys():
@@ -152,6 +164,7 @@ for idx, row in config_df.iterrows():
 
     dataset = row['dataset']
     ml_algo = row['ML algorithm']
+    seed = row['seed']
 
     try:
         hp_config_dict = ast.literal_eval(row['HP configuration'])
@@ -203,10 +216,21 @@ for idx, row in config_df.iterrows():
 
             metric = confusion_matrix
 
-
         elif this_metric == 'Accuracy':
 
             metric = accuracy_score
+
+        elif this_metric == 'F1':
+
+            metric = f1_score_weighted
+
+        elif this_metric == 'RUL':
+
+            metric = rul_loss_score
+
+        elif this_metric == 'RMSE':
+
+            metric = root_mean_squared_error
 
         else:
 
@@ -215,29 +239,32 @@ for idx, row in config_df.iterrows():
         print('Computing %s for %s on %s data set!' %
               (this_metric, ml_algo, dataset))
 
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.8, random_state=0, shuffle=shuffle)
+        # X_train, X_val, y_train, y_val = train_test_split(
+        #     X_train, y_train, test_size=0.2, random_state=0, shuffle=shuffle)
 
         dummy_optimizer = BaseOptimizer(hp_space=None, hpo_method=None,
                                         ml_algorithm=ml_algo,
-                                        x_train=X_train, x_test=X_val,
-                                        y_train=y_train, y_test=y_val,
+                                        x_train=X_train, x_test=X_test,
+                                        y_train=y_train, y_test=y_test,
                                         metric=metric, n_func_evals=1,
-                                        random_seed=0, n_workers=1,
+                                        random_seed=seed, n_workers=1,
                                         cross_val=False, shuffle=shuffle,
                                         is_time_series=is_time_series)
+        
+        dummy_optimizer.times = []
 
         best_metric_value = dummy_optimizer.train_evaluate_ml_model(params=hp_config_dict.copy(),
-                                                                    cv_mode=False, test_mode=True)
+                                                                    cv_mode=False, test_mode=False)
 
         dummy_trial = Trial(hp_space=None, ml_algorithm=ml_algo,
                             optimization_schedule=None, metric=metric,
                             n_runs=None, n_func_evals=None, n_workers=None,
-                            x_train=X_train, y_train=y_train, x_test=X_val,
-                            y_test=y_val, cross_val=False, shuffle=shuffle,
+                            x_train=X_train, y_train=y_train, x_test=X_test,
+                            y_test=y_test, cross_val=False, shuffle=shuffle,
                             is_time_series=is_time_series)
 
         df_metric_value = dummy_trial.get_baseline(
-            cv_mode=False, test_mode=True)
+            cv_mode=False, test_mode=False)
 
         if this_metric == 'Confusion Matrix':
 
