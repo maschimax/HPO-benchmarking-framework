@@ -3,10 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Create heatmap on dataset or benchmarking study level
 aggregation_level = 'benchmarking'  # 'benchmarking', 'dataset'
 
 datasets = ['turbofan', 'scania', 'sensor', 'blisk', 'surface']
 
+# Specify the dataset, if the heatmap is created on dataset level
 dataset = 'blisk'
 
 algo_dict = {'AdaBoostRegressor': 'AdaBoost',
@@ -63,7 +65,6 @@ elif aggregation_level == 'benchmarking':
 else:
 
     raise Exception('Unknown aggregation level!')
-
 
 sub_df = ranked_df.loc[(ranked_df['1st metric'] == 'Max Cut Validation Loss') |
                        (ranked_df['1st metric'] == '2nd Cut Validation Loss') |

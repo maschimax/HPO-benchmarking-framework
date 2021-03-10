@@ -3,10 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Create heatmap on dataset or benchmarking study level
+aggregation_level = 'benchmarking'  # 'benchmarking', 'dataset'
+
+datasets = ['turbofan', 'scania', 'sensor', 'blisk', 'surface']
+
+# Specify the dataset, if the heatmap is created on dataset level
 dataset = 'surface'
+
 # Use: ['t outperform default [s]', 'time'] or: ['Max Cut AUC', 'AUC']
 ap_analysis_type = ['t outperform default [s]', 'time']
-
 
 algo_dict = {'AdaBoostRegressor': 'AdaBoost',
              'AdaBoostClassifier': 'AdaBoost',
@@ -28,12 +34,44 @@ algo_dict = {'AdaBoostRegressor': 'AdaBoost',
              'KerasClassifier': 'MLP',
              'NaiveBayes': 'Naive Bayes'}
 
-file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
-    dataset, dataset)
+if aggregation_level == 'dataset':
 
-ranked_df = pd.read_csv(file_path, index_col=0)
+    file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
+        dataset, dataset)
+
+    ranked_df = pd.read_csv(file_path, index_col=0)
+
+elif aggregation_level == 'benchmarking':
+
+    i = 0
+
+    for this_dataset in datasets:
+
+        file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
+            this_dataset, this_dataset)
+
+        if i == 0:
+
+            ranked_df = pd.read_csv(file_path, index_col=0)
+
+        else:
+
+            this_df = pd.read_csv(file_path, index_col=0)
+
+            ranked_df = pd.concat(
+                objs=[ranked_df, this_df], axis=0, ignore_index=True)
+
+        i += 1
+
+    ranked_df.reset_index(drop=True, inplace=True)
+
+else:
+
+    raise Exception('Unknown aggregation level!')
 
 sub_df = ranked_df.loc[(ranked_df['1st metric'] == ap_analysis_type[0]), :]
+
+sub_df['ML-algorithm'] = sub_df['ML-algorithm'].map(algo_dict)
 
 ml_algorithms = sub_df['ML-algorithm'].unique()
 hpo_techs = sub_df['1st metric HPO-technique'].unique()
@@ -53,7 +91,7 @@ for this_algo in ml_algorithms:
 
         avg_scaled_dev = np.nanmean(dv_ser.to_numpy())
 
-        heat_df.loc[algo_dict[this_algo], this_tech] = round(avg_scaled_dev, 3)
+        heat_df.loc[this_algo, this_tech] = round(avg_scaled_dev, 3)
 
 # Reorder the columns
 ordered_heat_df = pd.DataFrame([])
@@ -75,6 +113,17 @@ sns.heatmap(data=ordered_heat_df, annot=True, linewidths=0.5, cbar=True, square=
 
 ax.tick_params(axis='both', labelsize=11)
 
-fig_name = './hpo_framework/results/%s/RankingAnalysis/heatmap_%s_%s.svg' % (
-    dataset, ap_analysis_type[1], dataset)
+if aggregation_level == 'dataset':
+
+    fig_name = './hpo_framework/results/%s/RankingAnalysis/heatmap_%s_%s.svg' % (
+        dataset, ap_analysis_type[1], dataset)
+
+elif aggregation_level == 'benchmarking':
+
+    fig_name = './hpo_framework/results/heatmap_overall_%s.svg' % ap_analysis_type[1]
+
+else:
+
+    raise Exception('Unknown aggregation level!')
+
 plt.savefig(fig_name, bbox_inches='tight')

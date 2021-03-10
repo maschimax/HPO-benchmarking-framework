@@ -3,7 +3,14 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
+# Create plot on dataset or benchmarking study level
+aggregation_level = 'benchmarking'  # 'benchmarking', 'dataset'
+
+datasets = ['turbofan', 'scania', 'sensor', 'blisk', 'surface']
+
+# Specify the dataset, if the heatmap is created on dataset level
 dataset = 'surface'
+
 cut_variants = ['All Time Budgets', 'Max Time Budget', 'Low Time Budgets']
 
 ipt_colors = ['#179c7d', '#438cd4', '#ffcc99']
@@ -22,10 +29,41 @@ hpo_map_dict = {
     'Default HPs': 'Default HPs'
 }
 
-file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
-    dataset, dataset)
+if aggregation_level == 'dataset':
 
-ranked_df = pd.read_csv(file_path, index_col=0)
+    file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
+        dataset, dataset)
+
+    ranked_df = pd.read_csv(file_path, index_col=0)
+
+elif aggregation_level == 'benchmarking':
+
+    j = 0
+
+    for this_dataset in datasets:
+
+        file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
+            this_dataset, this_dataset)
+
+        if j == 0:
+
+            ranked_df = pd.read_csv(file_path, index_col=0)
+
+        else:
+
+            this_df = pd.read_csv(file_path, index_col=0)
+
+            ranked_df = pd.concat(
+                objs=[ranked_df, this_df], axis=0, ignore_index=True)
+
+        j += 1
+
+    ranked_df.reset_index(drop=True, inplace=True)
+
+else:
+
+    raise Exception('Unknown aggregation level!')
+
 hpo_techs = ['Default HPs', 'RandomSearch', 'GPBO', 'SMAC', 'TPE', 'CMA-ES',
              'Hyperband', 'BOHB', 'Fabolas', 'Bohamiann']
 
@@ -84,7 +122,17 @@ plt.tick_params(axis='both', labelsize=11)
 plt.tick_params(axis='x', rotation=90)
 plt.legend(loc='upper right')
 
+if aggregation_level == 'dataset':
 
-fig_name = './hpo_framework/results/%s/RankingAnalysis/dv_per_cut_variant_%s.svg' % (
-    dataset, dataset)
+    fig_name = './hpo_framework/results/%s/RankingAnalysis/dv_per_cut_variant_%s.svg' % (
+        dataset, dataset)
+
+elif aggregation_level == 'benchmarking':
+
+    fig_name = './hpo_framework/results/dv_per_cut_variant_overall.svg'
+
+else:
+
+    raise Exception('Unknown aggregation level!')
+
 cat.fig.savefig(fig_name, bbox_inches='tight')
