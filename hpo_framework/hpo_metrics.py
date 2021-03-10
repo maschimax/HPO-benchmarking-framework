@@ -11,6 +11,9 @@ def f1_loss(y_true, y_pred):
     loss = 1 - f1_score(y_true=y_true, y_pred=y_pred, average='weighted')
     return loss
 
+def f1_score_weighted(y_true, y_pred):
+    score = f1_score(y_true=y_true, y_pred=y_pred, average='weighted')
+    return score
 
 def accuracy_loss(y_true, y_pred):
     loss = 1 - accuracy_score(y_true, y_pred)
