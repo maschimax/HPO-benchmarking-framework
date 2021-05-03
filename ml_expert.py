@@ -4,11 +4,14 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_absolute_error
-from sklearn.neural_network import MLPRegressor
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
+from sklearn.multioutput import MultiOutputRegressor
+from xgboost import XGBRegressor
 
 # IPT-colors
 ipt_colors = {
@@ -215,13 +218,12 @@ def preprocess_X(X_data, validation_mode):
 
     return X_processed, y_data
 
-
 if __name__ == '__main__':
 
     metrics_folder = 'C:/Users/Max/Desktop/BM_results'
     create_X_data = False
     validation_set = 'blisk'
-    validation_mode = 'FI-dataset'  # 'FI-dataset', 'FI-overall', 'hold-out'
+    validation_mode = 'hold-out'  # 'FI-dataset', 'FI-overall', 'hold-out'
 
     # Extract use cases and labels from the metrics files (create training data set)
     if create_X_data:
@@ -325,7 +327,10 @@ if __name__ == '__main__':
             df_use_case['UR: Robustness'] = metric_df['Robustness']
 
             # Remove duplicate use cases
-            df_use_case.drop_duplicates(inplace=True, ignore_index=True)
+            dict_cols = {'ID'}
+            non_dict_cols = set(df_use_case.columns) - dict_cols
+            df_use_case.drop_duplicates(
+                subset=non_dict_cols, inplace=True, ignore_index=True)
 
             # Create a label for each use case
             for idx, use_case in df_use_case.iterrows():
@@ -405,8 +410,34 @@ if __name__ == '__main__':
 
     if validation_mode == 'hold-out':
 
-        test_uc = [('AdaBoost', 1, 'no'), ('AdaBoost',
-                                           1, 'yes'), ('AdaBoost', 8, 'no')]
+        # TODO: Add further testing use cases
+        basic_uc = [('AdaBoost', 1, 'no'), ('AdaBoost', 1, 'yes'), ('AdaBoost', 8, 'no'),
+                   ('XGBoost', 1, 'no'), ('XGBoost',
+                                          1, 'yes'), ('XGBoost', 8, 'no'),
+                   ('LightGBM', 1, 'no'), ('LightGBM',
+                                           1, 'yes'), ('LightGBM', 8, 'no'),
+                   ('Random Forest', 1, 'no'), ('Random Forest',
+                                                1, 'yes'), ('Random Forest', 8, 'no'),
+                   ('Multilayer Perceptron', 1, 'no'),
+                   ('Support Vector Machine', 1, 'no'), ('Support Vector Machine',
+                                                         1, 'yes'), ('Support Vector Machine', 8, 'no'),
+                   ('KNN', 1, 'no'), ('KNN', 1, 'yes'), ('KNN', 8, 'no'),
+                   ('Logistic Regression', 1, 'no'), ('Logistic Regression',
+                                                      1, 'yes'), ('Logistic Regression', 8, 'no'),
+                   ('Naive Bayes', 1, 'no'), ('Naive Bayes',
+                                              1, 'yes'), ('Naive Bayes', 8, 'no'),
+                   ('Elastic Net', 1, 'no'), ('Elastic Net', 1, 'yes'), ('Elastic Net', 8, 'no')]
+
+        detailed_applicaton = ['Image Recognition', 'Part Failure', 'Product Quality', 'Remaining Useful Lifetime', 'Time Series Prediction']
+
+        test_uc = []
+
+        for this_uc in basic_uc:
+
+            for app in detailed_applicaton:
+            
+                new_uc = this_uc + (app, )
+                test_uc.append(new_uc)
 
         cv_scores = []
 
@@ -414,20 +445,32 @@ if __name__ == '__main__':
 
             # TODO: Shuffle data
 
+            # Find instancees that correspond the test use case
             test_idx = X_train.loc[(X_train['Machine Learning Algorithm_' + this_uc[0]] == 1) &
-                                   (X_train['Hardware: Number of workers/kernels for parallel computing'] == this_uc[1]) &
-                                   (X_train['Availability of a warm-start HP configuration_' + this_uc[2]] == 1), :].index
+                                (X_train['Hardware: Number of workers/kernels for parallel computing'] == this_uc[1]) &
+                                (X_train['Availability of a warm-start HP configuration_' + this_uc[2]] == 1) &
+                                (X_train['Detailed ML task_' + this_uc[3]] == 1), :].index
+            
+            if len(test_idx) == 0:
+                # No suitable data instance
+                continue
 
             X_test_cv = X_train.iloc[test_idx, :]
             y_test_cv = y_train.iloc[test_idx, :]
 
+            # Drop test instances from the training set (hold-out)
             X_train_cv = X_train.drop(index=test_idx, inplace=False)
             y_train_cv = y_train.drop(index=test_idx, inplace=False)
 
-            model = RandomForestRegressor(random_state=0)
+            model = MultiOutputRegressor(XGBRegressor(random_state=0), n_jobs=4)
+            # model = MultiOutputRegressor(AdaBoostRegressor(random_state=0), n_jobs=4)
+            # model = RandomForestRegressor(random_state=0, n_jobs=4, n_estimators=100)
+            # model = MLPRegressor(hidden_layer_sizes=(128, 128,), random_state=0, batch_size=64)
 
+            print('-TRAIN-')
             model.fit(X_train_cv, y_train_cv)
 
+            print('-PREDICT-')
             y_pred = model.predict(X_test_cv)
             y_pred = pd.DataFrame(
                 y_pred, columns=hpo_techs, index=y_test_cv.index)
@@ -510,11 +553,16 @@ if __name__ == '__main__':
                 original_feat_imp_dict['HP datatypes'] += v
 
     # Update some long or misleading keys
-    original_feat_imp_dict['Usage of warm-start HP configuration'] = original_feat_imp_dict.pop('Availability of a warm-start HP configuration')
-    original_feat_imp_dict['Number of workers'] = original_feat_imp_dict.pop('Hardware: Number of workers/kernels for parallel computing')
-    original_feat_imp_dict['UR: Need for model transparency'] = original_feat_imp_dict.pop('UR: need for model transparency')
-    original_feat_imp_dict["UR: User's programming ability"] = original_feat_imp_dict.pop("User's programming ability")
-    original_feat_imp_dict['UR: Need for a well documented library'] = original_feat_imp_dict.pop('UR: Availability of a well documented library')
+    original_feat_imp_dict['Usage of warm-start HP configuration'] = original_feat_imp_dict.pop(
+        'Availability of a warm-start HP configuration')
+    original_feat_imp_dict['Number of workers'] = original_feat_imp_dict.pop(
+        'Hardware: Number of workers/kernels for parallel computing')
+    original_feat_imp_dict['UR: Need for model transparency'] = original_feat_imp_dict.pop(
+        'UR: need for model transparency')
+    original_feat_imp_dict["UR: User's programming ability"] = original_feat_imp_dict.pop(
+        "User's programming ability")
+    original_feat_imp_dict['UR: Need for a well documented library'] = original_feat_imp_dict.pop(
+        'UR: Availability of a well documented library')
 
     # Sort by descending importance
     feat_imp = pd.Series(original_feat_imp_dict).sort_values(
@@ -525,8 +573,9 @@ if __name__ == '__main__':
 
     # Create Feature importance plot
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.bar(x=feat_imp.keys(), height=feat_imp.values, color='#3E927F', width=0.6)
-    
+    ax.bar(x=feat_imp.keys(), height=feat_imp.values,
+           color='#3E927F', width=0.6)
+
     ax.tick_params(axis='x', rotation=90)
     ax.set_ylim(bottom=0.0, top=1.0)
     ax.set_ylabel('Feature Importance', fontsize=11, fontname='Arial')
@@ -534,7 +583,6 @@ if __name__ == '__main__':
     file_name_dict = {'FI-dataset': 'feature_importance_%s.svg' % validation_set,
                       'FI-overall': 'feature_importance_overall.svg',
                       'hold-out': 'feature_importance_holdout.svg'}
-    
 
     plt.savefig(os.path.join(metrics_folder,
                              file_name_dict[validation_mode]),
