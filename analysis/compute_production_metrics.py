@@ -11,6 +11,8 @@ import json
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
+os.chdir('..')
+
 from hpo_framework.baseoptimizer import BaseOptimizer
 from hpo_framework.trial import Trial
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
@@ -19,7 +21,6 @@ from datasets.Sensor_System_Production.sensor_loading_and_balancing import senso
 from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from datasets.Surface_Crack_Image.surface_crack_preprocessing import surface_crack_loading_and_preprocessing
 
-os.chdir('..')
 initial_path = './hpo_framework/results/'
 find_best_configs = True
 
