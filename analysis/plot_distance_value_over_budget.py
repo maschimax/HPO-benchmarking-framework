@@ -2,8 +2,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import os
 
 dataset = 'surface'
+os.chdir('..')
 
 file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (
     dataset, dataset)

@@ -19,6 +19,7 @@ from datasets.Sensor_System_Production.sensor_loading_and_balancing import senso
 from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from datasets.Surface_Crack_Image.surface_crack_preprocessing import surface_crack_loading_and_preprocessing
 
+os.chdir('..')
 initial_path = './hpo_framework/results/'
 find_best_configs = True
 

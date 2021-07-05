@@ -3,9 +3,10 @@ import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, KFold
-from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.utils import shuffle
@@ -462,10 +463,13 @@ if __name__ == '__main__':
             X_train_cv = X_train.drop(index=test_idx, inplace=False)
             y_train_cv = y_train.drop(index=test_idx, inplace=False)
 
-            model = MultiOutputRegressor(XGBRegressor(random_state=0), n_jobs=4)
+            # model = MultiOutputRegressor(XGBRegressor(random_state=0), n_jobs=4)
             # model = MultiOutputRegressor(AdaBoostRegressor(random_state=0), n_jobs=4)
             # model = RandomForestRegressor(random_state=0, n_jobs=4, n_estimators=100)
             # model = MLPRegressor(hidden_layer_sizes=(128, 128,), random_state=0, batch_size=64)
+            # model = DecisionTreeRegressor(random_state=0)
+            # model = MultiOutputRegressor(SVR(), n_jobs=4)
+            model = MultiOutputRegressor(GradientBoostingRegressor(random_state=0), n_jobs=4)
 
             print('-TRAIN-')
             model.fit(X_train_cv, y_train_cv)
@@ -577,8 +581,8 @@ if __name__ == '__main__':
            color='#3E927F', width=0.6)
 
     ax.tick_params(axis='x', rotation=90)
-    ax.set_ylim(bottom=0.0, top=1.0)
-    ax.set_ylabel('Feature Importance', fontsize=11, fontname='Arial')
+    ax.set_ylim(bottom=0.0, top=0.25)
+    ax.set_ylabel('Feature Importance', fontsize=10, fontname='Arial')
 
     file_name_dict = {'FI-dataset': 'feature_importance_%s.svg' % validation_set,
                       'FI-overall': 'feature_importance_overall.svg',

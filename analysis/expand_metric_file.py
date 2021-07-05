@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from math import isnan
 
+os.chdir('..')
 dataset = 'surface'
 file_name = 'metrics_with_cuts_' + dataset + '.csv'
 file_path = './hpo_framework/results/' + dataset

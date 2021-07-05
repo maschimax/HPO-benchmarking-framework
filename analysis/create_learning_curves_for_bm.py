@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from create_learning_curves import plot_aggregated_learning_curves
+from analysis.create_learning_curves import plot_aggregated_learning_curves
 
 if __name__ == '__main__':
 

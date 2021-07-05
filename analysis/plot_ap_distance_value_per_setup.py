@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import os
 
 # Create plot on dataset or benchmarking study level
 aggregation_level = 'benchmarking'  # 'benchmarking', 'dataset'
@@ -33,6 +34,9 @@ hpo_map_dict = {
     'TPE': 'TPE',
     'Default HPs': 'Default HPs'
 }
+
+os.chdir('..')
+
 if aggregation_level == 'dataset':
 
     file_path = './hpo_framework/results/%s/RankingAnalysis/%s_ranked_metrics.csv' % (

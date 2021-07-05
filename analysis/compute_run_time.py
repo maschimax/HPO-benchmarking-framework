@@ -4,6 +4,7 @@ import numpy as np
 
 total_computing_time = 0
 
+os.chdir('..')
 start_path = './hpo_framework/results'
 datasets = ['turbofan', 'scania', 'sensor', 'blisk', 'surface']
 

@@ -5,6 +5,7 @@ import os
 
 dataset = 'blisk'
 
+os.chdir('..')
 metrics_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
 metrics_df = pd.read_csv(metrics_path, index_col=0)
 

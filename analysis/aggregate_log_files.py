@@ -39,6 +39,7 @@ for _, dirs, _ in os.walk(bm_dir):
                         log_count += 1
 
 # Store them in a single DataFrame / .csv-file
+os.chdir('..')
 save_dir = './hpo_framework/results/' + dataset
 
 if not os.path.isdir(save_dir):

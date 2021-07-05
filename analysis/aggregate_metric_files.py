@@ -38,6 +38,7 @@ for _, dirs, _ in os.walk(dir):
 aggregated_df.reset_index(drop=True, inplace=True)
 
 # Save aggregated metrics df as a .csv-File
+os.chdir('..')
 abs_results_path = os.path.abspath(path='./hpo_framework/results/' + dataset)
 
 if not os.path.isdir(abs_results_path):
