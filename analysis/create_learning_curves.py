@@ -194,6 +194,7 @@ if __name__ == '__main__':
     else:
         single_mode = False
 
+    os.chdir('..')
     log_path = './hpo_framework/results/temp'
     log_dict = {}
 

@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import ast
+import uuid
+from sklearn.preprocessing import OneHotEncoder
 
 from hpo_framework.baseoptimizer import BaseOptimizer
 from datasets.Turbofan_Engine_Degradation.turbofan_preprocessing import turbofan_loading_and_preprocessing
@@ -9,28 +11,21 @@ from datasets.Sensor_System_Production.sensor_loading_and_balancing import senso
 from datasets.Blisk.blisk_preprocessing import blisk_loading_and_preprocessing
 from hpo_framework import hpo_metrics
 
-dataset = 'turbofan'
-find_budget_and_retrain = False
-write_to_metrics = True
 
-# Setup variants (# workers, warm start (Yes / No))
-setup_vars = [(1, False), (8, False), (1, True)]
-
-if find_budget_and_retrain:
-
-    ####################################################################################################################
-    # PART 1: Find time budgets for each use case (minimum wall clock time)
-
-    log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
-
-    # Read the log file -> pd.DataFrame
-    log_df = pd.read_csv(log_path, index_col=0)
+def find_time_budget(log_df: pd.DataFrame):
+    """
+    Identify the time budget for each use case (wall clock time of fastest optimization run)
+    :return: time_budget_df
+    """
 
     worker_list = []
     warm_start_list = []
     algo_list = []
     hpo_tech_list = []
     min_time_list = []
+
+    # Setup variants (# workers, warm start (Yes / No))
+    setup_vars = [(1, False), (8, False), (1, True)]
 
     # Iterate over setup variants
     for this_setup in setup_vars:
@@ -108,12 +103,20 @@ if find_budget_and_retrain:
         'Fastest HPO-technique': hpo_tech_list
     })
 
-    # Write results to .csv-file
-    tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
-    time_budget_df.to_csv(tb_path)
+    return time_budget_df
 
-    ####################################################################################################################
-    # PART 2: Retrain the ML algorithms
+
+def cut_and_reevaluate(time_budget_df: pd.DataFrame, log_df: pd.DataFrame, compute_test_loss=True,
+                       cut_type='max'):
+    """
+    The function computes the validation and (if compute_test_loss=True) the test loss, that has been achieved by the
+     HPO techniques within the time budget.
+    :param cut_type: 'max' -> max time budget cut; 'user' -> user defined cut
+    :param time_budget_df: DataFrame containing a time budget for each BM use case for this data set.
+    :param log_df: DataFrame, that stores the log files of the BM experiments for this data set.
+    :param compute_test_loss: Whether to compute the test loss (retraining required) or not.
+    :return: tb_loss_df
+    """
 
     trial_id_list = []
     algo_list = []
@@ -121,10 +124,17 @@ if find_budget_and_retrain:
     worker_list = []
     warm_start_list = []
     budget_list = []
-    tbloss_list = []
+    tb_testloss_list = []
+    tb_valloss_list = []
+    mean_auc_list = []
     fast_tech_list = []
+    cut_ids = []
+    cut_type_list = []
 
     data_is_loaded = False
+
+    # Setup variants (# workers, warm start (Yes / No))
+    setup_vars = [(1, False), (8, False), (1, True)]
 
     # Iterate over setup variants
     for this_setup in setup_vars:
@@ -139,204 +149,409 @@ if find_budget_and_retrain:
         for this_algo in ml_algos:
 
             # Time budget for this use case
-            this_budget = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
-                                             (time_budget_df['Workers'] == this_setup[0]) &
-                                             (time_budget_df['Warm start'] == this_setup[1]),
-                                             'Time budget [s]'].values[0]
+            budget_arr = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
+                                            (time_budget_df['Workers'] == this_setup[0]) &
+                                            (time_budget_df['Warm start'] == this_setup[1]),
+                                            'Time budget [s]'].values
 
-            this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
-                                                   (time_budget_df['Workers'] == this_setup[0]) &
-                                                   (time_budget_df['Warm start'] == this_setup[1]),
-                                                   'Fastest HPO-technique'].values[0]
+            # Continue, if no time budget / cut is defined for this ML algorithm
+            if budget_arr.size == 0:
+                continue
+            else:
+                # this_budget = budget_arr[0]
+                for this_budget in budget_arr:
 
-            # Filter by ML algorithm -> use case
-            use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
+                    # Unique Identifier for this time budget cut
+                    cut_id = str(uuid.uuid4())
 
-            hpo_techs = list(use_case_df['HPO-method'].unique())
+                    this_fastest_tech = time_budget_df.loc[(time_budget_df['ML-algorithm'] == this_algo) &
+                                                           (time_budget_df['Workers'] == this_setup[0]) &
+                                                           (time_budget_df['Warm start'] == this_setup[1]),
+                                                           'Fastest HPO-technique'].values[0]
 
-            # Iterate over HPO-techniques
-            for this_tech in hpo_techs:
+                    # Filter by ML algorithm -> use case
+                    use_case_df = setup_df.loc[setup_df['ML-algorithm'] == this_algo, :]
 
-                # Filter by HPO-technique
-                hpo_df = use_case_df.loc[use_case_df['HPO-method'] == this_tech, :]
+                    hpo_techs = list(use_case_df['HPO-method'].unique())
 
-                # Run IDs
-                runs = list(hpo_df['Run-ID'].unique())
+                    # Iterate over HPO-techniques
+                    for this_tech in hpo_techs:
 
-                test_loss_list = []
+                        # Filter by HPO-technique
+                        hpo_df = use_case_df.loc[use_case_df['HPO-method'] == this_tech, :]
 
-                # Iterate over runs per HPO-technique
-                for this_run in runs:
+                        # Run IDs
+                        runs = list(hpo_df['Run-ID'].unique())
 
-                    # Filter by run
-                    run_df = hpo_df.loc[hpo_df['Run-ID'] == this_run]
+                        val_loss_list = []
+                        test_loss_list = []
+                        auc_list = []
 
-                    run_successful = run_df['run_successful'].to_numpy()[0]
+                        # Iterate over runs per HPO-technique
+                        for this_run in runs:
 
-                    if not run_successful:
-                        continue
+                            # Filter by run
+                            run_df = hpo_df.loc[hpo_df['Run-ID'] == this_run]
 
-                    # Index of minimum validation loss achieved within the time budget
-                    min_val_loss_idx = run_df.loc[run_df['timestamps'] <= this_budget,
-                                                  'val_losses'].idxmin(axis=0, skipna=True)
+                            run_successful = run_df['run_successful'].to_numpy()[0]
 
-                    # Best found HP configuration within the time budget
-                    try:
-                        best_config_dict = ast.literal_eval(run_df.loc[min_val_loss_idx, 'configurations'])
-                    except:  # Very messy error handling
-                        print('-----------------------------------------------------')
-                        print('Cleaning wrong HP representation in log file!')
+                            if not run_successful:
+                                continue
 
-                        if this_algo == 'AdaBoostRegressor' or this_algo == 'AdaBoostClassifier':
-                            config_str = run_df.loc[min_val_loss_idx, 'configurations']
-                            mem_dict = dict((x.strip('{'), y.strip('}')) for x, y in (element.split(':') for element
-                                                                                      in config_str.split(', ')))
+                            # Continue, if none of the evaluations is inside the time budget
+                            if len(run_df.loc[run_df['timestamps'] <= this_budget, :]) == 0:
+                                continue
 
-                            clean_dict = {}
-                            for old_key in mem_dict.keys():
-                                new_key = old_key.strip("'")
-                                clean_dict[new_key] = mem_dict[old_key]
+                            # Index of minimum validation loss achieved within the time budget
+                            min_val_loss_idx = run_df.loc[run_df['timestamps'] <= this_budget,
+                                                          'val_losses'].idxmin(axis=0, skipna=True)
 
-                            clean_dict['n_estimators'] = int(clean_dict['n_estimators'])
-                            clean_dict['learning_rate'] = float(clean_dict['learning_rate'])
-                            clean_dict['loss'] = clean_dict['loss'].strip().strip("'")
+                            # Append min validation loss within the time budget
+                            val_loss_list.append(run_df.loc[min_val_loss_idx, 'val_losses'])
 
-                            _, max_depth = clean_dict['base_estimator'].split('=')
-                            max_depth = max_depth.strip().strip(')')
-                            del clean_dict['base_estimator']
-                            clean_dict['max_depth'] = int(max_depth)
+                            # Filter for time budget
+                            sub_run_df = run_df.loc[run_df['timestamps'] <= this_budget, :]
 
-                            print('Cleaned HP representation: ', clean_dict)
+                            # Create the descending validation loss trace and compute the AUC within the time budget
+                            lb_loss = np.inf  # initial lower bound of the validation loss
+                            trace_desc = []
+                            i = 0  # iteration counter
+                            for idx, row in sub_run_df.iterrows():
 
-                            best_config_dict = clean_dict
-                        else:
-                            raise Exception('Error handling required!')
+                                this_loss = row['val_losses']
 
-                    # Retrain the ML algorithm for this hyperparameter configuration and calculate the test loss
-                    loss_metric = run_df['loss_metric'].unique()[0]
-                    this_seed = run_df['random_seed'].unique()[0]
+                                if i == 0:
+                                    lb_loss = this_loss
+                                elif this_loss < lb_loss:
+                                    lb_loss = this_loss
 
-                    # Load the data set
-                    if dataset == 'turbofan' and not data_is_loaded:
-                        do_shuffle = True
-                        X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
-                        data_is_loaded = True
-                        is_time_series = False
+                                i += 1
+                                trace_desc.append(lb_loss)
 
-                    elif dataset == 'scania' and not data_is_loaded:
-                        do_shuffle = True
-                        X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
-                        data_is_loaded = True
-                        is_time_series = False
+                            # Compute the AUC based on the descending trace
+                            auc_list.append(hpo_metrics.area_under_curve(trace_desc, lower_bound=0.0))
 
-                    elif dataset == 'sensor' and not data_is_loaded:
-                        do_shuffle = True
-                        X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
-                        data_is_loaded = True
-                        is_time_series = False
+                            if compute_test_loss:
 
-                    elif dataset == 'blisk' and not data_is_loaded:
-                        do_shuffle = False
-                        X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
-                        data_is_loaded = True
-                        is_time_series = True
+                                # Best found HP configuration within the time budget
+                                try:
+                                    best_config_dict = ast.literal_eval(run_df.loc[min_val_loss_idx, 'configurations'])
+                                except:  # Very messy error handling
+                                    print('-----------------------------------------------------')
+                                    print('Cleaning wrong HP representation in log file!')
 
-                    elif data_is_loaded:
-                        raise Exception('Unknown data set!')
+                                    if this_algo == 'AdaBoostRegressor' or this_algo == 'AdaBoostClassifier':
+                                        config_str = run_df.loc[min_val_loss_idx, 'configurations']
+                                        mem_dict = dict((x.strip('{'), y.strip('}')) for x, y in (element.split(':') for element
+                                                                                                  in config_str.split(', ')))
 
-                    # Select the loss metric
-                    if loss_metric == 'RUL-loss':
+                                        clean_dict = {}
+                                        for old_key in mem_dict.keys():
+                                            new_key = old_key.strip("'")
+                                            clean_dict[new_key] = mem_dict[old_key]
 
-                        this_metric = hpo_metrics.rul_loss_score
+                                        clean_dict['n_estimators'] = int(clean_dict['n_estimators'])
+                                        clean_dict['learning_rate'] = float(clean_dict['learning_rate'])
+                                        if 'loss' in clean_dict.keys():
+                                            clean_dict['loss'] = clean_dict['loss'].strip().strip("'")
+                                        elif 'algorithm' in clean_dict.keys():
+                                            clean_dict['algorithm'] = clean_dict['algorithm'].strip().strip("'")
 
-                    elif loss_metric == 'root_mean_squared_error':
+                                        _, max_depth = clean_dict['base_estimator'].split('=')
+                                        max_depth = max_depth.strip().strip(')')
+                                        del clean_dict['base_estimator']
+                                        clean_dict['max_depth'] = int(max_depth)
 
-                        this_metric = hpo_metrics.root_mean_squared_error
+                                        print('Cleaned HP representation: ', clean_dict)
 
-                    elif loss_metric == 'F1-loss':
+                                        best_config_dict = clean_dict
+                                    else:
+                                        raise Exception('Error handling required!')
 
-                        this_metric = hpo_metrics.f1_loss
+                                # Retrain the ML algorithm for this hyperparameter configuration and calculate
+                                # the test loss
+                                loss_metric = run_df['loss_metric'].unique()[0]
+                                this_seed = run_df['random_seed'].unique()[0]
 
-                    else:
-                        raise Exception('Unknown loss metric!')
+                                # Load the data set
+                                if dataset == 'turbofan' and not data_is_loaded:
+                                    do_shuffle = True
+                                    X_train, X_test, y_train, y_test = turbofan_loading_and_preprocessing()
+                                    data_is_loaded = True
+                                    is_time_series = False
 
-                    dummy_optimizer = BaseOptimizer(hp_space=None, hpo_method=None, ml_algorithm=this_algo,
-                                                    x_train=X_train, x_test=X_test, y_train=y_train, y_test=y_test,
-                                                    metric=this_metric, n_func_evals=1,
-                                                    random_seed=this_seed, n_workers=this_setup[0], cross_val=False,
-                                                    shuffle=do_shuffle, is_time_series=is_time_series)
+                                elif dataset == 'scania' and not data_is_loaded:
+                                    do_shuffle = True
+                                    X_train, X_test, y_train, y_test = scania_loading_and_preprocessing()
+                                    data_is_loaded = True
+                                    is_time_series = False
 
-                    print('-----------------------------------------------------')
-                    print('Retrain ' + this_algo + ' on ' + dataset + ' data set.')
-                    test_loss = dummy_optimizer.train_evaluate_ml_model(params=best_config_dict, cv_mode=False,
-                                                                        test_mode=True)
+                                elif dataset == 'sensor' and not data_is_loaded:
+                                    do_shuffle = True
+                                    X_train, X_test, y_train, y_test = sensor_loading_and_preprocessing()
+                                    data_is_loaded = False  # Data reloading necessary for Keras models
+                                    is_time_series = False
 
-                    print('Test loss: ', test_loss)
+                                    if this_algo == 'KerasClassifier' or this_algo == 'KerasRegressor':
 
-                    test_loss_list.append(test_loss)
+                                        # Apply scikit-learn's OneHotEncoder
+                                        oh_enc = OneHotEncoder(sparse=False, handle_unknown='error')
+                                        y_train_oh = oh_enc.fit_transform(np.array(y_train).reshape(-1, 1))
+                                        y_test_oh = oh_enc.transform(np.array(y_test).reshape(-1, 1))
 
-                # Calculate the mean test loss over all runs of this HPO-technique
-                test_loss_arr = np.array(test_loss_list)
-                mean_test_loss = np.nanmean(test_loss_arr)
+                                        # Transform numpy arrays to pandas DataFrames
+                                        y_train = pd.DataFrame(y_train_oh)
+                                        y_test = pd.DataFrame(y_test_oh)
 
-                # Append results
-                trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
-                algo_list.append(this_algo)
-                hpo_tech_list.append(this_tech)
-                worker_list.append(this_setup[0])
-                warm_start_list.append(this_setup[1])
-                budget_list.append(this_budget)
-                tbloss_list.append(mean_test_loss)
-                fast_tech_list.append(this_fastest_tech)
+                                elif dataset == 'blisk' and not data_is_loaded:
+                                    do_shuffle = False
+                                    X_train, X_test, y_train, y_test = blisk_loading_and_preprocessing()
+                                    data_is_loaded = True
+                                    is_time_series = True
+
+                                elif not data_is_loaded:
+                                    raise Exception('Unknown data set!')
+
+                                # Select the loss metric
+                                if loss_metric == 'RUL-loss':
+
+                                    this_metric = hpo_metrics.rul_loss_score
+
+                                elif loss_metric == 'root_mean_squared_error':
+
+                                    this_metric = hpo_metrics.root_mean_squared_error
+
+                                elif loss_metric == 'F1-loss':
+
+                                    this_metric = hpo_metrics.f1_loss
+
+                                else:
+                                    raise Exception('Unknown loss metric!')
+
+                                dummy_optimizer = BaseOptimizer(hp_space=None, hpo_method=None, ml_algorithm=this_algo,
+                                                                x_train=X_train, x_test=X_test, y_train=y_train, y_test=y_test,
+                                                                metric=this_metric, n_func_evals=1,
+                                                                random_seed=this_seed, n_workers=this_setup[0], cross_val=False,
+                                                                shuffle=do_shuffle, is_time_series=is_time_series)
+
+                                print('-----------------------------------------------------')
+                                print('Retrain ' + this_algo + ' on ' + dataset + ' data set.')
+                                test_loss = dummy_optimizer.train_evaluate_ml_model(params=best_config_dict, cv_mode=False,
+                                                                                    test_mode=True)
+
+                                print('Test loss: ', test_loss)
+
+                                test_loss_list.append(test_loss)
+
+                        if compute_test_loss:
+                            # Calculate the mean test loss over all runs of this HPO-technique (within time budget)
+                            test_loss_arr = np.array(test_loss_list)
+                            mean_test_loss = np.nanmean(test_loss_arr)
+
+                        # Calculate the mean validation loss over all runs of this HPO-technique (within time budget)
+                        mean_val_loss = np.nanmean(np.array(val_loss_list))
+
+                        # Calculate the mean AUC over all runs of this HPO technique (within time budget)
+                        mean_auc = np.nanmean(np.array(auc_list))
+
+                        # Trial-ID (to identify the experiment)
+                        trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+
+                        # if not new_use_case:
+                        #     # Use the existing ID
+                        #     trial_id_list.append(hpo_df['Trial-ID'].unique()[0])
+                        # else:
+                        #     # Create a new ID for this trial
+                        #     trial_id_list.append(str(uuid.uuid4()))
+
+                        # Append
+                        cut_ids.append(cut_id)
+                        algo_list.append(this_algo)
+                        hpo_tech_list.append(this_tech)
+                        worker_list.append(this_setup[0])
+                        warm_start_list.append(this_setup[1])
+                        budget_list.append(this_budget)
+                        tb_valloss_list.append(mean_val_loss)
+                        mean_auc_list.append(mean_auc)
+                        fast_tech_list.append(this_fastest_tech)
+                        cut_type_list.append(cut_type)
+
+                        if compute_test_loss:
+                            tb_testloss_list.append(mean_test_loss)
 
     # Create a pd.DataFrame to store the results
-    tb_loss_df = pd.DataFrame({
+    tb_loss_dict = {
         'Trial-ID': trial_id_list,
+        'Cut-ID': cut_ids,
         'ML-algorithm': algo_list,
         'HPO-method': hpo_tech_list,
         'Workers': worker_list,
         'Warm start': warm_start_list,
         'Time Budget [s]': budget_list,
-        'Min. test loss in time budget': tbloss_list,
-        'Fastest HPO-technique': fast_tech_list
-    })
+        'Min. validation loss in time budget': tb_valloss_list,
+        'Mean AUC in time budget': mean_auc_list,
+        'Fastest HPO-technique': fast_tech_list,
+        'Cut type': cut_type_list,
+    }
+    if compute_test_loss:
+        tb_loss_dict['Min. test loss in time budget'] = tb_testloss_list
 
-    # Write results to .csv-file
-    tb_loss_path = './hpo_framework/results/' + dataset + '/min_losses_in_time_budget_' + dataset + '.csv'
-    tb_loss_df.to_csv(tb_loss_path)
+    tb_loss_df = pd.DataFrame(tb_loss_dict)
 
-########################################################################################################################
+    return tb_loss_df
 
 
-if write_to_metrics:
-    # PART 3: Write the results to the metrics file
-    metrics_path = './hpo_framework/results/' + dataset + '/metrics_' + dataset + '.csv'
-    tb_loss_path = './hpo_framework/results/' + dataset + '/min_losses_in_time_budget_' + dataset + '.csv'
+if __name__ == '__main__':
 
-    # Load .csv-files
-    metrics_df = pd.read_csv(metrics_path, index_col=0)
-    tb_df = pd.read_csv(tb_loss_path, index_col=0)
+    # Identify time budgets
+    # Find validation and test losses for a given time budget (computed or user defined)
+    # Find AUC for a given time budget (computed or ?user defined?)
+    # Include new information to metrics.csv file -> can be validation and test loss or AUC
 
-    # Count the number of modified lines in the metrics file
-    col_count = 0
+    dataset = 'blisk'
 
-    # Iterate through the rows in the tb_df
-    for idx, row in tb_df.iterrows():
-        # Query results
-        trial_id = row['Trial-ID']
-        min_test_loss = row['Min. test loss in time budget']
-        time_budget = row['Time Budget [s]']
-        fast_tech = row['Fastest HPO-technique']
+    # Flags
+    identify_time_budgets = False # Find the maximum time budgets (when the first HPO technique finished the total number of evaluations)
 
-        # Write results to metrics_df
-        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Time Budget [s]'] = time_budget
-        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Min. avg. test loss in time budget'] = min_test_loss
-        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Fastest HPO-Technique'] = fast_tech
+    perform_cut = False # Find loss values achieved by HPO techniques at given time budgets
+    user_defined_cut = True
+    compute_test_loss = False
 
-        print(str(col_count) + ' - Modified Trial: ' + trial_id)
-        col_count += 1
+    append_results_to_metrics = True
 
-    print(str(col_count) + ' of ' + str(len(metrics_df)) + ' total lines have been modified!')
+    # Read the aggregated log file -> pd.DataFrame
+    log_path = './hpo_framework/results/' + dataset + '/logs_' + dataset + '.csv'
+    log_df = pd.read_csv(log_path, index_col=0)
 
-    # Save modified metrics .csv-file
-    metrics_df.to_csv(metrics_path)
+    # Find time budgets?
+    if identify_time_budgets:
+        # Identify time budgets for each use case -> minimum wall clock time (fastest optimization run)
+        time_budget_df = find_time_budget(log_df)
+
+        # Write results to .csv-file
+        tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
+        time_budget_df.to_csv(tb_path)
+
+    # Compute loss values for time budgets?
+    if perform_cut:
+
+        # Compute the losses up to the maximum time budget (defined by the fastest optimization run)
+        if not user_defined_cut:
+            tb_path = './hpo_framework/results/' + dataset + '/time_budgets_' + dataset + '.csv'
+            computed_budget_df = pd.read_csv(tb_path, index_col=0)
+            tb_loss_df = cut_and_reevaluate(computed_budget_df, log_df, compute_test_loss=compute_test_loss,
+                                            cut_type='max')
+            filestr = 'losses_for_max_time_cut_'
+
+        # Compute the losses up to the user defined time budget (can be an point prior to the maximum time budget)
+        else:
+            tb_path = './hpo_framework/results/' + dataset + '/my_cuts_' + dataset + '.csv'
+            user_budget_df = pd.read_csv(tb_path, index_col=0)
+            tb_loss_df = cut_and_reevaluate(user_budget_df, log_df, compute_test_loss=compute_test_loss,
+                                            cut_type='user')
+            filestr = 'losses_for_user_def_cut_'
+
+        # Write results to .csv-file
+        tb_loss_path = './hpo_framework/results/' + dataset + '/' + filestr + dataset + '.csv'
+        tb_loss_df.to_csv(tb_loss_path)
+
+    if append_results_to_metrics:
+        # PART 3: Write the results to the metrics file
+        metrics_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
+
+        # cut_data_path = './hpo_framework/results/' + dataset + '/losses_for_max_time_cut_' + dataset + '.csv'
+        # save_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
+
+        cut_data_path = './hpo_framework/results/' + dataset + '/losses_for_user_def_cut_' + dataset + '.csv'
+        save_path = './hpo_framework/results/' + dataset + '/metrics_with_cuts_' + dataset + '.csv'
+
+        # Load .csv-files
+        metrics_df = pd.read_csv(metrics_path, index_col=0)
+        cut_data_df = pd.read_csv(cut_data_path, index_col=0)
+
+        # Count the number of modified lines in the metrics file
+        col_count = 0
+
+        # Iterate through the rows in the tb_df
+        for idx, row in cut_data_df.iterrows():
+
+            trial_id = row['Trial-ID']
+            cut_id = row['Cut-ID']
+            time_budget_str = 'Time Budget [s]'
+            test_loss_str = 'Min. test loss in time budget'
+
+            if time_budget_str in row:
+
+                # Time Budget (cutting point)
+                time_budget = row[time_budget_str]
+
+                # Min validation loss within the time budget (averaged over runs)
+                min_val_loss = row['Min. validation loss in time budget']
+
+                # AUC of the (descending) learning curves within the time budget (averaged over runs)
+                mean_auc = row['Mean AUC in time budget']
+
+                if row['Cut type'] == 'max':
+
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut ID'] = cut_id
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Time Budget [s]'] = time_budget
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Validation Loss'] = min_val_loss
+                    metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut AUC'] = mean_auc
+
+                    if test_loss_str in row:
+                        min_test_loss = row[test_loss_str]
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, 'Max Cut Test Loss'] = min_test_loss
+
+                elif row['Cut type'] == 'user':
+
+                    if '2nd Cut ID' not in metrics_df.columns:
+                        metrics_df['2nd Cut ID'] = np.nan
+                        metrics_df['2nd Cut Time Budget [s]'] = np.nan
+                        metrics_df['2nd Cut Validation Loss'] = np.nan
+                        metrics_df['2nd Cut AUC'] = np.nan
+                    if '3rd Cut ID' not in metrics_df.columns:
+                        metrics_df['3rd Cut ID'] = np.nan
+                        metrics_df['3rd Cut Time Budget [s]'] = np.nan
+                        metrics_df['3rd Cut Validation Loss'] = np.nan
+                        metrics_df['3rd Cut AUC'] = np.nan
+                    if '4th Cut ID' not in metrics_df.columns:
+                        metrics_df['4th Cut ID'] = np.nan
+                        metrics_df['4th Cut Time Budget [s]'] = np.nan
+                        metrics_df['4th Cut Validation Loss'] = np.nan
+                        metrics_df['4th Cut AUC'] = np.nan
+
+                    if metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'].isnull().values:
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut ID'] = cut_id
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Time Budget [s]'] = time_budget
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut Validation Loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '2nd Cut AUC'] = mean_auc
+
+                    elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'].isnull().values:
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut ID'] = cut_id
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Time Budget [s]'] = time_budget
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut Validation Loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '3rd Cut AUC'] = mean_auc
+
+                    elif metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'].isnull().values:
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut ID'] = cut_id
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Time Budget [s]'] = time_budget
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut Validation Loss'] = min_val_loss
+                        metrics_df.loc[metrics_df['Trial-ID'] == trial_id, '4th Cut AUC'] = mean_auc
+
+                    else:
+                        raise Exception('You exceed the maximum number of user defined cuts!')
+
+                else:
+                    raise Exception('Unknown cut type!')
+
+            else:
+                raise Exception('Unknown data format / analysis type! Cannot append the data to the metrics file!')
+
+            print(str(col_count) + ' - Modified Trial: ' + trial_id)
+            col_count += 1
+
+        print(str(col_count) + ' of ' + str(len(metrics_df)) + ' total lines have been modified!')
+
+        # Save modified metrics .csv-file
+        metrics_df.to_csv(save_path)
+        print('Saved the updated file: ', save_path)

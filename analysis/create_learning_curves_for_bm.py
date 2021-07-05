@@ -1,11 +1,11 @@
 import os
 import pandas as pd
-from create_learning_curves import plot_aggregated_learning_curves
+from analysis.create_learning_curves import plot_aggregated_learning_curves
 
 if __name__ == '__main__':
 
     # Specify the data set
-    dataset = 'turbofan'
+    dataset = 'blisk'
     bm_dir = 'C:/Users/Max/OneDrive - rwth-aachen.de/Uni/Master/Masterarbeit/01_Content/05_Benchmarking Study/' + dataset
 
     # Count the number of log files

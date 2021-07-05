@@ -1,0 +1,8 @@
+Workflow for adding user-defined time budget cuts to the learning curves:
+1. Aggregate the metric files of a data set: aggregate_metric_files.py -> metrics_<dataset>.csv
+2. Aggregate the log files of a data set: aggregate_log_files.py -> logs_<dataset>.csv
+3. Identify the maximum time budget: cut_time_budget_and_retrain.py // dataset=<dataset>, identify_time_budgets=True, perform_cut=True, user_defined_cut=False, compute_test_loss=True, append_results_to_metrics=False -> time_budgets_<dataset>.csv, losses_for_user_max_cut_<dataset>.csv
+4. Define additional time budgets and cut the learnign curves: create my_cuts_<dataset>.csv and run cut_time_budget_and_retrain.py // dataset=<dataset>, identify_time_budgets=False, perform_cut=True, user_defined_cut=True, compute_test_loss=False, append_results_to_metrics=False -> losses_for_user_def_cut_<dataset>.csv
+5. Create metrics_with_cuts_<dataset>.csv as a copy of metrics_<dataset>.csv
+5. Update the metrics file with the additional time cuts: Run cut_time_budget_and_retrain.py twice -> one run for max cuts and one run for user defined cuts (manually adjust the loading path) // dataset=<dataset>, identify_time_budgets=False, perform_cut=False, append_results_to_metrics=True
+6. Perform a ranking analysis: Run evaluate_performance_metrics.py for this data set

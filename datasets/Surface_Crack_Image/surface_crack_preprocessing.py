@@ -68,4 +68,7 @@ def surface_crack_loading_and_preprocessing(images_per_class=2000):
     y_train = pd.Series(y_train)
     y_test = pd.Series(y_test)
 
+    print('Surface data set - number of training samples: ', str(len(y_train)))
+    print('Surface data set - number of test samples: ', str(len(y_test)))
+
     return X_train, X_test, y_train, y_test

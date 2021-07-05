@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 # Specify the data set
-dataset = 'turbofan'
+dataset = 'blisk'
 bm_dir = 'C:/Users/Max/OneDrive - rwth-aachen.de/Uni/Master/Masterarbeit/01_Content/05_Benchmarking Study/' + dataset
 
 # Count the number of log files
@@ -39,6 +39,7 @@ for _, dirs, _ in os.walk(bm_dir):
                         log_count += 1
 
 # Store them in a single DataFrame / .csv-file
+os.chdir('..')
 save_dir = './hpo_framework/results/' + dataset
 
 if not os.path.isdir(save_dir):
